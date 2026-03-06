@@ -1,0 +1,206 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <title>Moods</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{% static 'styles.css' %}">
+</head>
+<body>
+
+  <div class="bg-blobs" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+  </div>
+
+  <!-- TOAST -->
+  <div class="toast hidden" id="toast"></div>
+
+  <!-- =============================== -->
+  <!-- AUTH SCREEN                      -->
+  <!-- =============================== -->
+  <div id="auth-screen" class="screen auth-screen">
+    <div class="auth-card liquid-glass">
+      <h1 class="auth-title">Moods</h1>
+      <p class="auth-sub" id="auth-sub">Войди или создай аккаунт</p>
+
+      <div class="auth-tabs">
+        <button class="auth-tab active" data-auth="login">Вход</button>
+        <button class="auth-tab" data-auth="register">Регистрация</button>
+      </div>
+
+      <div class="auth-form" id="auth-form">
+        <div class="field-group">
+          <label class="field-label" for="auth-username">Логин</label>
+          <input type="text" id="auth-username" class="glass-input" placeholder="Имя пользователя" autocomplete="username">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="auth-password">Пароль</label>
+          <input type="password" id="auth-password" class="glass-input" placeholder="Минимум 8 символов" autocomplete="current-password">
+        </div>
+        <div class="auth-error hidden" id="auth-error"></div>
+        <button class="btn-primary" id="auth-submit">Войти</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- =============================== -->
+  <!-- APP                              -->
+  <!-- =============================== -->
+  <div id="app" class="app-shell hidden">
+
+    <header class="app-header liquid-glass">
+      <h1 class="app-title" id="screen-title">Moods</h1>
+      <button class="btn-icon-glass" id="btn-add-entry" aria-label="Добавить запись">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      </button>
+    </header>
+
+    <!-- TAB: HOME -->
+    <main class="tab-content" id="tab-home">
+      <div class="empty-state" id="empty-home">
+        <div class="empty-icon">📝</div>
+        <p class="empty-title">Пока пусто</p>
+        <p class="empty-sub">Нажми «+» чтобы добавить первую запись</p>
+      </div>
+      <div class="entries-list" id="entries-list"></div>
+      <div class="scroll-loader hidden" id="scroll-loader">
+        <div class="spinner"></div>
+      </div>
+    </main>
+
+    <!-- TAB: CHART -->
+    <section class="tab-content hidden" id="tab-chart">
+      <div class="chart-filters" id="chart-filters">
+        <div class="seg-control liquid-glass">
+          <div class="seg-indicator" id="seg-indicator"></div>
+          <button class="seg-btn active" data-period="all">Всё</button>
+          <button class="seg-btn" data-period="year">Год</button>
+          <button class="seg-btn" data-period="6months">6 мес</button>
+          <button class="seg-btn" data-period="month">Месяц</button>
+          <button class="seg-btn" data-period="2weeks">2 нед</button>
+        </div>
+      </div>
+      <div class="chart-wrapper liquid-glass">
+        <canvas id="mood-chart"></canvas>
+      </div>
+      <div class="chart-stats" id="chart-stats"></div>
+      <div class="empty-state hidden" id="empty-chart">
+        <div class="empty-icon">📊</div>
+        <p class="empty-title">Нет данных</p>
+        <p class="empty-sub">Добавь запись, чтобы увидеть график</p>
+      </div>
+    </section>
+
+    <!-- TAB: SETTINGS -->
+    <section class="tab-content hidden" id="tab-settings">
+      <div class="settings-group liquid-glass">
+        <div class="setting-row">
+          <div class="setting-info"><span class="setting-label">Тёмная тема</span></div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-theme"><span class="toggle-track"></span>
+          </label>
+        </div>
+        <div class="setting-row">
+          <div class="setting-info"><span class="setting-label">Уменьшить прозрачность</span></div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-transparency"><span class="toggle-track"></span>
+          </label>
+        </div>
+      </div>
+      <div class="settings-group liquid-glass">
+        <div class="setting-row">
+          <div class="setting-info"><span class="setting-label">Экспорт данных</span></div>
+          <button class="btn-sm-accent" id="btn-export">JSON</button>
+        </div>
+      </div>
+      <div class="settings-group liquid-glass">
+        <div class="setting-row">
+          <div class="setting-info"><span class="setting-label">Выйти из аккаунта</span></div>
+          <button class="btn-sm-danger" id="btn-logout">Выход</button>
+        </div>
+      </div>
+      <p class="settings-footer">Moods v1.0</p>
+    </section>
+
+    <!-- TAB BAR -->
+    <nav class="tab-bar-wrap">
+      <div class="tab-bar liquid-glass">
+        <div class="tab-indicator" id="tab-indicator"></div>
+        <button class="tab-btn active" data-tab="home" aria-label="Записи">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
+          <span>Записи</span>
+        </button>
+        <button class="tab-btn" data-tab="chart" aria-label="График">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+          <span>График</span>
+        </button>
+        <button class="tab-btn" data-tab="settings" aria-label="Настройки">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          <span>Настройки</span>
+        </button>
+      </div>
+    </nav>
+  </div>
+
+  <!-- MODAL: ADD / EDIT / VIEW -->
+  <div class="modal-overlay hidden" id="modal-entry">
+    <div class="modal liquid-glass">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2 id="modal-entry-title">Новая запись</h2>
+        <button class="btn-icon-glass btn-close" id="modal-entry-close" aria-label="Закрыть">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <label class="field-label">Как настроение?</label>
+        <div class="mood-picker" id="mood-picker"></div>
+        <div class="mood-value-display" id="mood-value-display">—</div>
+
+        <label class="field-label" for="entry-note">Заметка</label>
+        <textarea id="entry-note" class="glass-input" rows="3" placeholder="Что произошло?"></textarea>
+
+        <label class="field-label">Теги <span class="field-hint">(необязательно)</span></label>
+        <div class="tag-chips" id="tag-chips"></div>
+
+        <label class="field-label">Дата и время</label>
+        <div class="datetime-row">
+          <input type="date" id="entry-date" class="glass-input dt-input">
+          <input type="time" id="entry-time" class="glass-input dt-input">
+        </div>
+
+        <div class="form-error hidden" id="form-error"></div>
+        <input type="hidden" id="entry-id">
+      </div>
+      <div class="modal-footer">
+        <button class="btn-primary" id="btn-save-entry" disabled>Сохранить</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIRM -->
+  <div class="modal-overlay hidden" id="modal-confirm">
+    <div class="modal liquid-glass modal-sm">
+      <div class="modal-body" style="text-align:center">
+        <div class="confirm-icon">🗑️</div>
+        <h3 id="confirm-title">Удалить запись?</h3>
+        <p id="confirm-text">Это действие нельзя отменить.</p>
+      </div>
+      <div class="modal-footer modal-footer-split">
+        <button class="btn-secondary" id="btn-confirm-cancel">Отмена</button>
+        <button class="btn-danger" id="btn-confirm-ok">Удалить</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="{% static 'app.js' %}"></script>
+</body>
+</html>
