@@ -4,9 +4,9 @@
 // CONSTANTS
 // ============================================
 
-const MOOD_COLORS = ['','#ff3b30','#ff6b3d','#ff9500','#ffcc00','#c7c729','#a8d84e','#34c759','#30b0c7','#5ac8fa'];
-const MOOD_LABELS = ['','Ужасно','Очень плохо','Плохо','Так себе','Нормально','Неплохо','Хорошо','Отлично','Прекрасно'];
-const MOOD_EMOJI  = ['','😣','😞','😕','😐','🙂','😊','😄','😁','🤩'];
+const MOOD_COLORS = ['', '#ff3b30', '#ff6b3d', 'rgb(255, 149, 0)', '#ffcc00', '#c7c729', '#a8d84e', '#34c759', '#30b0c7', '#5ac8fa'];
+const MOOD_LABELS = ['', 'Ужасно', 'Очень плохо', 'Плохо', 'Так себе', 'Нормально', 'Неплохо', 'Хорошо', 'Отлично', 'Прекрасно'];
+const MOOD_EMOJI = ['', '😣', '😞', '😕', '😐', '🙂', '😊', '😄', '😁', '🤩'];
 const SETTINGS_KEY = 'moods_settings';
 
 // ============================================
@@ -19,28 +19,28 @@ const $$ = s => document.querySelectorAll(s);
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 function dayLabel(dateStr) {
-  const today = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0, 0, 0, 0);
   const d = new Date(dateStr + 'T12:00:00');
   const diff = Math.round((today - d) / 86400000);
   if (diff === 0) return 'Сегодня';
   if (diff === 1) return 'Вчера';
-  return d.toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' });
+  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
 }
 
 function formatTime(iso) {
-  return new Date(iso).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
+  return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
 }
 
 function formatDateShort(iso) {
-  return new Date(iso).toLocaleDateString('ru-RU', { day:'numeric', month:'short' });
+  return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
 }
 
 function isoDateStr(d) {
-  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
 function isoTimeStr(d) {
-  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 }
 
 function getCsrf() {
@@ -419,12 +419,15 @@ const Entries = {
             <span class="entry-mood-text">${MOOD_LABELS[e.mood]}</span>
             <span class="entry-time">${formatTime(e.timestamp)}</span>
           </div>
-          ${note}${tags ? `<div class="entry-block-tags">${tags}</div>` : ''}
           <div class="entry-card-footer">
+            <div class="entry-block-right">
+              ${note}${tags ? `<div class="entry-block-tags">${tags}</div>` : ''}
+            </div>
             <button class="entry-delete-btn" data-id="${e.id}" aria-label="Удалить">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
             </button>
           </div>
+
         </div>
       </div>`;
   },
