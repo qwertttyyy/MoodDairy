@@ -5,6 +5,33 @@ import django.utils.timezone
 from django.conf import settings
 from django.db import migrations, models
 
+def create_default_tags(apps, schema_editor):
+    Tag = apps.get_model("entries", "Tag")
+
+    tag_names = [
+        "Работа",
+        "Семья",
+        "Спорт",
+        "Отдых",
+        "Стресс",
+    ]
+
+    for name in tag_names:
+        Tag.objects.get_or_create(name=name)
+
+
+def reverse_default_tags(apps, schema_editor):
+    Tag = apps.get_model("entries", "Tag")
+
+    tag_names = [
+        "Работа",
+        "Семья",
+        "Спорт",
+        "Отдых",
+        "Стресс",
+    ]
+
+    Tag.objects.filter(name__in=tag_names).delete()
 
 class Migration(migrations.Migration):
 
@@ -40,6 +67,12 @@ class Migration(migrations.Migration):
                 'ordering': ['name'],
             },
         ),
+
+        migrations.RunPython(
+            create_default_tags,
+            reverse_default_tags
+        ),
+
         migrations.CreateModel(
             name='MoodEntry',
             fields=[
