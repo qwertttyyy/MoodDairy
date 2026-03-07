@@ -2,6 +2,7 @@ from django.conf import settings
 
 CACHE_TTL: int = settings.CACHE_TTL
 CACHE_PREFIX: str = "entries"
+VERSION_TTL: int = 86400
 
 DAYS_PER_PAGE: int = 7
 

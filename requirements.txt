@@ -4,4 +4,6 @@ djangorestframework==3.16.1
 psycopg2-binary==2.9.11
 sqlparse==0.5.5
 gunicorn>=23.0
-python-dotenv
+python-dotenv==1.2.1
+redis[hiredis]>=5.0
+django-redis==6.0.0

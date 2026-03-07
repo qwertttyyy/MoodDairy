@@ -82,7 +82,7 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
             json_dumps_params={"ensure_ascii": False, "indent": 2},
         )
         filename = f"moods-export-{date.today()}.json"
-        response["Content-Disposition"] = f'attachment; filename="{filenFame}"'
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
 
     def perform_create(self, serializer: MoodEntryWriteSerializer) -> None:
