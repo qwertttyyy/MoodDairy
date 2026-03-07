@@ -497,14 +497,21 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
 /* ============================================
    MOOD PICKER
    ============================================ */
-.mood-picker { display:grid;grid-template-columns:repeat(9,1fr);gap:5px; }
+.mood-picker { display: flex;justify-content: space-between;gap: 4px;flex-wrap: nowrap; }
 
 .mood-btn {
   aspect-ratio:1;border-radius:var(--r-sm);
   display:flex;align-items:center;justify-content:center;
   font-size:0.82rem;font-weight:800;color:#fff;
-  opacity:0.35;min-height:34px;
+  opacity:0.35;
+  flex: 1;
   transition:opacity var(--t-fast),transform var(--t-fast),box-shadow var(--t-fast);
+}
+@media(max-width: 350px){
+  .mood-btn {
+    font-size: 0.9rem;
+    border-radius: 8px;
+  }
 }
 .mood-btn:active { transform:scale(0.88); }
 .mood-btn.selected {
@@ -703,12 +710,14 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
   cursor:pointer;
 }
 .entry-card-footer {
-  position: absolute;
-  right: 0; bottom: 0;
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  justify-content: space-between;
 }
 .entry-delete-btn {
   display:flex;align-items:center;justify-content:center;
-  width:32px;height:32px;border-radius:50%;
+  width:16px;height:16px;border-radius:50%;
   color:var(--c-tertiary);
   transition:background var(--t-fast),color var(--t-fast);
 }
@@ -716,5 +725,4 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
 
 .entry-block-tags {
   margin-top: 4px;
-  margin-right: 32px;
 }
