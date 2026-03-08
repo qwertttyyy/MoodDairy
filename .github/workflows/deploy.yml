@@ -2,7 +2,7 @@ name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: [master]
 
 jobs:
   deploy:
@@ -18,7 +18,17 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
+            set -e
             cd /opt/projects/MoodDairy
-            git pull origin main
-            docker compose build --no-cache web
-            docker compose up -d
+            git pull origin master
+            docker compose build web
+            docker compose up -d --no-deps web
+            docker image prune -f
+
+      - name: Notify on success
+        if: success()
+        run: echo "✅ Deploy successful"
+
+      - name: Notify on failure
+        if: failure()
+        run: echo "❌ Deploy failed"
