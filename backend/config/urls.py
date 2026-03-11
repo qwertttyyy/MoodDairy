@@ -6,7 +6,12 @@ from django.views.generic import TemplateView
 
 from config import settings
 
-app_view = ensure_csrf_cookie(TemplateView.as_view(template_name="index.html"))
+app_view = ensure_csrf_cookie(
+    TemplateView.as_view(
+        template_name="index.html",
+        extra_context={"encryption_enabled": settings.ENCRYPTION_ENABLED},
+    )
+)
 
 urlpatterns = [
     path("", app_view, name="app"),

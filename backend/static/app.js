@@ -4,10 +4,26 @@
 // CONSTANTS
 // ============================================
 
-const MOOD_COLORS = ['', '#ff3b30', '#ff6b3d', 'rgb(255, 149, 0)', '#ffcc00', '#c7c729', '#a8d84e', '#34c759', '#30b0c7', '#5ac8fa'];
-const MOOD_LABELS = ['', 'Ужасно', 'Очень плохо', 'Плохо', 'Так себе', 'Нормально', 'Неплохо', 'Хорошо', 'Отлично', 'Прекрасно'];
-const MOOD_EMOJI = ['', '😣', '😞', '😕', '😐', '🙂', '😊', '😄', '😁', '🤩'];
+const MOOD_COLORS = ['','#ff3b30','#ff6b3d','#ff9500','#ffcc00','#c7c729','#a8d84e','#34c759','#30b0c7','#5ac8fa'];
+const MOOD_LABELS = ['','Ужасно','Очень плохо','Плохо','Так себе','Нормально','Неплохо','Хорошо','Отлично','Прекрасно'];
+const MOOD_EMOJI  = ['','😣','😞','😕','😐','🙂','😊','😄','😁','🤩'];
+const MOOD_GUIDE = [
+  '',
+  'Очень тяжело всё это выносить, не знаю как быть дальше, полная апатия, отсутствие желания жить и понимания зачем, не верю в то, что есть выход и жизнь может быть приятной, лежу без сил и чувств весь день',
+  'Апатия. Не хочу и не могу работать, общаться. Хочется спрятаться ото всех. Уязвимость, раздражительность, плаксивость. Легко обижаюсь. Вижу всё через призму негатива',
+  'Пусто, грустно, скучно. Вакуум. На всё — всё равно',
+  'Неплохо или никак. Вроде и неплохо, но ощущается какой-то дефицит. Настроение меланхоличное',
+  'Ровно. Без качелей. Спокойно. Комфортно',
+  'Приподнятое настроение, но контролируемо. Работоспособность хорошая',
+  'Хорошее, возбуждённое состояние. Хочется тусить, общаться, тренироваться и работать. Весьма весело',
+  'Я в ударе. Шучу, остроумничаю, горю идеями, вспоминаю хобби. Занимаюсь творчеством, спортом. Хочется делиться энергией с окружающими. Эмпатия на максимум',
+  'Эйфория. Как будто под чем-то. Жизнь прекрасна, ничто не может расстроить. Энергии и сил через край. За любой движ и спонтанные необдуманные поступки',
+];
+const MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+const MONTH_NAMES_SHORT = ['янв.','февр.','мар.','апр.','мая','июн.','июл.','авг.','сен.','окт.','ноя.','дек.'];
 const SETTINGS_KEY = 'moods_settings';
+
+const ENCRYPTION_ENABLED = window.__APP_CONFIG__?.encryptionEnabled ?? true;
 
 // ============================================
 // UTILS
@@ -19,28 +35,28 @@ const $$ = s => document.querySelectorAll(s);
 function esc(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
 function dayLabel(dateStr) {
-  const today = new Date(); today.setHours(0, 0, 0, 0);
+  const today = new Date(); today.setHours(0,0,0,0);
   const d = new Date(dateStr + 'T12:00:00');
   const diff = Math.round((today - d) / 86400000);
   if (diff === 0) return 'Сегодня';
   if (diff === 1) return 'Вчера';
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' });
+  return d.toLocaleDateString('ru-RU', { day:'numeric', month:'long', year:'numeric' });
 }
 
 function formatTime(iso) {
-  return new Date(iso).toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  return new Date(iso).toLocaleTimeString('ru-RU', { hour:'2-digit', minute:'2-digit' });
 }
 
 function formatDateShort(iso) {
-  return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' });
+  return new Date(iso).toLocaleDateString('ru-RU', { day:'numeric', month:'short' });
 }
 
 function isoDateStr(d) {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 }
 
 function isoTimeStr(d) {
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
 }
 
 function getCsrf() {
@@ -85,6 +101,7 @@ const Crypto = {
   },
 
   async encrypt(plaintext) {
+    if (!ENCRYPTION_ENABLED) return plaintext;
     const key = await this._getCryptoKey();
     const iv = crypto.getRandomValues(new Uint8Array(12));
     const enc = new TextEncoder();
@@ -93,6 +110,7 @@ const Crypto = {
   },
 
   async decrypt(blob) {
+    if (!ENCRYPTION_ENABLED) return blob || '';
     if (!blob || !blob.includes(':')) return '';
     const [ivB64, ctB64] = blob.split(':', 2);
     const iv = Uint8Array.from(atob(ivB64), c => c.charCodeAt(0));
@@ -242,15 +260,18 @@ const Auth = {
   },
 
   async register(username, password) {
-    const salt = Crypto.generateSalt();
-    const bits = await Crypto.deriveKey(password, salt);
-    Crypto.storeFromDerived(bits);
+    let salt = '';
+    if (ENCRYPTION_ENABLED) {
+      salt = Crypto.generateSalt();
+      const bits = await Crypto.deriveKey(password, salt);
+      Crypto.storeFromDerived(bits);
+    }
 
     const res = await Api.post('/api/auth/register/', { username, password, encryption_salt: salt });
     const data = await res.json();
     if (!res.ok) throw new Error(Api.parseErrors(data));
 
-    await Crypto.wrapKey(data.wrapping_key);
+    if (ENCRYPTION_ENABLED) await Crypto.wrapKey(data.wrapping_key);
     this._password = null;
     App.start();
   },
@@ -260,12 +281,14 @@ const Auth = {
     const data = await res.json();
     if (!res.ok) throw new Error(Api.parseErrors(data));
 
-    const profRes = await Api.get('/api/auth/profile/');
-    const profData = await profRes.json();
+    if (ENCRYPTION_ENABLED) {
+      const profRes = await Api.get('/api/auth/profile/');
+      const profData = await profRes.json();
+      const bits = await Crypto.deriveKey(password, profData.encryption_salt);
+      Crypto.storeFromDerived(bits);
+      await Crypto.wrapKey(data.wrapping_key);
+    }
 
-    const bits = await Crypto.deriveKey(password, profData.encryption_salt);
-    Crypto.storeFromDerived(bits);
-    await Crypto.wrapKey(data.wrapping_key);
     this._password = null;
     App.start();
   },
@@ -273,6 +296,8 @@ const Auth = {
   async tryRestore() {
     const meRes = await Api.get('/api/auth/me/');
     if (!meRes.ok) return false;
+
+    if (!ENCRYPTION_ENABLED) return true;
 
     if (Crypto.hasKey()) return true;
 
@@ -413,7 +438,10 @@ const Entries = {
 
     return `
       <div class="entry-card" data-id="${e.id}">
-        <div class="entry-mood-badge" style="background:${MOOD_COLORS[e.mood]}">${MOOD_EMOJI[e.mood]}</div>
+        <div class="entry-mood-badge" style="background:${MOOD_COLORS[e.mood]}">
+          <span class="badge-emoji">${MOOD_EMOJI[e.mood]}</span>
+          <span class="badge-num">${e.mood}</span>
+        </div>
         <div class="entry-body">
           <div class="entry-top-row">
             <span class="entry-mood-text">${MOOD_LABELS[e.mood]}</span>
@@ -427,7 +455,6 @@ const Entries = {
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
             </button>
           </div>
-
         </div>
       </div>`;
   },
@@ -627,29 +654,187 @@ const Confirm = {
 };
 
 // ============================================
+// MOOD GUIDE
+// ============================================
+
+const MoodGuide = {
+  init() {
+    this._buildList();
+    $('#btn-mood-guide').addEventListener('click', () => this.open());
+    $('#btn-mood-guide-modal').addEventListener('click', () => this.open());
+    $('#modal-guide-close').addEventListener('click', () => this.close());
+    $('#modal-mood-guide').addEventListener('click', e => {
+      if (e.target.id === 'modal-mood-guide') this.close();
+    });
+  },
+
+  _buildList() {
+    const el = $('#mood-guide-list');
+    let html = '';
+    for (let i = 9; i >= 1; i--) {
+      html += `
+        <div class="guide-item">
+          <div class="guide-badge" style="background:${MOOD_COLORS[i]}">
+            <span>${MOOD_EMOJI[i]}</span>
+            <span class="guide-badge-num">${i}</span>
+          </div>
+          <div class="guide-text">
+            <strong>${MOOD_LABELS[i]}</strong>
+            <p>${esc(MOOD_GUIDE[i])}</p>
+          </div>
+        </div>`;
+    }
+    el.innerHTML = html;
+  },
+
+  open() {
+    $('#modal-mood-guide').classList.remove('hidden');
+  },
+
+  close() {
+    $('#modal-mood-guide').classList.add('hidden');
+  }
+};
+
+// ============================================
+// MONTH PICKER
+// ============================================
+
+const MonthPicker = {
+  year: null,
+  month: null,
+  minYear: null,
+  minMonth: null,
+  loaded: false,
+
+  init() {
+    const now = new Date();
+    this.year = now.getFullYear();
+    this.month = now.getMonth() + 1;
+
+    $('#month-prev').addEventListener('click', () => this.prev());
+    $('#month-next').addEventListener('click', () => this.next());
+  },
+
+  async loadDateRange() {
+    if (this.loaded) return;
+    try {
+      const res = await Api.get('/api/entries/date-range/');
+      if (res.ok) {
+        const data = await res.json();
+        if (data.first_date) {
+          const d = new Date(data.first_date);
+          this.minYear = d.getFullYear();
+          this.minMonth = d.getMonth() + 1;
+        }
+      }
+    } catch { /* ignore */ }
+    this.loaded = true;
+  },
+
+  show() {
+    $('#month-picker').classList.remove('hidden');
+    this._render();
+  },
+
+  hide() {
+    $('#month-picker').classList.add('hidden');
+  },
+
+  reset() {
+    const now = new Date();
+    this.year = now.getFullYear();
+    this.month = now.getMonth() + 1;
+  },
+
+  prev() {
+    if (this.month === 1) { this.year--; this.month = 12; }
+    else this.month--;
+    this._clamp();
+    this._render();
+    Chart.loadMonth(this.year, this.month);
+  },
+
+  next() {
+    if (this.month === 12) { this.year++; this.month = 1; }
+    else this.month++;
+    this._clamp();
+    this._render();
+    Chart.loadMonth(this.year, this.month);
+  },
+
+  _clamp() {
+    const now = new Date();
+    const maxY = now.getFullYear(), maxM = now.getMonth() + 1;
+    if (this.year > maxY || (this.year === maxY && this.month > maxM)) {
+      this.year = maxY; this.month = maxM;
+    }
+    if (this.minYear != null) {
+      if (this.year < this.minYear || (this.year === this.minYear && this.month < this.minMonth)) {
+        this.year = this.minYear; this.month = this.minMonth;
+      }
+    }
+  },
+
+  _render() {
+    $('#month-label').textContent = `${MONTH_NAMES[this.month - 1]} ${this.year}`;
+
+    const now = new Date();
+    const maxY = now.getFullYear(), maxM = now.getMonth() + 1;
+    const atMax = this.year === maxY && this.month === maxM;
+    const atMin = this.minYear != null && this.year === this.minYear && this.month === this.minMonth;
+
+    $('#month-prev').disabled = atMin;
+    $('#month-next').disabled = atMax;
+    $('#month-prev').style.opacity = atMin ? '0.3' : '1';
+    $('#month-next').style.opacity = atMax ? '0.3' : '1';
+  }
+};
+
+// ============================================
 // CHART
 // ============================================
 
 const Chart = {
-  period: 'all',
+  period: 'month',
 
   init() {
+    $$('.seg-btn').forEach(b => b.classList.toggle('active', b.dataset.period === 'month'));
     $$('.seg-btn').forEach(b => {
       b.addEventListener('click', () => {
         $$('.seg-btn').forEach(x => x.classList.remove('active'));
         b.classList.add('active');
         this.period = b.dataset.period;
         this._updateSegIndicator();
-        this.load();
+
+        if (this.period === 'month') {
+          MonthPicker.reset();
+          MonthPicker.show();
+          this.loadMonth(MonthPicker.year, MonthPicker.month);
+        } else {
+          MonthPicker.hide();
+          this.load();
+        }
       });
     });
     requestAnimationFrame(() => this._updateSegIndicator());
   },
 
+  async loadMonth(year, month) {
+    await MonthPicker.loadDateRange();
+    MonthPicker._render();
+
+    const url = `/api/entries/?year=${year}&month=${month}`;
+    await this._fetchAndDraw(url);
+  },
+
   async load() {
     let url = '/api/entries/';
     if (this.period !== 'all') url += `?period=${this.period}`;
+    await this._fetchAndDraw(url);
+  },
 
+  async _fetchAndDraw(url) {
     const res = await Api.get(url);
     if (!res.ok) return;
     const raw = await res.json();
@@ -677,101 +862,164 @@ const Chart = {
     const canvas = $('#mood-chart');
     const dpr = devicePixelRatio || 1;
     const W = canvas.parentElement.clientWidth - 20, H = 200;
-    canvas.width = W * dpr; canvas.height = H * dpr;
-    canvas.style.width = W + 'px'; canvas.style.height = H + 'px';
+    canvas.width = W * dpr;
+    canvas.height = H * dpr;
+    canvas.style.width = W + 'px';
+    canvas.style.height = H + 'px';
     const ctx = canvas.getContext('2d');
-    ctx.scale(dpr, dpr); ctx.clearRect(0, 0, W, H);
+    ctx.scale(dpr, dpr);
+    ctx.clearRect(0, 0, W, H);
 
-    const pL = 28, pR = 12, pT = 16, pB = 30;
+    const pL = 28, pR = 12, pT = 16, pB = 32;
     const plotW = W - pL - pR, plotH = H - pT - pB;
 
     const cs = getComputedStyle(document.documentElement);
     const txtC = cs.getPropertyValue('--c-tertiary').trim() || '#aaa';
     const accC = cs.getPropertyValue('--accent').trim() || '#007aff';
 
-    ctx.font = '500 10px Nunito,sans-serif'; ctx.fillStyle = txtC; ctx.textAlign = 'right';
+    ctx.font = '500 10px Nunito,sans-serif';
+    ctx.fillStyle = txtC;
+    ctx.textAlign = 'right';
     for (const v of [1, 3, 5, 7, 9]) {
       const y = pT + plotH - ((v - 1) / 8) * plotH;
-      ctx.strokeStyle = 'rgba(128,128,128,0.12)'; ctx.lineWidth = 0.5;
+      ctx.strokeStyle = 'rgba(128,128,128,0.12)';
+      ctx.lineWidth = 0.5;
       ctx.setLineDash([3, 3]);
-      ctx.beginPath(); ctx.moveTo(pL, y); ctx.lineTo(pL + plotW, y); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(pL, y);
+      ctx.lineTo(pL + plotW, y);
+      ctx.stroke();
       ctx.setLineDash([]);
       ctx.fillText(v, pL - 6, y + 4);
     }
 
-    // Агрегация: если точек > 90, усредняем по дням
-    let pts;
-    if (entries.length > 90) {
-      const byDay = {};
-      entries.forEach(e => {
-        const d = e.timestamp.slice(0, 10);
-        if (!byDay[d]) byDay[d] = [];
-        byDay[d].push(e.mood);
-      });
-      const days = Object.keys(byDay).sort();
-      pts = days.map((d, i) => {
-        const avg = byDay[d].reduce((s, v) => s + v, 0) / byDay[d].length;
-        return {
-          x: pL + (i / Math.max(days.length - 1, 1)) * plotW,
-          y: pT + plotH - ((avg - 1) / 8) * plotH,
-          mood: Math.round(avg), ts: d
-        };
-      });
-    } else {
-      pts = entries.map((e, i) => ({
-        x: pL + (i / Math.max(entries.length - 1, 1)) * plotW,
-        y: pT + plotH - ((e.mood - 1) / 8) * plotH,
-        mood: e.mood, ts: e.timestamp
-      }));
+    // Агрегация по дням
+    const byDay = {};
+    entries.forEach(e => {
+      const d = e.timestamp.slice(0, 10);
+      if (!byDay[d]) byDay[d] = [];
+      byDay[d].push(e.mood);
+    });
+    const days = Object.keys(byDay).sort();
+    let dayAvgs = days.map(d => {
+      const vals = byDay[d];
+      return {day: d, avg: vals.reduce((s, v) => s + v, 0) / vals.length};
+    });
+
+    // Скользящее среднее: адаптивный размер окна
+    if (dayAvgs.length > 14) {
+      let window;
+      if (dayAvgs.length > 180) window = 7;
+      else if (dayAvgs.length > 60) window = 5;
+      else window = 3;
+      dayAvgs = this._sma(dayAvgs, window);
     }
 
+    let pts = dayAvgs.map((d, i) => ({
+      x: pL + (i / Math.max(dayAvgs.length - 1, 1)) * plotW,
+      y: pT + plotH - ((d.avg - 1) / 8) * plotH,
+      mood: Math.round(d.avg),
+      ts: d.day
+    }));
+
     if (pts.length < 2) {
-      const p = pts[0];
-      ctx.beginPath(); ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
-      ctx.fillStyle = MOOD_COLORS[p.mood]; ctx.fill();
+      if (pts.length === 1) {
+        const p = pts[0];
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 6, 0, Math.PI * 2);
+        ctx.fillStyle = MOOD_COLORS[p.mood];
+        ctx.fill();
+      }
       return;
     }
 
-    // Area
+    // Area gradient
     const grad = ctx.createLinearGradient(0, pT, 0, pT + plotH);
-    const r = parseInt(accC.slice(1, 3), 16), g = parseInt(accC.slice(3, 5), 16), b = parseInt(accC.slice(5, 7), 16);
+    const r = parseInt(accC.slice(1, 3), 16),
+        g = parseInt(accC.slice(3, 5), 16), b = parseInt(accC.slice(5, 7), 16);
     grad.addColorStop(0, `rgba(${r},${g},${b},0.2)`);
     grad.addColorStop(1, `rgba(${r},${g},${b},0.01)`);
 
-    ctx.beginPath(); ctx.moveTo(pts[0].x, pT + plotH); ctx.lineTo(pts[0].x, pts[0].y);
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pT + plotH);
+    ctx.lineTo(pts[0].x, pts[0].y);
     for (let i = 1; i < pts.length; i++) {
       const cp = (pts[i - 1].x + pts[i].x) / 2;
       ctx.bezierCurveTo(cp, pts[i - 1].y, cp, pts[i].y, pts[i].x, pts[i].y);
     }
-    ctx.lineTo(pts[pts.length - 1].x, pT + plotH); ctx.closePath();
-    ctx.fillStyle = grad; ctx.fill();
+    ctx.lineTo(pts[pts.length - 1].x, pT + plotH);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
 
     // Line
-    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    ctx.beginPath();
+    ctx.moveTo(pts[0].x, pts[0].y);
     for (let i = 1; i < pts.length; i++) {
       const cp = (pts[i - 1].x + pts[i].x) / 2;
       ctx.bezierCurveTo(cp, pts[i - 1].y, cp, pts[i].y, pts[i].x, pts[i].y);
     }
-    ctx.strokeStyle = accC; ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.stroke();
+    ctx.strokeStyle = accC;
+    ctx.lineWidth = 2;
+    ctx.lineCap = 'round';
+    ctx.stroke();
 
-    // Dots (skip if too many)
+    // Dots
     if (pts.length <= 60) {
       pts.forEach(p => {
-        ctx.beginPath(); ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
-        ctx.fillStyle = MOOD_COLORS[p.mood] || accC; ctx.fill();
-        ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.2; ctx.stroke();
+        ctx.beginPath();
+        ctx.arc(p.x, p.y, 3.5, 0, Math.PI * 2);
+        ctx.fillStyle = MOOD_COLORS[p.mood] || accC;
+        ctx.fill();
+        ctx.strokeStyle = '#fff';
+        ctx.lineWidth = 1.2;
+        ctx.stroke();
       });
     }
 
     // X labels
-    ctx.fillStyle = txtC; ctx.textAlign = 'center'; ctx.font = '500 9px Nunito,sans-serif';
-    const maxLabels = 6;
-    const step = Math.max(1, Math.floor(pts.length / maxLabels));
-    for (let i = 0; i < pts.length; i += step) {
-      ctx.fillText(formatDateShort(pts[i].ts), pts[i].x, H - 6);
+    ctx.fillStyle = txtC; ctx.font = '500 9px Nunito,sans-serif';
+    const _drawRotatedLabel = (text, x, y) => {
+      ctx.save();
+      ctx.translate(x, y);
+      ctx.rotate(-Math.PI / 6);
+      ctx.textAlign = 'right';
+      ctx.fillText(text, 0, 0);
+      ctx.restore();
+    };
+
+    const labelY = H - pB + 14;  // ← единая точка
+
+    if (this.period === 'month' && pts.length <= 31) {
+      for (let i = 0; i < pts.length; i++) {
+        const dayNum = new Date(pts[i].ts).getDate();
+        if (dayNum % 2 === 1) {
+          _drawRotatedLabel(formatDateShort(pts[i].ts), pts[i].x, labelY);
+        }
+      }
+    } else {
+      const maxLabels = 6;
+      const step = Math.max(1, Math.floor(pts.length / maxLabels));
+      for (let i = 0; i < pts.length; i += step) {
+        _drawRotatedLabel(formatDateShort(pts[i].ts), pts[i].x, labelY);
+      }
+      const last = pts[pts.length - 1];
+      if (pts.length % step !== 1) _drawRotatedLabel(formatDateShort(last.ts), last.x, labelY);
     }
-    const last = pts[pts.length - 1];
-    if (pts.length % step !== 1) ctx.fillText(formatDateShort(last.ts), last.x, H - 6);
+  },
+  /**
+   * Simple Moving Average по массиву {day, avg}.
+   * Возвращает массив той же длины с полем avg = сглаженное значение.
+   */
+  _sma(data, window) {
+    const half = Math.floor(window / 2);
+    return data.map((item, i) => {
+      let sum = 0, count = 0;
+      for (let j = i - half; j <= i + half; j++) {
+        if (j >= 0 && j < data.length) { sum += data[j].avg; count++; }
+      }
+      return { day: item.day, avg: sum / count };
+    });
   },
 
   _stats(entries) {
@@ -815,9 +1063,21 @@ const TabNav = {
     const titles = { home: 'Moods', chart: 'График', settings: 'Настройки' };
     $('#screen-title').textContent = titles[name];
     $('#btn-add-entry').classList.toggle('hidden', name !== 'home');
+    $('#btn-mood-guide').style.display = (name === 'home') ? '' : 'none';
 
     this._updateIndicator();
-    if (name === 'chart') { Chart._updateSegIndicator(); Chart.load(); }
+    if (name === 'chart') {
+      Chart._updateSegIndicator();
+      if (Chart.period === 'month') {
+        MonthPicker.show();
+        Chart.loadMonth(MonthPicker.year, MonthPicker.month);
+      } else {
+        MonthPicker.hide();
+        Chart.load();
+      }
+    } else {
+      MonthPicker.hide();
+    }
   },
 
   _updateIndicator() {
@@ -871,7 +1131,6 @@ const Settings = {
 // ============================================
 
 function initScroll() {
-  const container = $('#tab-home');
   window.addEventListener('scroll', () => {
     if (TabNav.current !== 'home') return;
     if (Entries.loading || !Entries.hasMore) return;
@@ -908,6 +1167,8 @@ const App = {
     TabNav.init();
     EntryModal.init();
     Confirm.init();
+    MoodGuide.init();
+    MonthPicker.init();
     Chart.init();
     await Tags.load();
     await Entries.loadPage();

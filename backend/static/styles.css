@@ -134,8 +134,6 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
 
 /* ============================================
    LIQUID GLASS
-   Core effect: прозрачный фон + сильный blur +
-   тонкий белый border + inset glow + highlight
    ============================================ */
 .liquid-glass {
   position: relative;
@@ -148,7 +146,6 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
   overflow: hidden;
 }
 
-/* Highlight блик сверху */
 .liquid-glass::before {
   content: '';
   position: absolute;
@@ -159,7 +156,6 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
   z-index: 1;
 }
 
-/* Контент поверх */
 .liquid-glass > * { position:relative;z-index:2; }
 
 @supports not (backdrop-filter: blur(1px)) {
@@ -211,7 +207,6 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
 .btn-primary:active { transform:scale(0.97);opacity:0.85; }
 .btn-primary:disabled { opacity:0.35;pointer-events:none; }
 
-/* Круглая glass-кнопка (как фонарик/камера на reference) */
 .btn-icon-glass {
   display:flex;align-items:center;justify-content:center;
   width:38px;height:38px;border-radius:50%;
@@ -296,8 +291,12 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
 }
 .app-title { font-size:1.1rem;font-weight:800; }
 
+.header-actions {
+  display:flex;align-items:center;gap:6px;
+}
+
 /* ============================================
-   FLOATING TAB BAR — pill shape
+   FLOATING TAB BAR
    ============================================ */
 .tab-bar-wrap {
   position:fixed;bottom:var(--tabbar-bottom);
@@ -319,7 +318,6 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
   min-width: 240px;
 }
 
-/* Подсветка активного таба (sliding pill indicator) */
 .tab-indicator {
   position:absolute;
   height:48px;
@@ -399,6 +397,7 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
   overflow:hidden;
   transition:transform var(--t-fast);
   animation:fadeUp 0.3s ease both;
+  cursor:pointer;
 }
 .entry-card::before {
   content:'';position:absolute;inset:0;
@@ -412,12 +411,27 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
   from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)}
 }
 
+/* ── Mood Badge with number ── */
 .entry-mood-badge {
   width:42px;height:42px;border-radius:14px;
-  display:flex;align-items:center;justify-content:center;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
   font-size:1.1rem;color:#fff;flex-shrink:0;
   box-shadow:0 2px 8px rgba(0,0,0,0.1);
+  gap:0;
+  position:relative;
 }
+.badge-emoji {
+  font-size:1rem;
+  line-height:1;
+}
+.badge-num {
+  font-size:0.55rem;
+  font-weight:800;
+  line-height:1;
+  opacity:0.9;
+  letter-spacing:0.5px;
+}
+
 .entry-body { flex:1;min-width:0; }
 
 .entry-top-row { display:flex;justify-content:space-between;align-items:center;margin-bottom:2px; }
@@ -433,16 +447,24 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
   padding:2px 9px;font-size:0.68rem;font-weight:700;
   color:var(--accent);background:var(--accent-10);border-radius:8px;
 }
-.entry-actions { display:flex;gap:2px;margin-top:5px; }
-.entry-action-btn {
-  font-size:0.72rem;font-weight:700;
-  padding:4px 10px;border-radius:8px;
-  transition:background var(--t-fast);
+
+.entry-card-footer {
+  display: flex;
+  align-items: end;
+  gap: 8px;
+  justify-content: space-between;
 }
-.entry-action-btn.edit { color:var(--accent); }
-.entry-action-btn.edit:active { background:var(--accent-10); }
-.entry-action-btn.delete { color:var(--danger); }
-.entry-action-btn.delete:active { background:var(--danger-10); }
+.entry-delete-btn {
+  display:flex;align-items:center;justify-content:center;
+  width:16px;height:16px;border-radius:50%;
+  color:var(--c-tertiary);
+  transition:background var(--t-fast),color var(--t-fast);
+}
+.entry-delete-btn:active { background:var(--danger-10);color:var(--danger); }
+
+.entry-block-tags {
+  margin-top: 4px;
+}
 
 /* ============================================
    MODAL
@@ -450,10 +472,8 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
 .modal-overlay {
   position:fixed;inset:0;
   background:rgba(0,0,0,0.25);
-  /*backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px);*/
   z-index:500;
   display:flex;align-items:flex-end;justify-content:center;
-  /*animation:fadeIn 0.2s ease;*/
   padding:16px;padding-bottom:calc(16px + var(--safe-b));
 }
 .reduce-transparency .modal-overlay { backdrop-filter:none;-webkit-backdrop-filter:none;background:rgba(0,0,0,0.5); }
@@ -494,6 +514,22 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
 .datetime-row { display:flex;gap:8px; }
 .dt-input { flex:1; }
 
+/* ── Mood label row with guide hint ── */
+.mood-label-row {
+  display:flex;align-items:center;justify-content:space-between;
+}
+.mood-guide-hint {
+  display:flex;align-items:center;gap:4px;
+  font-size:0.7rem;font-weight:600;
+  color:var(--accent);
+  padding:3px 8px;
+  border-radius:var(--r-pill);
+  background:var(--accent-10);
+  transition:transform var(--t-fast);
+}
+.mood-guide-hint:active { transform:scale(0.95); }
+.mood-guide-hint svg { flex-shrink:0; }
+
 /* ============================================
    MOOD PICKER
    ============================================ */
@@ -525,7 +561,85 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
 }
 
 /* ============================================
-   SEGMENTED CONTROL (Liquid Glass style)
+   MOOD GUIDE MODAL
+   ============================================ */
+.modal-guide {
+  max-width:420px;
+  max-height:88vh;
+}
+
+.mood-guide-list {
+  display:flex;flex-direction:column;gap:10px;
+}
+
+.guide-item {
+  display:flex;align-items:flex-start;gap:12px;
+  padding:10px 12px;
+  border-radius:var(--r-md);
+  background:rgba(255,255,255,0.08);
+  border:0.5px solid rgba(255,255,255,0.15);
+}
+[data-theme="dark"] .guide-item {
+  background:rgba(255,255,255,0.04);
+  border-color:rgba(255,255,255,0.06);
+}
+
+.guide-badge {
+  width:42px;height:42px;border-radius:12px;flex-shrink:0;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  color:#fff;gap:0;
+  box-shadow:0 2px 6px rgba(0,0,0,0.12);
+}
+.guide-badge span:first-child { font-size:1rem;line-height:1; }
+.guide-badge-num { font-size:0.55rem;font-weight:800;opacity:0.9; }
+
+.guide-text { flex:1;min-width:0; }
+.guide-text strong {
+  display:block;font-size:0.82rem;font-weight:700;
+  margin-bottom:2px;
+}
+.guide-text p {
+  font-size:0.75rem;font-weight:500;
+  color:var(--c-secondary);line-height:1.45;
+  margin:0;
+}
+
+/* ============================================
+   MONTH PICKER
+   ============================================ */
+.month-picker {
+  margin-bottom:12px;
+}
+
+.month-picker-inner {
+  display:flex;align-items:center;justify-content:space-between;
+  padding:8px 10px;
+  border-radius:var(--r-pill) !important;
+}
+
+.month-nav-btn {
+  display:flex;align-items:center;justify-content:center;
+  width:34px;height:34px;border-radius:50%;
+  color:var(--c-primary);
+  background:rgba(255,255,255,0.15);
+  border:0.5px solid rgba(255,255,255,0.25);
+  transition:transform var(--t-fast),background var(--t-fast);
+}
+.month-nav-btn:active { transform:scale(0.9);background:rgba(255,255,255,0.3); }
+.month-nav-btn:disabled { pointer-events:none; }
+[data-theme="dark"] .month-nav-btn {
+  background:rgba(255,255,255,0.06);
+  border-color:rgba(255,255,255,0.08);
+}
+
+.month-label {
+  font-size:0.9rem;font-weight:700;
+  text-align:center;
+  min-width:130px;
+}
+
+/* ============================================
+   SEGMENTED CONTROL
    ============================================ */
 .chart-filters { margin-bottom:14px; }
 
@@ -701,28 +815,3 @@ textarea,input { font-family:inherit;font-size:inherit;color:inherit; }
   animation:spin 0.7s linear infinite;
 }
 @keyframes spin { to{transform:rotate(360deg)} }
-
-/* ============================================
-   ENTRY CARD — updated (trash icon, clickable)
-   ============================================ */
-.entry-card {
-  position: relative;
-  cursor:pointer;
-}
-.entry-card-footer {
-  display: flex;
-  align-items: end;
-  gap: 8px;
-  justify-content: space-between;
-}
-.entry-delete-btn {
-  display:flex;align-items:center;justify-content:center;
-  width:16px;height:16px;border-radius:50%;
-  color:var(--c-tertiary);
-  transition:background var(--t-fast),color var(--t-fast);
-}
-.entry-delete-btn:active { background:var(--danger-10);color:var(--danger); }
-
-.entry-block-tags {
-  margin-top: 4px;
-}

@@ -1,5 +1,6 @@
 import random
-from datetime import datetime
+from datetime import datetime, time, timedelta
+
 from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -8,53 +9,70 @@ from entries.models import Tag, MoodEntry
 
 
 class Command(BaseCommand):
-    help = "Наполняет БД тестовыми настроениями"
+    help = "Создаёт 3-5 записей настроения на каждый день за последний год"
 
     def handle(self, *args, **kwargs):
         User = get_user_model()
-        user = User.objects.get(id=2)
-
-        if not user:
-            self.stdout.write(self.style.ERROR("Нет пользователей в базе"))
+        try:
+            user = User.objects.get(username="qwerty")
+        except User.DoesNotExist:
+            self.stdout.write(
+                self.style.ERROR('Пользователь "qwerty" не найден.')
+            )
             return
 
-        # создаём 5 тегов
-        tag_names = ["Работа", "Семья", "Спорт", "Отдых", "Стресс"]
-
-        tags = []
-        for name in tag_names:
-            tag, _ = Tag.objects.get_or_create(name=name)
-            tags.append(tag)
-
-        self.stdout.write(self.style.SUCCESS("Созданы теги"))
-
         now = timezone.now()
+        tz = timezone.get_current_timezone()
 
-        start = datetime(2026, 1, 1, tzinfo=timezone.get_current_timezone())
-        end = now
+        start_date = (now - timedelta(days=365)).date()  # год назад (по дате)
+        end_date = now.date()
 
-        total_seconds = int((end - start).total_seconds())
+        total_created = 0
 
-        entries = []
+        days_count = (end_date - start_date).days + 1
+        for day_offset in range(days_count):
+            current_day = start_date + timedelta(days=day_offset)
 
-        # создаём 100 записей
-        for i in range(100):
+            # сколько записей в этот день (3..5)
+            entries_per_day = random.randint(3, 5)
 
-            random_seconds = random.randint(0, total_seconds)
-            random_date = start + timezone.timedelta(seconds=random_seconds)
+            # границы дня (naive), затем делаем aware
+            day_start_naive = datetime.combine(current_day, time.min)
+            day_end_naive = datetime.combine(current_day, time.max)
 
-            mood_value = random.randint(1, 9)
+            day_start = timezone.make_aware(day_start_naive, tz)
+            day_end = timezone.make_aware(day_end_naive, tz)
 
-            entry = MoodEntry.objects.create(
-                user=user,
-                mood=f"encrypted_mood_{mood_value}",
-                note="encrypted_note",
-                timestamp=random_date,
-            )
+            # если это сегодняшний день — не допускаем времени позже now
+            if current_day == end_date:
+                max_dt = now
+            else:
+                max_dt = day_end
 
-            # случайные теги
-            entry.tags.set(random.sample(tags, random.randint(0, 3)))
+            # если по какой-то причине границы неверны — пропускаем
+            if max_dt <= day_start:
+                continue
 
-            entries.append(entry)
+            seconds_range = int((max_dt - day_start).total_seconds())
 
-        self.stdout.write(self.style.SUCCESS("Создано 100 записей настроения"))
+            moods = []
+            for _ in range(entries_per_day):
+                rand_sec = random.randint(0, seconds_range)
+                random_dt = day_start + timedelta(seconds=rand_sec)
+
+                mood_value = random.randint(1, 9)
+                moods.append(
+                    MoodEntry(
+                        user=user,
+                        mood=str(mood_value),
+                        note="encrypted_note",
+                        timestamp=random_dt,
+                    )
+                )
+                total_created += 1
+
+            MoodEntry.objects.bulk_create(moods)
+
+        self.stdout.write(
+            self.style.SUCCESS(f"Создано записей: {total_created}")
+        )

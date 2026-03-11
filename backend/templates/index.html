@@ -58,9 +58,14 @@
 
     <header class="app-header liquid-glass">
       <h1 class="app-title" id="screen-title">Moods</h1>
-      <button class="btn-icon-glass" id="btn-add-entry" aria-label="Добавить запись">
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      </button>
+      <div class="header-actions">
+        <button class="btn-icon-glass" id="btn-mood-guide" aria-label="Шкала настроения">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+        </button>
+        <button class="btn-icon-glass" id="btn-add-entry" aria-label="Добавить запись">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+      </div>
     </header>
 
     <!-- TAB: HOME -->
@@ -81,13 +86,27 @@
       <div class="chart-filters" id="chart-filters">
         <div class="seg-control liquid-glass">
           <div class="seg-indicator" id="seg-indicator"></div>
-          <button class="seg-btn active" data-period="all">Всё</button>
+          <button class="seg-btn" data-period="all">Всё</button>
           <button class="seg-btn" data-period="year">Год</button>
           <button class="seg-btn" data-period="6months">6 мес</button>
-          <button class="seg-btn" data-period="month">Месяц</button>
+          <button class="seg-btn active" data-period="month">Месяц</button>
           <button class="seg-btn" data-period="2weeks">2 нед</button>
         </div>
       </div>
+
+      <!-- Выбор конкретного месяца -->
+      <div class="month-picker hidden" id="month-picker">
+        <div class="month-picker-inner liquid-glass">
+          <button class="month-nav-btn" id="month-prev" aria-label="Предыдущий месяц">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          </button>
+          <span class="month-label" id="month-label">Март 2026</span>
+          <button class="month-nav-btn" id="month-next" aria-label="Следующий месяц">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+        </div>
+      </div>
+
       <div class="chart-wrapper liquid-glass">
         <canvas id="mood-chart"></canvas>
       </div>
@@ -127,7 +146,7 @@
           <button class="btn-sm-danger" id="btn-logout">Выход</button>
         </div>
       </div>
-      <p class="settings-footer">Moods v1.0</p>
+      <p class="settings-footer">Moods v1.1</p>
     </section>
 
     <!-- TAB BAR -->
@@ -161,7 +180,13 @@
         </button>
       </div>
       <div class="modal-body">
-        <label class="field-label">Как настроение?</label>
+        <div class="mood-label-row">
+          <label class="field-label">Как настроение?</label>
+          <button class="mood-guide-hint" id="btn-mood-guide-modal" aria-label="Подсказка">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            Памятка
+          </button>
+        </div>
         <div class="mood-picker" id="mood-picker"></div>
         <div class="mood-value-display" id="mood-value-display">—</div>
 
@@ -201,6 +226,26 @@
     </div>
   </div>
 
+  <!-- MODAL: MOOD GUIDE -->
+  <div class="modal-overlay hidden" id="modal-mood-guide">
+    <div class="modal liquid-glass modal-guide">
+      <div class="modal-handle"></div>
+      <div class="modal-header">
+        <h2>Шкала настроения</h2>
+        <button class="btn-icon-glass btn-close" id="modal-guide-close" aria-label="Закрыть">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body mood-guide-list" id="mood-guide-list">
+        <!-- Заполняется из JS -->
+      </div>
+    </div>
+  </div>
+  <script>
+      window.__APP_CONFIG__ = {
+        encryptionEnabled: {{ encryption_enabled|yesno:"true,false" }}
+      };
+  </script>
   <script src="{% static 'app.js' %}"></script>
 </body>
 </html>

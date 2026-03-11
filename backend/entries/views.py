@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import logging
 from collections import OrderedDict
 from datetime import date, datetime, timedelta
-from typing import Optional, Tuple, List
+from typing import List, Optional, Tuple
 
+from django.db.models import Min
 from django.db.models.functions import TruncDate
 from django.http import JsonResponse
 from django.utils import timezone
@@ -12,14 +14,16 @@ from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from .constants import PERIOD_DAYS, DAYS_PER_PAGE
+from .cache import cached_action, invalidate_user_cache
+from .constants import DAYS_PER_PAGE, PERIOD_DAYS
 from .models import MoodEntry, Tag
 from .serializers import (
     MoodEntryReadSerializer,
     MoodEntryWriteSerializer,
     TagSerializer,
 )
-from .cache import cached_action, invalidate_user_cache
+
+logger = logging.getLogger("entries")
 
 
 class MoodEntryViewSet(viewsets.ModelViewSet):
@@ -37,14 +41,42 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
 
     @cached_action
     def list(self, request: Request, *args, **kwargs) -> Response:
-        """Плоский список записей для графиков. Фильтр ?period=month."""
+        """
+        Плоский список записей для графиков.
+        Фильтры:
+          ?period=month|year|6months|2weeks
+          ?year=2026&month=3  — конкретный календарный месяц
+        """
         qs = self.get_queryset()
-        period = request.query_params.get("period")
-        if period in PERIOD_DAYS:
-            cutoff = timezone.now() - timedelta(days=PERIOD_DAYS[period])
-            qs = qs.filter(timestamp__gte=cutoff)
+
+        year = request.query_params.get("year")
+        month = request.query_params.get("month")
+
+        if year and month:
+            qs = self._filter_by_month(qs, year, month)
+        else:
+            period = request.query_params.get("period")
+            if period in PERIOD_DAYS:
+                cutoff = timezone.now() - timedelta(days=PERIOD_DAYS[period])
+                qs = qs.filter(timestamp__gte=cutoff)
+
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
+
+    @action(detail=False, methods=["get"], url_path="date-range")
+    @cached_action
+    def date_range(self, request: Request) -> Response:
+        """Возвращает дату первой записи пользователя."""
+        first = (
+            MoodEntry.objects.filter(user=request.user)
+            .aggregate(first_date=Min("timestamp"))
+            .get("first_date")
+        )
+        return Response(
+            {
+                "first_date": first.isoformat() if first else None,
+            }
+        )
 
     @action(detail=False, methods=["get"], url_path="grouped")
     @cached_action
@@ -75,6 +107,7 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
     @action(detail=False, methods=["get"], url_path="export")
     def export(self, request: Request) -> JsonResponse:
         """Экспорт всех записей в JSON-файл."""
+        logger.info("User id=%d exported data", request.user.id)
         serializer = MoodEntryReadSerializer(self.get_queryset(), many=True)
         response = JsonResponse(
             serializer.data,
@@ -88,15 +121,41 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
     def perform_create(self, serializer: MoodEntryWriteSerializer) -> None:
         serializer.save(user=self.request.user)
         invalidate_user_cache(self.request.user.id)
+        logger.info("Entry created by user_id=%d", self.request.user.id)
 
     def perform_update(self, serializer: MoodEntryWriteSerializer) -> None:
         serializer.save()
         invalidate_user_cache(self.request.user.id)
+        logger.info(
+            "Entry id=%d updated by user_id=%d",
+            serializer.instance.id,
+            self.request.user.id,
+        )
 
     def perform_destroy(self, instance: MoodEntry) -> None:
         user_id = instance.user_id
+        entry_id = instance.id
         instance.delete()
         invalidate_user_cache(user_id)
+        logger.info("Entry id=%d deleted by user_id=%d", entry_id, user_id)
+
+    @staticmethod
+    def _filter_by_month(qs, year: str, month: str):
+        """Фильтрует queryset по конкретному календарному месяцу."""
+        try:
+            y, m = int(year), int(month)
+            start = datetime(y, m, 1, tzinfo=timezone.get_current_timezone())
+            if m == 12:
+                end = datetime(
+                    y + 1, 1, 1, tzinfo=timezone.get_current_timezone()
+                )
+            else:
+                end = datetime(
+                    y, m + 1, 1, tzinfo=timezone.get_current_timezone()
+                )
+            return qs.filter(timestamp__gte=start, timestamp__lt=end)
+        except (ValueError, TypeError):
+            return qs
 
     @staticmethod
     def _parse_before(value: str | None) -> date | None:
