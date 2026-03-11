@@ -9,6 +9,7 @@ python manage.py migrate --noinput
 echo "Starting server..."
 gunicorn config.wsgi:application \
     --bind 0.0.0.0:8000 \
-    --workers 2 \
-    --timeout 120 \
+    --workers "${GUNICORN_WORKERS:-2}" \
+    --threads "${GUNICORN_THREADS:-1}" \
+    --timeout "${GUNICORN_TIMEOUT:-120}" \
     --access-logfile -
