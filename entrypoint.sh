@@ -12,4 +12,3 @@ gunicorn config.wsgi:application \
     --workers "${GUNICORN_WORKERS:-2}" \
     --threads "${GUNICORN_THREADS:-1}" \
     --timeout "${GUNICORN_TIMEOUT:-120}" \
-    --access-logfile ""
