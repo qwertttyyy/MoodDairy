@@ -141,6 +141,23 @@
         </div>
       </div>
       <div class="settings-group liquid-glass">
+        <div class="setting-row" style="flex-direction:column;align-items:stretch;gap:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <span class="setting-label">Доступ для врача</span>
+            <button class="btn-sm-accent" id="btn-share-create">Создать ссылку</button>
+          </div>
+          <div class="share-link-box hidden" id="share-link-box">
+            <div class="share-link-display">
+              <input type="text" class="glass-input share-link-input" id="share-link-input" readonly>
+              <button class="btn-icon-glass" id="btn-share-copy" aria-label="Копировать">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+              </button>
+            </div>
+            <button class="btn-sm-danger" id="btn-share-revoke" style="margin-top:8px;width:100%;">Отозвать ссылку</button>
+          </div>
+        </div>
+      </div>
+      <div class="settings-group liquid-glass">
         <div class="setting-row">
           <div class="setting-info"><span class="setting-label">Выйти из аккаунта</span></div>
           <button class="btn-sm-danger" id="btn-logout">Выход</button>

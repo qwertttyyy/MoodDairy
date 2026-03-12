@@ -20,7 +20,6 @@ const MOOD_GUIDE = [
   'Эйфория. Как будто под чем-то. Жизнь прекрасна, ничто не может расстроить. Энергии и сил через край. За любой движ и спонтанные необдуманные поступки',
 ];
 const MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
-const MONTH_NAMES_SHORT = ['янв.','февр.','мар.','апр.','мая','июн.','июл.','авг.','сен.','окт.','ноя.','дек.'];
 const SETTINGS_KEY = 'moods_settings';
 
 const ENCRYPTION_ENABLED = window.__APP_CONFIG__?.encryptionEnabled ?? true;
@@ -62,6 +61,12 @@ function isoTimeStr(d) {
 function getCsrf() {
   const m = document.cookie.match(/csrftoken=([^;]+)/);
   return m ? m[1] : '';
+}
+
+function uint8ToB64(bytes) {
+  let bin = '';
+  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  return btoa(bin);
 }
 
 function showToast(msg, isError = false) {
@@ -1127,6 +1132,127 @@ const Settings = {
 };
 
 // ============================================
+// SHARE (Доступ для врача)
+// ============================================
+
+const Share = {
+  _currentToken: null,
+  _currentUrl: null,
+
+  init() {
+    $('#btn-share-create').addEventListener('click', () => this.create());
+    $('#btn-share-copy').addEventListener('click', () => this.copy());
+    $('#btn-share-revoke').addEventListener('click', () => {
+      Confirm.show('Отозвать ссылку?', 'Врач потеряет доступ к данным.', () => this.revoke());
+    });
+    this.loadActive();
+  },
+
+  async loadActive() {
+    try {
+      const res = await Api.get('/api/sharing/');
+      if (!res.ok) return;
+      const data = await res.json();
+      if (data.active) {
+        this._currentToken = data.token;
+        const url = `${location.origin}/share/${data.token}/`;
+        this._currentUrl = data.is_encrypted ? url : url;
+        // При is_encrypted ключ был в момент создания, повторно его не достать.
+        // Показываем ссылку без фрагмента — пользователь должен был сохранить полную.
+        this._showLink(url, true);
+      }
+    } catch { /* ignore */ }
+  },
+
+  async create() {
+    const btn = $('#btn-share-create');
+    btn.disabled = true;
+    btn.textContent = 'Загрузка…';
+
+    try {
+      const res = await Api.get('/api/entries/');
+      if (!res.ok) throw new Error('fetch_failed');
+      const raw = await res.json();
+
+      const entries = await Promise.all(raw.map(async e => ({
+        mood: parseInt(await Crypto.decrypt(e.mood), 10) || 0,
+        note: e.note ? await Crypto.decrypt(e.note) : '',
+        timestamp: e.timestamp,
+      })));
+
+      const plainJson = JSON.stringify(entries);
+      let dataBlob, isEncrypted = false, shareKeyB64 = '';
+
+      if (ENCRYPTION_ENABLED) {
+        const shareKey = crypto.getRandomValues(new Uint8Array(32));
+        shareKeyB64 = uint8ToB64(shareKey);
+        const cryptoKey = await crypto.subtle.importKey('raw', shareKey, 'AES-GCM', false, ['encrypt']);
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const ct = await crypto.subtle.encrypt(
+          { name: 'AES-GCM', iv }, cryptoKey, new TextEncoder().encode(plainJson)
+        );
+        dataBlob = uint8ToB64(iv) + ':' + uint8ToB64(new Uint8Array(ct));
+        isEncrypted = true;
+      } else {
+        dataBlob = plainJson;
+      }
+
+      const postRes = await Api.post('/api/sharing/', { data_blob: dataBlob, is_encrypted: isEncrypted });
+      if (!postRes.ok) throw new Error('create_failed');
+
+      const { token } = await postRes.json();
+      let url = `${location.origin}/share/${token}/`;
+      if (isEncrypted) url += `#${shareKeyB64}`;
+
+      this._currentToken = token;
+      this._currentUrl = url;
+      this._showLink(url, false);
+      showToast('Ссылка создана');
+    } catch (err) {
+      showToast('Ошибка при создании ссылки', true);
+    } finally {
+      btn.disabled = false;
+      btn.textContent = 'Создать ссылку';
+    }
+  },
+
+  _showLink(url, isExisting) {
+    const box = $('#share-link-box');
+    const input = $('#share-link-input');
+    input.value = url;
+    box.classList.remove('hidden');
+    if (isExisting && ENCRYPTION_ENABLED) {
+      // Для существующей зашифрованной ссылки: ключ утерян,
+      // предлагаем создать новую
+      input.value = '🔒 Полная ссылка была показана при создании';
+      input.style.fontSize = '0.7rem';
+    } else {
+      input.style.fontSize = '';
+    }
+  },
+
+  copy() {
+    if (!this._currentUrl) return;
+    navigator.clipboard.writeText(this._currentUrl).then(
+      () => showToast('Ссылка скопирована'),
+      () => showToast('Не удалось скопировать', true)
+    );
+  },
+
+  async revoke() {
+    const res = await Api.del('/api/sharing/');
+    if (res.ok || res.status === 204) {
+      this._currentToken = null;
+      this._currentUrl = null;
+      $('#share-link-box').classList.add('hidden');
+      showToast('Ссылка отозвана');
+    } else {
+      showToast('Ошибка', true);
+    }
+  }
+};
+
+// ============================================
 // INFINITE SCROLL
 // ============================================
 
@@ -1169,6 +1295,7 @@ const App = {
     Confirm.init();
     MoodGuide.init();
     MonthPicker.init();
+    Share.init();
     Chart.init();
     await Tags.load();
     await Entries.loadPage();

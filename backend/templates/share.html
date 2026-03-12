@@ -1,0 +1,86 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="ru" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0, viewport-fit=cover, user-scalable=no">
+    <title>Moods — Дневник настроения</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;500;600;700;800&display=swap"
+          rel="stylesheet">
+    <link rel="stylesheet" href="{% static 'styles.css' %}">
+</head>
+<body>
+<div class="bg-blobs" aria-hidden="true">
+    <div class="blob blob-1"></div>
+    <div class="blob blob-2"></div>
+    <div class="blob blob-3"></div>
+</div>
+
+<div class="share-page">
+    <!-- Loading -->
+    <div class="share-loading" id="share-loading">
+        <div class="spinner"></div>
+        <p style="margin-top:12px;color:var(--c-secondary);font-size:0.85rem;">
+            Загрузка…</p>
+    </div>
+
+    <!-- Error -->
+    <div class="share-error hidden" id="share-error">
+        <div class="empty-state">
+            <div class="empty-icon">🔒</div>
+            <p class="empty-title" id="share-error-title">Ссылка
+                недействительна</p>
+            <p class="empty-sub">Запросите новую ссылку у пациента</p>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="share-content hidden" id="share-content">
+        <header class="share-header liquid-glass">
+            <h1 class="app-title">Moods</h1>
+            <span class="share-badge">Просмотр</span>
+        </header>
+
+        <!-- Month picker -->
+        <div class="month-picker" id="month-picker">
+            <div class="month-picker-inner liquid-glass">
+                <button class="month-nav-btn" id="month-prev">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="15 18 9 12 15 6"/>
+                    </svg>
+                </button>
+                <span class="month-label" id="month-label"></span>
+                <button class="month-nav-btn" id="month-next">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                         stroke="currentColor" stroke-width="2.5"
+                         stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="9 18 15 12 9 6"/>
+                    </svg>
+                </button>
+            </div>
+        </div>
+
+        <!-- Chart -->
+        <div class="chart-wrapper liquid-glass" id="chart-wrapper">
+            <canvas id="mood-chart"></canvas>
+        </div>
+        <div class="chart-stats" id="chart-stats"></div>
+
+        <div class="empty-state hidden" id="empty-month">
+            <div class="empty-icon">📊</div>
+            <p class="empty-title">Нет записей за этот месяц</p>
+        </div>
+
+        <!-- Entries list -->
+        <div class="share-entries" id="share-entries"></div>
+    </div>
+</div>
+
+<script src="{% static 'share.js' %}"></script>
+</body>
+</html>

@@ -24,6 +24,7 @@ INSTALLED_APPS = [
     "rest_framework",
     "accounts",
     "entries",
+    "sharing",
 ]
 
 MIDDLEWARE = [
@@ -149,6 +150,11 @@ LOGGING = {
             "propagate": False,
         },
         "entries": {
+            "handlers": ["console"],
+            "level": LOG_LEVEL,
+            "propagate": False,
+        },
+        "sharing": {
             "handlers": ["console"],
             "level": LOG_LEVEL,
             "propagate": False,
