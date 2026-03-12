@@ -1,0 +1,40 @@
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: moods_test
+      POSTGRES_USER: moods
+      POSTGRES_PASSWORD: moods
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U moods"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
+  web:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      SECRET_KEY: ci-test-secret-key-not-for-production
+      DEBUG: "1"
+      DB_NAME: moods_test
+      DB_USER: moods
+      DB_PASSWORD: moods
+      DB_HOST: db
+      DB_PORT: "5432"
+      ENCRYPTION_ENABLED: "1"
+      ADMIN_PASSWORD: admin
+      DJANGO_SETTINGS_MODULE: config.settings_test
+    entrypoint:
+      [
+        "python",
+        "manage.py",
+        "test",
+        "--settings=config.settings_test",
+        "--verbosity=2",
+        "--no-input",
+      ]

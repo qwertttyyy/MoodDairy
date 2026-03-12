@@ -1,4 +1,4 @@
-name: Deploy
+name: Test & Deploy
 
 on:
   push:
@@ -7,14 +7,35 @@ on:
       - 'backend/**'
       - 'Dockerfile'
       - 'docker-compose.yml'
+      - 'docker-compose.test.yml'
       - 'entrypoint.sh'
       - 'requirements.txt'
       - '.github/workflows/deploy.yml'
 
 jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Build and run tests
+        run: |
+          docker compose -f docker-compose.test.yml up \
+            --build \
+            --abort-on-container-exit \
+            --exit-code-from web
+
+      - name: Cleanup
+        if: always()
+        run: docker compose -f docker-compose.test.yml down -v
+
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: test
 
     steps:
       - name: Deploy via SSH
