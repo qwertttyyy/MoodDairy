@@ -3,20 +3,29 @@ name: Test & Deploy
 on:
   push:
     branches: [master]
-    paths:
-      - 'backend/**'
-      - 'Dockerfile'
-      - 'docker-compose.yml'
-      - 'docker-compose.test.yml'
-      - 'entrypoint.sh'
-      - 'requirements.txt'
-      - '.github/workflows/deploy.yml'
 
 jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'backend/**'
+              - 'Dockerfile'
+              - 'docker-compose.test.yml'
+              - 'requirements.txt'
+
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -35,8 +44,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
-    needs: test
-
+    needs: [changes, test]
+    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
