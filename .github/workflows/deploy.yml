@@ -4,15 +4,30 @@ on:
   push:
     branches: [master]
 
+run-name: Deploy master by @${{ github.actor }}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.job != 'deploy' }}
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
 jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      deploy: ${{ steps.filter.outputs.deploy }}
     steps:
       - uses: actions/checkout@v4
-      - uses: dorny/paths-filter@v3
+      - name: Detect changed paths
         id: filter
+        uses: dorny/paths-filter@v3
         with:
           filters: |
             code:
@@ -20,6 +35,13 @@ jobs:
               - 'Dockerfile'
               - 'docker-compose.test.yml'
               - 'requirements.txt'
+            deploy:
+              - 'backend/**'
+              - 'Dockerfile'
+              - 'docker-compose.test.yml'
+              - 'docker-compose.yml'
+              - 'requirements.txt'
+              - 'entrypoint.sh'
 
   test:
     runs-on: ubuntu-latest
@@ -39,13 +61,16 @@ jobs:
 
       - name: Cleanup
         if: always()
-        run: docker compose -f docker-compose.test.yml down -v
+        run: docker compose -f docker-compose.test.yml down -v --remove-orphans
 
   deploy:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     needs: [changes, test]
-    if: always() && (needs.test.result == 'success' || needs.test.result == 'skipped')
+    if: |
+      always() &&
+      needs.changes.outputs.deploy == 'true' &&
+      (needs.test.result == 'success' || needs.test.result == 'skipped')
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -54,10 +79,13 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
+          timeout: 30s
+          command_timeout: 15m
           script: |
             set -e
             cd /opt/projects/MoodDairy
-            git pull origin master
+            git fetch origin master
+            git reset --hard origin/master
             docker compose build web
             docker compose up -d --no-deps web
             docker image prune -f
