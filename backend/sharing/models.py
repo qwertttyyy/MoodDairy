@@ -7,7 +7,7 @@ from django.db import models
 from django.utils import timezone
 
 
-def _generate_token() -> str:
+def generate_token() -> str:
     return secrets.token_urlsafe(24)
 
 
@@ -17,7 +17,7 @@ class SharedAccess(models.Model):
     token = models.CharField(
         max_length=64,
         unique=True,
-        default=_generate_token,
+        default=generate_token,
         db_index=True,
     )
     user = models.OneToOneField(

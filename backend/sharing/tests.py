@@ -8,7 +8,7 @@ from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from sharing.models import SharedAccess, _generate_token
+from sharing.models import SharedAccess, generate_token
 
 
 # ===================================================================
@@ -18,10 +18,10 @@ class GenerateTokenTest(TestCase):
     """Уникальность генерируемых токенов."""
 
     def test_two_calls_produce_different_tokens(self):
-        self.assertNotEqual(_generate_token(), _generate_token())
+        self.assertNotEqual(generate_token(), generate_token())
 
     def test_token_is_nonempty_string(self):
-        token = _generate_token()
+        token = generate_token()
         self.assertIsInstance(token, str)
         self.assertTrue(len(token) > 0)
 

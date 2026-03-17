@@ -31,7 +31,7 @@ class Migration(migrations.Migration):
                     'token',
                     models.CharField(
                         db_index=True,
-                        default=sharing.models._generate_token,
+                        default=sharing.models.generate_token,
                         max_length=64,
                         unique=True,
                     ),

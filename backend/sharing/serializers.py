@@ -6,7 +6,7 @@ from django.utils import timezone
 from rest_framework import serializers
 
 from .constants import SHARED_ACCESS_EXPIRE_HOURS
-from .models import SharedAccess
+from .models import SharedAccess, generate_token
 
 
 class CreateShareSerializer(serializers.Serializer):
@@ -24,6 +24,7 @@ class CreateShareSerializer(serializers.Serializer):
                 **validated_data,
                 'expires_at': expires_at,
                 'is_active': True,
+                'token': generate_token()
             },
         )
         return shared
