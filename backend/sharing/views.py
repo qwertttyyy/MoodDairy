@@ -38,10 +38,6 @@ class ShareView(APIView):
         )
 
     def post(self, request: Request) -> Response:
-        SharedAccess.objects.filter(user=request.user, is_active=True).update(
-            is_active=False
-        )
-
         serializer = CreateShareSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         share = serializer.save(user=request.user)
@@ -54,16 +50,17 @@ class ShareView(APIView):
         return Response({"token": share.token}, status=status.HTTP_201_CREATED)
 
     def delete(self, request: Request) -> Response:
-        updated = SharedAccess.objects.filter(
-            user=request.user, is_active=True
-        ).update(is_active=False)
-        if not updated:
+        try:
+            shared = request.user.shared_access
+        except SharedAccess.DoesNotExist:
             return Response(
-                {"detail": "Нет активной ссылки"},
-                status=status.HTTP_404_NOT_FOUND,
+                {"detail": "Ссылки нет, создайте новую"},
+                status=status.HTTP_204_NO_CONTENT,
             )
-        logger.info("Share revoked by user_id=%d", request.user.id)
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        shared.is_active = False
+        shared.save(update_fields=["is_active"])
+        logger.info("Share inactivated by user_id=%d", request.user.id)
+        return Response(status=status.HTTP_200_OK)
 
 
 class ShareDataView(APIView):

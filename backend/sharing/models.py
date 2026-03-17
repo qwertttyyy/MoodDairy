@@ -20,10 +20,10 @@ class SharedAccess(models.Model):
         default=_generate_token,
         db_index=True,
     )
-    user = models.ForeignKey(
+    user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="shared_accesses",
+        related_name="shared_access",
     )
     data_blob = models.TextField(verbose_name="Данные (шифротекст или JSON)")
     is_encrypted = models.BooleanField(default=True)

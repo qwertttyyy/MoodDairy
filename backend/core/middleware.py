@@ -23,7 +23,7 @@ class RequestLoggingMiddleware:
         if any(request.path.startswith(p) for p in SKIP_PATHS):
             return self.get_response(request)
 
-        request_id = uuid.uuid4().hex[:8]
+        request_id = uuid.uuid4().hex
         request.request_id = request_id
 
         user_id = (
