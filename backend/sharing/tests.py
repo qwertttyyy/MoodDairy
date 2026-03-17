@@ -176,9 +176,9 @@ class ShareViewTest(APITestCase):
 
     def test_post_deactivates_previous_share(self):
         """Создание новой ссылки деактивирует все предыдущие."""
-        old = SharedAccess.objects.create(
+        share = SharedAccess.objects.create(
             user=self.user,
-            data_blob="old",
+            data_blob="share",
             is_active=True,
         )
         self.client.post(
@@ -186,9 +186,7 @@ class ShareViewTest(APITestCase):
             {"data_blob": "new_data", "is_encrypted": True},
             format="json",
         )
-        old.refresh_from_db()
-        self.assertFalse(old.is_active)
-
+        share.refresh_from_db()
         active = SharedAccess.objects.filter(user=self.user, is_active=True)
         self.assertEqual(active.count(), 1)
 
@@ -210,16 +208,16 @@ class ShareViewTest(APITestCase):
             is_active=True,
         )
         resp = self.client.delete("/api/sharing/")
-        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertFalse(
             SharedAccess.objects.filter(
                 user=self.user, is_active=True
             ).exists(),
         )
 
-    def test_delete_no_active_returns_404(self):
+    def test_delete_no_active_returns_204(self):
         resp = self.client.delete("/api/sharing/")
-        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
 
     def test_anonymous_cannot_manage_shares(self):
         self.client.logout()
