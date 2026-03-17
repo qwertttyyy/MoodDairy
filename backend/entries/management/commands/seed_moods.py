@@ -1,11 +1,11 @@
 import random
 from datetime import datetime, time, timedelta
 
-from django.core.management.base import BaseCommand
 from django.contrib.auth import get_user_model
+from django.core.management.base import BaseCommand
 from django.utils import timezone
 
-from entries.models import Tag, MoodEntry
+from entries.models import MoodEntry
 
 
 class Command(BaseCommand):

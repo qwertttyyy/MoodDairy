@@ -19,6 +19,19 @@ const MOOD_GUIDE = [
   'Я в ударе. Шучу, остроумничаю, горю идеями, вспоминаю хобби. Занимаюсь творчеством, спортом. Хочется делиться энергией с окружающими. Эмпатия на максимум',
   'Эйфория. Как будто под чем-то. Жизнь прекрасна, ничто не может расстроить. Энергии и сил через край. За любой движ и спонтанные необдуманные поступки',
 ];
+
+const ANXIETY_COLORS = ['','#34c759','#a8d84e','#ffcc00','#ff9500','#ff3b30'];
+const ANXIETY_LABELS = ['','Спокойствие','Лёгкое волнение','Напряжение','Сильная тревога','Паника'];
+const ANXIETY_EMOJI  = ['','😌','😐','😟','😰','🫨'];
+const ANXIETY_GUIDE = [
+  '',
+  'Полное спокойствие. Тело расслаблено, мысли текут свободно. Нет ни одной тревожной мысли. Дыхание ровное, плечи опущены',
+  'Лёгкий фоновый шум. Небольшое беспокойство по поводу дел, но оно не мешает. Легко переключиться и отвлечься. Тело в целом расслаблено',
+  'Ощутимое внутреннее напряжение. Трудно расслабиться, мысли возвращаются к одной теме. Может быть сложно сосредоточиться. Возможны лёгкие телесные проявления: зажатые плечи, поверхностное дыхание',
+  'Тревога захватывает. Навязчивые мысли, сценарии катастроф. Трудно усидеть на месте, работать, общаться. Телесные симптомы: учащённое сердцебиение, потливость, ком в горле, тошнота',
+  'Паника. Ощущение потери контроля, невозможно думать ни о чём другом. Сильные физические проявления: тремор, нехватка воздуха, головокружение. Хочется убежать или спрятаться',
+];
+
 const MONTH_NAMES = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
 const SETTINGS_KEY = 'moods_settings';
 
@@ -76,6 +89,17 @@ function showToast(msg, isError = false) {
   if (isError) t.classList.add('error');
   requestAnimationFrame(() => t.classList.add('show'));
   setTimeout(() => { t.classList.remove('show'); setTimeout(() => t.classList.add('hidden'), 300); }, 2500);
+}
+
+/** Блокирует/разблокирует прокрутку body при открытии модалок. */
+function lockScroll(lock) {
+  if (lock) {
+    document.body.style.overflow = 'hidden';
+    document.body.style.touchAction = 'none';
+  } else {
+    document.body.style.overflow = '';
+    document.body.style.touchAction = '';
+  }
 }
 
 // ============================================
@@ -401,7 +425,8 @@ const Entries = {
   async _decryptEntry(raw) {
     const mood = parseInt(await Crypto.decrypt(raw.mood), 10) || 0;
     const note = raw.note ? await Crypto.decrypt(raw.note) : '';
-    const entry = { ...raw, mood, note, _raw: raw };
+    const anxiety = raw.anxiety ? parseInt(await Crypto.decrypt(raw.anxiety), 10) || 0 : 0;
+    const entry = { ...raw, mood, note, anxiety, _raw: raw };
     this.decryptedCache[raw.id] = entry;
     return entry;
   },
@@ -440,6 +465,9 @@ const Entries = {
   _cardHTML(e) {
     const note = e.note ? `<p class="entry-note">${esc(e.note)}</p>` : '';
     const tags = (e.tags || []).map(t => `<span class="entry-tag">#${esc(t.name)}</span>`).join(' ');
+    const anxietyBadge = e.anxiety
+      ? `<span class="entry-anxiety-badge" style="background:${ANXIETY_COLORS[e.anxiety]}">${ANXIETY_EMOJI[e.anxiety]} ${e.anxiety}</span>`
+      : '';
 
     return `
       <div class="entry-card" data-id="${e.id}">
@@ -449,7 +477,7 @@ const Entries = {
         </div>
         <div class="entry-body">
           <div class="entry-top-row">
-            <span class="entry-mood-text">${MOOD_LABELS[e.mood]}</span>
+            <span class="entry-mood-text">${MOOD_LABELS[e.mood]}${anxietyBadge}</span>
             <span class="entry-time">${formatTime(e.timestamp)}</span>
           </div>
           <div class="entry-card-footer">
@@ -473,8 +501,9 @@ const Entries = {
   async save(data, editId) {
     const mood = await Crypto.encrypt(String(data.mood));
     const note = data.note ? await Crypto.encrypt(data.note) : '';
+    const anxiety = data.anxiety ? await Crypto.encrypt(String(data.anxiety)) : '';
 
-    const body = { mood, note, tags: data.tags, timestamp: data.timestamp };
+    const body = { mood, note, anxiety, tags: data.tags, timestamp: data.timestamp };
 
     let res;
     if (editId) {
@@ -514,9 +543,11 @@ const Entries = {
 const EntryModal = {
   editId: null,
   selectedMood: 0,
+  selectedAnxiety: 0,
 
   init() {
     this.buildMoodPicker();
+    this.buildAnxietyPicker();
     $('#modal-entry-close').addEventListener('click', () => this.close());
     $('#modal-entry').addEventListener('click', e => { if (e.target.id === 'modal-entry') this.close(); });
     $('#btn-save-entry').addEventListener('click', () => this.save());
@@ -537,6 +568,18 @@ const EntryModal = {
     }
   },
 
+  buildAnxietyPicker() {
+    const el = $('#anxiety-picker');
+    el.innerHTML = '';
+    for (let i = 1; i <= 5; i++) {
+      const b = document.createElement('button');
+      b.className = 'anxiety-btn'; b.type = 'button'; b.dataset.anxiety = i;
+      b.textContent = i; b.style.background = ANXIETY_COLORS[i];
+      b.addEventListener('click', () => this.selectAnxiety(i));
+      el.appendChild(b);
+    }
+  },
+
   selectMood(v) {
     this.selectedMood = v;
     $$('#mood-picker .mood-btn').forEach(b => b.classList.toggle('selected', +b.dataset.mood === v));
@@ -544,9 +587,23 @@ const EntryModal = {
     $('#btn-save-entry').disabled = false;
   },
 
+  selectAnxiety(v) {
+    if (this.selectedAnxiety === v) {
+      // повторное нажатие → сброс
+      this.selectedAnxiety = 0;
+      $$('#anxiety-picker .anxiety-btn').forEach(b => b.classList.remove('selected'));
+      $('#anxiety-value-display').textContent = '— (необязательно)';
+      return;
+    }
+    this.selectedAnxiety = v;
+    $$('#anxiety-picker .anxiety-btn').forEach(b => b.classList.toggle('selected', +b.dataset.anxiety === v));
+    $('#anxiety-value-display').textContent = `${ANXIETY_EMOJI[v]} ${ANXIETY_LABELS[v]}`;
+  },
+
   open(entry = null) {
     this.editId = entry ? entry.id : null;
     this.selectedMood = entry ? entry.mood : 0;
+    this.selectedAnxiety = entry ? (entry.anxiety || 0) : 0;
     $('#form-error').classList.add('hidden');
 
     $('#modal-entry-title').textContent = entry ? 'Редактировать' : 'Новая запись';
@@ -563,20 +620,33 @@ const EntryModal = {
     const selectedTagIds = entry ? (entry.tags || []).map(t => t.id) : [];
     Tags.render(selectedTagIds);
 
+    // Mood picker state
     $$('#mood-picker .mood-btn').forEach(b =>
       b.classList.toggle('selected', entry && +b.dataset.mood === entry.mood)
     );
     $('#mood-value-display').textContent = entry ? `${MOOD_EMOJI[entry.mood]} ${MOOD_LABELS[entry.mood]}` : '—';
+
+    // Anxiety picker state
+    $$('#anxiety-picker .anxiety-btn').forEach(b =>
+      b.classList.toggle('selected', this.selectedAnxiety && +b.dataset.anxiety === this.selectedAnxiety)
+    );
+    $('#anxiety-value-display').textContent = this.selectedAnxiety
+      ? `${ANXIETY_EMOJI[this.selectedAnxiety]} ${ANXIETY_LABELS[this.selectedAnxiety]}`
+      : '— (необязательно)';
+
     $('#btn-save-entry').disabled = !entry;
     $('#btn-save-entry').textContent = entry ? 'Сохранить' : 'Добавить';
 
     $('#modal-entry').classList.remove('hidden');
+    lockScroll(true);
   },
 
   close() {
     $('#modal-entry').classList.add('hidden');
+    lockScroll(false);
     this.editId = null;
     this.selectedMood = 0;
+    this.selectedAnxiety = 0;
   },
 
   async save() {
@@ -598,6 +668,7 @@ const EntryModal = {
     const data = {
       mood: this.selectedMood,
       note: $('#entry-note').value.trim(),
+      anxiety: this.selectedAnxiety || 0,
       tags: Tags.getSelected(),
       timestamp: ts.toISOString()
     };
@@ -650,54 +721,106 @@ const Confirm = {
     $('#confirm-text').textContent = text;
     this._callback = cb;
     $('#modal-confirm').classList.remove('hidden');
+    lockScroll(true);
   },
 
   close() {
     $('#modal-confirm').classList.add('hidden');
+    lockScroll(false);
     this._callback = null;
   }
 };
 
 // ============================================
-// MOOD GUIDE
+// MOOD GUIDE (с кликабельным выбором)
 // ============================================
 
 const MoodGuide = {
+  activeTab: 'mood',
+
   init() {
-    this._buildList();
-    $('#btn-mood-guide').addEventListener('click', () => this.open());
-    $('#btn-mood-guide-modal').addEventListener('click', () => this.open());
+    $('#btn-mood-guide').addEventListener('click', () => this.open('mood'));
+    $('#btn-mood-guide-modal').addEventListener('click', () => this.open('mood'));
+    $('#btn-anxiety-guide-modal').addEventListener('click', () => this.open('anxiety'));
     $('#modal-guide-close').addEventListener('click', () => this.close());
     $('#modal-mood-guide').addEventListener('click', e => {
       if (e.target.id === 'modal-mood-guide') this.close();
     });
+
+    // Табы в памятке
+    $$('.guide-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => this._switchTab(btn.dataset.guideTab));
+    });
+  },
+
+  _switchTab(tab) {
+    this.activeTab = tab;
+    $$('.guide-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.guideTab === tab));
+    this._buildList();
   },
 
   _buildList() {
     const el = $('#mood-guide-list');
+    const isMood = this.activeTab === 'mood';
+    const colors = isMood ? MOOD_COLORS : ANXIETY_COLORS;
+    const labels = isMood ? MOOD_LABELS : ANXIETY_LABELS;
+    const emojis = isMood ? MOOD_EMOJI : ANXIETY_EMOJI;
+    const guides = isMood ? MOOD_GUIDE : ANXIETY_GUIDE;
+    const max = isMood ? 9 : 5;
+
+    // Определяем, открыта ли форма записи (чтобы дать возможность выбора)
+    const entryModalOpen = !$('#modal-entry').classList.contains('hidden');
+
     let html = '';
-    for (let i = 9; i >= 1; i--) {
+    if (entryModalOpen) {
+      html += `<p class="guide-select-hint">Нажми на оценку, чтобы выбрать</p>`;
+    }
+    for (let i = max; i >= 1; i--) {
+      const clickable = entryModalOpen ? ' guide-item-clickable' : '';
       html += `
-        <div class="guide-item">
-          <div class="guide-badge" style="background:${MOOD_COLORS[i]}">
-            <span>${MOOD_EMOJI[i]}</span>
+        <div class="guide-item${clickable}" data-guide-type="${this.activeTab}" data-guide-value="${i}">
+          <div class="guide-badge" style="background:${colors[i]}">
+            <span>${emojis[i]}</span>
             <span class="guide-badge-num">${i}</span>
           </div>
           <div class="guide-text">
-            <strong>${MOOD_LABELS[i]}</strong>
-            <p>${esc(MOOD_GUIDE[i])}</p>
+            <strong>${labels[i]}</strong>
+            <p>${esc(guides[i])}</p>
           </div>
         </div>`;
     }
     el.innerHTML = html;
+
+    if (entryModalOpen) {
+      el.querySelectorAll('.guide-item-clickable').forEach(item => {
+        item.addEventListener('click', () => {
+          const type = item.dataset.guideType;
+          const val = +item.dataset.guideValue;
+          if (type === 'mood') {
+            EntryModal.selectMood(val);
+          } else {
+            EntryModal.selectAnxiety(val);
+          }
+          this.close();
+        });
+      });
+    }
   },
 
-  open() {
+  open(tab = 'mood') {
+    this.activeTab = tab;
+    $$('.guide-tab-btn').forEach(b => b.classList.toggle('active', b.dataset.guideTab === tab));
+    this._buildList();
     $('#modal-mood-guide').classList.remove('hidden');
+    lockScroll(true);
   },
 
   close() {
     $('#modal-mood-guide').classList.add('hidden');
+    // Если модалка записи открыта — не снимаем блокировку скролла
+    if ($('#modal-entry').classList.contains('hidden')) {
+      lockScroll(false);
+    }
   }
 };
 
@@ -863,6 +986,11 @@ const Chart = {
     this._stats(valid);
   },
 
+  _getChartStyle() {
+    const s = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+    return s.chartSmooth === false ? 'sharp' : 'smooth';
+  },
+
   _draw(entries) {
     const canvas = $('#mood-chart');
     const dpr = devicePixelRatio || 1;
@@ -881,6 +1009,7 @@ const Chart = {
     const cs = getComputedStyle(document.documentElement);
     const txtC = cs.getPropertyValue('--c-tertiary').trim() || '#aaa';
     const accC = cs.getPropertyValue('--accent').trim() || '#007aff';
+    const smooth = this._getChartStyle() === 'smooth';
 
     ctx.font = '500 10px Nunito,sans-serif';
     ctx.fillStyle = txtC;
@@ -898,7 +1027,6 @@ const Chart = {
       ctx.fillText(v, pL - 6, y + 4);
     }
 
-    // Агрегация по дням
     const byDay = {};
     entries.forEach(e => {
       const d = e.timestamp.slice(0, 10);
@@ -911,7 +1039,6 @@ const Chart = {
       return {day: d, avg: vals.reduce((s, v) => s + v, 0) / vals.length};
     });
 
-    // Скользящее среднее: адаптивный размер окна
     if (dayAvgs.length > 14) {
       let window;
       if (dayAvgs.length > 180) window = 7;
@@ -945,12 +1072,17 @@ const Chart = {
     grad.addColorStop(0, `rgba(${r},${g},${b},0.2)`);
     grad.addColorStop(1, `rgba(${r},${g},${b},0.01)`);
 
+    // Area fill
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pT + plotH);
     ctx.lineTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      const cp = (pts[i - 1].x + pts[i].x) / 2;
-      ctx.bezierCurveTo(cp, pts[i - 1].y, cp, pts[i].y, pts[i].x, pts[i].y);
+    if (smooth) {
+      for (let i = 1; i < pts.length; i++) {
+        const cp = (pts[i - 1].x + pts[i].x) / 2;
+        ctx.bezierCurveTo(cp, pts[i - 1].y, cp, pts[i].y, pts[i].x, pts[i].y);
+      }
+    } else {
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
     }
     ctx.lineTo(pts[pts.length - 1].x, pT + plotH);
     ctx.closePath();
@@ -960,13 +1092,18 @@ const Chart = {
     // Line
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
-    for (let i = 1; i < pts.length; i++) {
-      const cp = (pts[i - 1].x + pts[i].x) / 2;
-      ctx.bezierCurveTo(cp, pts[i - 1].y, cp, pts[i].y, pts[i].x, pts[i].y);
+    if (smooth) {
+      for (let i = 1; i < pts.length; i++) {
+        const cp = (pts[i - 1].x + pts[i].x) / 2;
+        ctx.bezierCurveTo(cp, pts[i - 1].y, cp, pts[i].y, pts[i].x, pts[i].y);
+      }
+    } else {
+      for (let i = 1; i < pts.length; i++) ctx.lineTo(pts[i].x, pts[i].y);
     }
     ctx.strokeStyle = accC;
     ctx.lineWidth = 2;
     ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
     ctx.stroke();
 
     // Dots
@@ -993,7 +1130,7 @@ const Chart = {
       ctx.restore();
     };
 
-    const labelY = H - pB + 14;  // ← единая точка
+    const labelY = H - pB + 14;
 
     if (this.period === 'month' && pts.length <= 31) {
       for (let i = 0; i < pts.length; i++) {
@@ -1012,10 +1149,7 @@ const Chart = {
       if (pts.length % step !== 1) _drawRotatedLabel(formatDateShort(last.ts), last.x, labelY);
     }
   },
-  /**
-   * Simple Moving Average по массиву {day, avg}.
-   * Возвращает массив той же длины с полем avg = сглаженное значение.
-   */
+
   _sma(data, window) {
     const half = Math.floor(window / 2);
     return data.map((item, i) => {
@@ -1104,6 +1238,23 @@ const Settings = {
     if (s.darkMode) { document.documentElement.setAttribute('data-theme', 'dark'); $('#toggle-theme').checked = true; }
     if (s.reduceTransparency) { document.documentElement.classList.add('reduce-transparency'); $('#toggle-transparency').checked = true; }
 
+    // Стиль графика: по умолчанию smooth (checked)
+    const chartToggle = $('#toggle-chart-smooth');
+    if (chartToggle) {
+      chartToggle.checked = s.chartSmooth !== false;
+      chartToggle.addEventListener('change', () => {
+        const smooth = chartToggle.checked;
+        this._save({ chartSmooth: smooth });
+        if (TabNav.current === 'chart') {
+          if (Chart.period === 'month') {
+            Chart.loadMonth(MonthPicker.year, MonthPicker.month);
+          } else {
+            Chart.load();
+          }
+        }
+      });
+    }
+
     $('#toggle-theme').addEventListener('change', () => {
       const dark = $('#toggle-theme').checked;
       document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
@@ -1157,8 +1308,6 @@ const Share = {
         this._currentToken = data.token;
         const url = `${location.origin}/share/${data.token}/`;
         this._currentUrl = data.is_encrypted ? url : url;
-        // При is_encrypted ключ был в момент создания, повторно его не достать.
-        // Показываем ссылку без фрагмента — пользователь должен был сохранить полную.
         this._showLink(url, true);
       }
     } catch { /* ignore */ }
@@ -1177,6 +1326,7 @@ const Share = {
       const entries = await Promise.all(raw.map(async e => ({
         mood: parseInt(await Crypto.decrypt(e.mood), 10) || 0,
         note: e.note ? await Crypto.decrypt(e.note) : '',
+        anxiety: e.anxiety ? parseInt(await Crypto.decrypt(e.anxiety), 10) || 0 : 0,
         timestamp: e.timestamp,
       })));
 
@@ -1222,8 +1372,6 @@ const Share = {
     input.value = url;
     box.classList.remove('hidden');
     if (isExisting && ENCRYPTION_ENABLED) {
-      // Для существующей зашифрованной ссылки: ключ утерян,
-      // предлагаем создать новую
       input.value = '🔒 Полная ссылка была показана при создании';
       input.style.fontSize = '0.7rem';
     } else {

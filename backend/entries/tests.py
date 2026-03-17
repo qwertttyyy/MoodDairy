@@ -1,17 +1,13 @@
-# backend/entries/tests.py
-
 import base64
 from datetime import date, timedelta
-from unittest.mock import MagicMock, patch
 
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from django.utils import timezone
 from rest_framework import status
-from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.test import APIRequestFactory
+from rest_framework.test import APIRequestFactory, APITestCase
 
 from entries.cache import (
     _get_version,
@@ -27,6 +23,13 @@ from entries.serializers import (
     _validate_encrypted_field,
 )
 from entries.views import MoodEntryViewSet
+
+
+def _enc(value: str) -> str:
+    """Формирует валидную зашифрованную строку iv:ciphertext."""
+    iv = base64.b64encode(b"test_iv_").decode()
+    ct = base64.b64encode(value.encode()).decode()
+    return f"{iv}:{ct}"
 
 
 # ===================================================================
@@ -79,10 +82,8 @@ class TimestampValidationTest(TestCase):
         Tag.objects.get_or_create(name="Работа")
 
     def _make_data(self, ts):
-        iv = base64.b64encode(b"test_iv_").decode()
-        ct = base64.b64encode(b"test_ct_").decode()
         return {
-            "mood": f"{iv}:{ct}",
+            "mood": _enc("5"),
             "timestamp": ts.isoformat(),
         }
 
@@ -102,6 +103,242 @@ class TimestampValidationTest(TestCase):
         data = {**self._make_data(ts), "note": ""}
         s = MoodEntryWriteSerializer(data=data)
         self.assertTrue(s.is_valid(), s.errors)
+
+
+# ===================================================================
+#  MoodEntryWriteSerializer — anxiety field
+# ===================================================================
+class AnxietyFieldTest(TestCase):
+    """validate_anxiety — пустое значение, валидный формат, невалидный формат."""
+
+    def _make_data(self, anxiety=""):
+        ts = (timezone.now() - timedelta(hours=1)).isoformat()
+        data = {"mood": _enc("5"), "timestamp": ts}
+        if anxiety is not None:
+            data["anxiety"] = anxiety
+        return data
+
+    def test_empty_anxiety_accepted(self):
+        """Поле anxiety необязательное — пустая строка проходит."""
+        s = MoodEntryWriteSerializer(data=self._make_data(anxiety=""))
+        self.assertTrue(s.is_valid(), s.errors)
+
+    def test_missing_anxiety_accepted(self):
+        """Поле anxiety отсутствует в payload — тоже допустимо."""
+        data = {"mood": _enc("5"),
+                "timestamp": (timezone.now() - timedelta(hours=1)).isoformat()}
+        s = MoodEntryWriteSerializer(data=data)
+        self.assertTrue(s.is_valid(), s.errors)
+
+    def test_valid_encrypted_anxiety(self):
+        """Корректный формат iv:ciphertext принимается."""
+        s = MoodEntryWriteSerializer(data=self._make_data(anxiety=_enc("3")))
+        self.assertTrue(s.is_valid(), s.errors)
+
+    def test_invalid_anxiety_format_rejected(self):
+        """Строка без разделителя ':' — ошибка валидации."""
+        s = MoodEntryWriteSerializer(
+            data=self._make_data(anxiety="not_encrypted"))
+        self.assertFalse(s.is_valid())
+        self.assertIn("anxiety", s.errors)
+
+    def test_invalid_base64_anxiety_rejected(self):
+        """Невалидный base64 в anxiety — ошибка."""
+        s = MoodEntryWriteSerializer(
+            data=self._make_data(anxiety="abc:not!base64"))
+        self.assertFalse(s.is_valid())
+        self.assertIn("anxiety", s.errors)
+
+
+class AnxietyModelTest(TestCase):
+    """Проверка сохранения anxiety в БД."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="anx_user", password="Str0ng!Pass99"
+        )
+
+    def test_create_entry_with_anxiety(self):
+        entry = MoodEntry.objects.create(
+            user=self.user,
+            mood=_enc("7"),
+            anxiety=_enc("3"),
+        )
+        entry.refresh_from_db()
+        self.assertEqual(entry.anxiety, _enc("3"))
+
+    def test_create_entry_without_anxiety(self):
+        entry = MoodEntry.objects.create(
+            user=self.user,
+            mood=_enc("5"),
+        )
+        entry.refresh_from_db()
+        self.assertEqual(entry.anxiety, "")
+
+    def test_update_anxiety(self):
+        entry = MoodEntry.objects.create(
+            user=self.user,
+            mood=_enc("5"),
+        )
+        entry.anxiety = _enc("4")
+        entry.save()
+        entry.refresh_from_db()
+        self.assertEqual(entry.anxiety, _enc("4"))
+
+
+class AnxietySerializerCreateUpdateTest(TestCase):
+    """Проверка create / update через сериализатор с anxiety."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="anx_crud", password="Str0ng!Pass99"
+        )
+
+    def test_create_with_anxiety(self):
+        ts = (timezone.now() - timedelta(hours=1)).isoformat()
+        data = {
+            "mood": _enc("6"),
+            "anxiety": _enc("2"),
+            "timestamp": ts,
+        }
+        s = MoodEntryWriteSerializer(data=data)
+        s.is_valid(raise_exception=True)
+        entry = s.save(user=self.user)
+        self.assertEqual(entry.anxiety, _enc("2"))
+
+    def test_update_anxiety(self):
+        entry = MoodEntry.objects.create(
+            user=self.user,
+            mood=_enc("5"),
+            anxiety=_enc("1"),
+        )
+        data = {
+            "mood": _enc("5"),
+            "anxiety": _enc("4"),
+            "timestamp": entry.timestamp.isoformat(),
+        }
+        s = MoodEntryWriteSerializer(instance=entry, data=data)
+        s.is_valid(raise_exception=True)
+        updated = s.save()
+        self.assertEqual(updated.anxiety, _enc("4"))
+
+    def test_clear_anxiety(self):
+        """Очистка anxiety — передаём пустую строку."""
+        entry = MoodEntry.objects.create(
+            user=self.user,
+            mood=_enc("5"),
+            anxiety=_enc("3"),
+        )
+        data = {
+            "mood": _enc("5"),
+            "anxiety": "",
+            "timestamp": entry.timestamp.isoformat(),
+        }
+        s = MoodEntryWriteSerializer(instance=entry, data=data)
+        s.is_valid(raise_exception=True)
+        updated = s.save()
+        self.assertEqual(updated.anxiety, "")
+
+
+class AnxietyReadSerializerTest(TestCase):
+    """MoodEntryReadSerializer включает поле anxiety."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="anx_read", password="Str0ng!Pass99"
+        )
+
+    def test_anxiety_in_read_output(self):
+        from entries.serializers import MoodEntryReadSerializer
+
+        entry = MoodEntry.objects.create(
+            user=self.user,
+            mood=_enc("8"),
+            anxiety=_enc("2"),
+        )
+        data = MoodEntryReadSerializer(entry).data
+        self.assertIn("anxiety", data)
+        self.assertEqual(data["anxiety"], _enc("2"))
+
+    def test_empty_anxiety_in_read_output(self):
+        from entries.serializers import MoodEntryReadSerializer
+
+        entry = MoodEntry.objects.create(
+            user=self.user,
+            mood=_enc("5"),
+        )
+        data = MoodEntryReadSerializer(entry).data
+        self.assertIn("anxiety", data)
+        self.assertEqual(data["anxiety"], "")
+
+
+# ===================================================================
+#  Anxiety in API endpoints (integration)
+# ===================================================================
+class AnxietyAPITest(APITestCase):
+    """Интеграционные тесты: создание и получение записей с anxiety."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="api_anx", password="Str0ng!Pass99"
+        )
+        self.client.force_login(self.user)
+
+    def test_create_entry_with_anxiety_via_api(self):
+        ts = (timezone.now() - timedelta(hours=1)).isoformat()
+        resp = self.client.post(
+            "/api/entries/",
+            {
+                "mood": _enc("7"),
+                "anxiety": _enc("3"),
+                "timestamp": ts,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["anxiety"], _enc("3"))
+
+    def test_create_entry_without_anxiety_via_api(self):
+        ts = (timezone.now() - timedelta(hours=1)).isoformat()
+        resp = self.client.post(
+            "/api/entries/",
+            {
+                "mood": _enc("5"),
+                "timestamp": ts,
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(resp.data["anxiety"], "")
+
+    def test_list_entries_includes_anxiety(self):
+        MoodEntry.objects.create(
+            user=self.user,
+            mood=_enc("6"),
+            anxiety=_enc("2"),
+        )
+        resp = self.client.get("/api/entries/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIn("anxiety", resp.data[0])
+
+    def test_update_entry_anxiety_via_api(self):
+        entry = MoodEntry.objects.create(
+            user=self.user,
+            mood=_enc("5"),
+            anxiety=_enc("1"),
+        )
+        resp = self.client.put(
+            f"/api/entries/{entry.id}/",
+            {
+                "mood": _enc("5"),
+                "anxiety": _enc("4"),
+                "timestamp": entry.timestamp.isoformat(),
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        entry.refresh_from_db()
+        self.assertEqual(entry.anxiety, _enc("4"))
 
 
 # ===================================================================
@@ -133,7 +370,6 @@ class FilterByMonthTest(TestCase):
         self.assertEqual(str(filtered.query), original_sql)
 
     def test_december_entries_filtered_correctly(self):
-        """Интеграционная проверка: записи декабря 2025 возвращаются, январь 2026 — нет."""
         tz = timezone.get_current_timezone()
         from datetime import datetime as dt
 
@@ -188,7 +424,6 @@ class GetVersionTest(TestCase):
     def test_first_call_returns_1(self):
         ver = _get_version(99)
         self.assertEqual(ver, 1)
-        # Убеждаемся что записано в cache
         self.assertEqual(cache.get(_version_key(99)), 1)
 
     def test_subsequent_call_returns_current(self):
@@ -208,7 +443,6 @@ class InvalidateUserCacheTest(TestCase):
         self.assertEqual(cache.get(_version_key(1)), 4)
 
     def test_cold_cache_sets_to_1(self):
-        """Нет ключа в cache → incr бросит ValueError → ставим 1."""
         invalidate_user_cache(777)
         self.assertEqual(cache.get(_version_key(777)), 1)
 
@@ -220,8 +454,6 @@ class MakeKeyTest(TestCase):
         cache.clear()
 
     def test_same_params_different_order_same_key(self):
-        from django.http import QueryDict
-
         params_a = {"year": "2026", "month": "3"}
         params_b = {"month": "3", "year": "2026"}
         key_a = _make_key(1, "list", params_a)
@@ -247,8 +479,6 @@ class CachedActionTest(TestCase):
         return request
 
     def test_returns_cached_on_second_call(self):
-        """Повторный вызов с теми же параметрами → функция не вызывается второй раз."""
-
         class FakeView:
             @cached_action
             def my_action(inner_self, request):
@@ -262,12 +492,10 @@ class CachedActionTest(TestCase):
         resp2 = view.my_action(req)
 
         self.assertEqual(resp1.data["count"], 1)
-        self.assertEqual(resp2.data["count"], 1)  # из кэша
+        self.assertEqual(resp2.data["count"], 1)
         self.assertEqual(self.call_count, 1)
 
     def test_non_200_not_cached(self):
-        """Ответ с кодом != 200 не записывается в cache."""
-
         class FakeView:
             @cached_action
             def bad_action(inner_self, request):
@@ -280,5 +508,4 @@ class CachedActionTest(TestCase):
         view.bad_action(req)
         view.bad_action(req)
 
-        # Функция вызвана дважды — кэш не сработал
         self.assertEqual(self.call_count, 2)

@@ -3,6 +3,10 @@
 const MOOD_COLORS = ['', '#ff3b30', '#ff6b3d', '#ff9500', '#ffcc00', '#c7c729', '#a8d84e', '#34c759', '#30b0c7', '#5ac8fa'];
 const MOOD_LABELS = ['', 'Ужасно', 'Очень плохо', 'Плохо', 'Так себе', 'Нормально', 'Неплохо', 'Хорошо', 'Отлично', 'Прекрасно'];
 const MOOD_EMOJI = ['', '😣', '😞', '😕', '😐', '🙂', '😊', '😄', '😁', '🤩'];
+
+const ANXIETY_COLORS = ['','#34c759','#a8d84e','#ffcc00','#ff9500','#ff3b30'];
+const ANXIETY_EMOJI  = ['','😌','😐','😟','😰','🫨'];
+
 const MONTH_NAMES = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь'];
 
 const $ = s => document.querySelector(s);
@@ -35,8 +39,6 @@ function dayLabel(dateStr) {
     });
 }
 
-// ── Бинарные утилиты (безопасны для больших массивов) ──
-
 function uint8ToB64(bytes) {
     let bin = '';
     for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
@@ -50,8 +52,6 @@ function b64ToUint8(b64) {
     return arr;
 }
 
-// ── Дешифровка blob ──
-
 async function decryptBlob(blobStr, keyB64) {
     const [ivB64, ctB64] = blobStr.split(':', 2);
     const iv = b64ToUint8(ivB64);
@@ -62,16 +62,11 @@ async function decryptBlob(blobStr, keyB64) {
     return new TextDecoder().decode(plain);
 }
 
-// ── State ──
-
 let allEntries = [];
 let currentYear, currentMonth;
 let minYear, minMonth, maxYear, maxMonth;
 
-// ── Init ──
-
 document.addEventListener('DOMContentLoaded', async () => {
-    // Тема по системным настройкам
     if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
         document.documentElement.setAttribute('data-theme', 'dark');
     }
@@ -110,7 +105,6 @@ function initApp() {
     $('#share-loading').classList.add('hidden');
     $('#share-content').classList.remove('hidden');
 
-    // Определяем границы месяцев по данным
     if (allEntries.length) {
         const first = new Date(allEntries[0].timestamp);
         const last = new Date(allEntries[allEntries.length - 1].timestamp);
@@ -189,8 +183,6 @@ function renderMonth() {
     renderEntries(entries);
 }
 
-// ── Chart (та же логика что в основном приложении) ──
-
 function drawChart(entries) {
     const canvas = $('#mood-chart');
     const dpr = devicePixelRatio || 1;
@@ -210,7 +202,6 @@ function drawChart(entries) {
     const txtC = cs.getPropertyValue('--c-tertiary').trim() || '#aaa';
     const accC = cs.getPropertyValue('--accent').trim() || '#007aff';
 
-    // Y grid
     ctx.font = '500 10px Nunito,sans-serif';
     ctx.fillStyle = txtC;
     ctx.textAlign = 'right';
@@ -227,7 +218,6 @@ function drawChart(entries) {
         ctx.fillText(v, pL - 6, y + 4);
     }
 
-    // Агрегация по дням
     const byDay = {};
     entries.forEach(e => {
         const d = e.timestamp.slice(0, 10);
@@ -261,7 +251,6 @@ function drawChart(entries) {
         return;
     }
 
-    // Area
     const r = parseInt(accC.slice(1, 3), 16),
         g = parseInt(accC.slice(3, 5), 16), b = parseInt(accC.slice(5, 7), 16);
     const grad = ctx.createLinearGradient(0, pT, 0, pT + plotH);
@@ -280,7 +269,6 @@ function drawChart(entries) {
     ctx.fillStyle = grad;
     ctx.fill();
 
-    // Line
     ctx.beginPath();
     ctx.moveTo(pts[0].x, pts[0].y);
     for (let i = 1; i < pts.length; i++) {
@@ -292,7 +280,6 @@ function drawChart(entries) {
     ctx.lineCap = 'round';
     ctx.stroke();
 
-    // Dots
     if (pts.length <= 60) {
         pts.forEach(p => {
             ctx.beginPath();
@@ -305,7 +292,6 @@ function drawChart(entries) {
         });
     }
 
-    // X labels (через день, повёрнутые)
     ctx.fillStyle = txtC;
     ctx.font = '500 9px Nunito,sans-serif';
     const labelY = H - pB + 14;
@@ -339,14 +325,19 @@ function sma(data, window) {
 function drawStats(entries) {
     const moods = entries.map(e => e.mood);
     const avg = (moods.reduce((s, v) => s + v, 0) / moods.length).toFixed(1);
+
+    const anxieties = entries.map(e => e.anxiety).filter(a => a >= 1 && a <= 5);
+    const anxAvg = anxieties.length
+        ? (anxieties.reduce((s, v) => s + v, 0) / anxieties.length).toFixed(1)
+        : '—';
+
     $('#chart-stats').innerHTML = `
     <div class="stat-item"><div class="stat-value">${avg}</div><div class="stat-label">Среднее</div></div>
     <div class="stat-item"><div class="stat-value">${Math.max(...moods)}</div><div class="stat-label">Макс</div></div>
     <div class="stat-item"><div class="stat-value">${Math.min(...moods)}</div><div class="stat-label">Мин</div></div>
+    <div class="stat-item"><div class="stat-value">${anxAvg}</div><div class="stat-label">Тревога</div></div>
     <div class="stat-item"><div class="stat-value">${entries.length}</div><div class="stat-label">Записей</div></div>`;
 }
-
-// ── Entries list ──
 
 function renderEntries(entries) {
     const el = $('#share-entries');
@@ -355,7 +346,6 @@ function renderEntries(entries) {
         return;
     }
 
-    // Группируем по дням, порядок хронологический (от старых к новым)
     const sorted = [...entries].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
     const groups = {};
     sorted.forEach(e => {
@@ -369,7 +359,11 @@ function renderEntries(entries) {
         html += `<div class="date-group-label">${dayLabel(day)}</div>`;
         for (const e of items) {
             const m = e.mood || 0;
+            const a = e.anxiety || 0;
             const note = e.note ? `<p class="share-entry-note">${esc(e.note)}</p>` : '';
+            const anxietyBadge = a
+                ? `<span class="entry-anxiety-badge" style="background:${ANXIETY_COLORS[a]}">${ANXIETY_EMOJI[a]} ${a}</span>`
+                : '';
             html += `
         <div class="share-entry-card">
           <div class="entry-mood-badge" style="background:${MOOD_COLORS[m]}">
@@ -378,7 +372,7 @@ function renderEntries(entries) {
           </div>
           <div class="share-entry-body">
             <div class="entry-top-row">
-              <span class="entry-mood-text">${MOOD_LABELS[m]}</span>
+              <span class="entry-mood-text">${MOOD_LABELS[m]}${anxietyBadge}</span>
               <span class="entry-time">${formatTime(e.timestamp)}</span>
             </div>
             ${note}
@@ -388,8 +382,6 @@ function renderEntries(entries) {
     }
     el.innerHTML = html;
 }
-
-// ── Resize ──
 
 let _rt;
 window.addEventListener('resize', () => {

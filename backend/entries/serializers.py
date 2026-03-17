@@ -41,6 +41,7 @@ class MoodEntryReadSerializer(serializers.ModelSerializer):
             "id",
             "mood",
             "note",
+            "anxiety",
             "tags",
             "timestamp",
             "created_at",
@@ -49,7 +50,7 @@ class MoodEntryReadSerializer(serializers.ModelSerializer):
 
 
 class MoodEntryWriteSerializer(serializers.ModelSerializer):
-    """Запись — mood/note как зашифрованные строки, теги как список id."""
+    """Запись — mood/note/anxiety как зашифрованные строки, теги как список id."""
 
     tags = serializers.PrimaryKeyRelatedField(
         queryset=Tag.objects.all(),
@@ -63,6 +64,7 @@ class MoodEntryWriteSerializer(serializers.ModelSerializer):
             "id",
             "mood",
             "note",
+            "anxiety",
             "tags",
             "timestamp",
             "created_at",
@@ -74,6 +76,11 @@ class MoodEntryWriteSerializer(serializers.ModelSerializer):
         return _validate_encrypted_field(value)
 
     def validate_note(self, value: str) -> str:
+        if not value:
+            return value
+        return _validate_encrypted_field(value)
+
+    def validate_anxiety(self, value: str) -> str:
         if not value:
             return value
         return _validate_encrypted_field(value)

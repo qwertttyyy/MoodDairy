@@ -1,11 +1,9 @@
-# backend/accounts/tests.py
-
 import base64
 from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.contrib.sessions.backends.base import SessionBase
-from django.test import TestCase, override_settings
+from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIRequestFactory, APITestCase
 

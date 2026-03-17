@@ -11,13 +11,13 @@ class TagAdmin(admin.ModelAdmin):
 
 @admin.register(MoodEntry)
 class MoodEntryAdmin(admin.ModelAdmin):
-    """mood и note зашифрованы клиентом — отображать бессмысленно."""
+    """mood, note и anxiety зашифрованы клиентом — отображать бессмысленно."""
 
     list_display = ("id", "user", "get_tags", "timestamp")
     list_filter = ("tags", "timestamp")
     search_fields = ("user__username",)
     readonly_fields = ("user", "timestamp", "created_at", "updated_at")
-    exclude = ("mood", "note")
+    exclude = ("mood", "note", "anxiety")
     filter_horizontal = ("tags",)
 
     @admin.display(description="Теги")

@@ -22,7 +22,7 @@ class Tag(models.Model):
 
 
 class MoodEntry(models.Model):
-    """Запись настроения. mood и note зашифрованы на клиенте (iv:ciphertext)."""
+    """Запись настроения. mood, note, anxiety зашифрованы на клиенте (iv:ciphertext)."""
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -33,6 +33,9 @@ class MoodEntry(models.Model):
     mood = models.TextField(verbose_name="Настроение (зашифровано)")
     note = models.TextField(
         blank=True, default="", verbose_name="Заметка (зашифровано)"
+    )
+    anxiety = models.TextField(
+        blank=True, default="", verbose_name="Тревога (зашифровано)"
     )
     tags = models.ManyToManyField(
         Tag,

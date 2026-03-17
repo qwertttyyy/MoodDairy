@@ -94,7 +94,6 @@
         </div>
       </div>
 
-      <!-- Выбор конкретного месяца -->
       <div class="month-picker hidden" id="month-picker">
         <div class="month-picker-inner liquid-glass">
           <button class="month-nav-btn" id="month-prev" aria-label="Предыдущий месяц">
@@ -133,6 +132,12 @@
             <input type="checkbox" id="toggle-transparency"><span class="toggle-track"></span>
           </label>
         </div>
+        <div class="setting-row">
+          <div class="setting-info"><span class="setting-label">Плавный график</span></div>
+          <label class="toggle">
+            <input type="checkbox" id="toggle-chart-smooth" checked><span class="toggle-track"></span>
+          </label>
+        </div>
       </div>
       <div class="settings-group liquid-glass">
         <div class="setting-row">
@@ -163,7 +168,7 @@
           <button class="btn-sm-danger" id="btn-logout">Выход</button>
         </div>
       </div>
-      <p class="settings-footer">Moods v1.1</p>
+      <p class="settings-footer">Moods v1.2</p>
     </section>
 
     <!-- TAB BAR -->
@@ -207,6 +212,16 @@
         <div class="mood-picker" id="mood-picker"></div>
         <div class="mood-value-display" id="mood-value-display">—</div>
 
+        <div class="mood-label-row">
+          <label class="field-label">Уровень тревоги</label>
+          <button class="mood-guide-hint" id="btn-anxiety-guide-modal" aria-label="Подсказка тревоги">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            Памятка
+          </button>
+        </div>
+        <div class="anxiety-picker" id="anxiety-picker"></div>
+        <div class="mood-value-display" id="anxiety-value-display">(необязательно)</div>
+
         <label class="field-label" for="entry-note">Заметка</label>
         <textarea id="entry-note" class="glass-input" rows="3" placeholder="Что произошло?"></textarea>
 
@@ -243,21 +258,27 @@
     </div>
   </div>
 
-  <!-- MODAL: MOOD GUIDE -->
+  <!-- MODAL: MOOD & ANXIETY GUIDE -->
   <div class="modal-overlay hidden" id="modal-mood-guide">
     <div class="modal liquid-glass modal-guide">
       <div class="modal-handle"></div>
       <div class="modal-header">
-        <h2>Шкала настроения</h2>
+        <h2>Памятка</h2>
         <button class="btn-icon-glass btn-close" id="modal-guide-close" aria-label="Закрыть">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
         </button>
+      </div>
+      <!-- Табы памятки -->
+      <div class="guide-tabs">
+        <button class="guide-tab-btn active" data-guide-tab="mood">Настроение</button>
+        <button class="guide-tab-btn" data-guide-tab="anxiety">Тревога</button>
       </div>
       <div class="modal-body mood-guide-list" id="mood-guide-list">
         <!-- Заполняется из JS -->
       </div>
     </div>
   </div>
+
   <script>
       window.__APP_CONFIG__ = {
         encryptionEnabled: {{ encryption_enabled|yesno:"true,false" }}
