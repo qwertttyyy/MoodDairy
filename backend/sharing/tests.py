@@ -175,11 +175,11 @@ class ShareViewTest(APITestCase):
         )
 
     def test_post_deactivates_previous_share(self):
-        """Создание новой ссылки деактивирует все предыдущие."""
+        """Новая созданная ссылка активна"""
         share = SharedAccess.objects.create(
             user=self.user,
             data_blob="share",
-            is_active=True,
+            is_active=False,
         )
         self.client.post(
             "/api/sharing/",
@@ -187,8 +187,7 @@ class ShareViewTest(APITestCase):
             format="json",
         )
         share.refresh_from_db()
-        active = SharedAccess.objects.filter(user=self.user, is_active=True)
-        self.assertEqual(active.count(), 1)
+        self.assertTrue(share.is_active)
 
     def test_get_active_share_returns_metadata(self):
         SharedAccess.objects.create(
