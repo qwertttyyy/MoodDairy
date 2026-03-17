@@ -11,8 +11,8 @@ load_dotenv()
 
 def create_default_admin(apps, schema_editor):
     User = apps.get_model(
-        settings.AUTH_USER_MODEL.split('.')[0],
-        settings.AUTH_USER_MODEL.split('.')[1],
+        settings.AUTH_USER_MODEL.split(".")[0],
+        settings.AUTH_USER_MODEL.split(".")[1],
     )
 
     username = "admin"
@@ -34,35 +34,35 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='UserProfile',
+            name="UserProfile",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.BigAutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name='ID',
+                        verbose_name="ID",
                     ),
                 ),
                 (
-                    'encryption_salt',
+                    "encryption_salt",
                     models.CharField(
-                        max_length=64, verbose_name='Salt (base64)'
+                        max_length=64, verbose_name="Salt (base64)"
                     ),
                 ),
                 (
-                    'user',
+                    "user",
                     models.OneToOneField(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='profile',
+                        related_name="profile",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'Профиль',
-                'verbose_name_plural': 'Профили',
+                "verbose_name": "Профиль",
+                "verbose_name_plural": "Профили",
             },
         ),
         migrations.RunPython(

@@ -16,19 +16,19 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='SharedAccess',
+            name="SharedAccess",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.BigAutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name='ID',
+                        verbose_name="ID",
                     ),
                 ),
                 (
-                    'token',
+                    "token",
                     models.CharField(
                         db_index=True,
                         default=sharing.models.generate_token,
@@ -37,28 +37,28 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    'data_blob',
+                    "data_blob",
                     models.TextField(
-                        verbose_name='Данные (шифротекст или JSON)'
+                        verbose_name="Данные (шифротекст или JSON)"
                     ),
                 ),
-                ('is_encrypted', models.BooleanField(default=True)),
-                ('is_active', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('expires_at', models.DateTimeField(blank=True, null=True)),
+                ("is_encrypted", models.BooleanField(default=True)),
+                ("is_active", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("expires_at", models.DateTimeField(blank=True, null=True)),
                 (
-                    'user',
+                    "user",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='shared_accesses',
+                        related_name="shared_accesses",
                         to=settings.AUTH_USER_MODEL,
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'Общий доступ',
-                'verbose_name_plural': 'Общие доступы',
-                'ordering': ['-created_at'],
+                "verbose_name": "Общий доступ",
+                "verbose_name_plural": "Общие доступы",
+                "ordering": ["-created_at"],
             },
         ),
     ]

@@ -45,91 +45,91 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name='Tag',
+            name="Tag",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.BigAutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name='ID',
+                        verbose_name="ID",
                     ),
                 ),
                 (
-                    'name',
+                    "name",
                     models.CharField(
-                        max_length=50, unique=True, verbose_name='Название'
+                        max_length=50, unique=True, verbose_name="Название"
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'Тег',
-                'verbose_name_plural': 'Теги',
-                'ordering': ['name'],
+                "verbose_name": "Тег",
+                "verbose_name_plural": "Теги",
+                "ordering": ["name"],
             },
         ),
         migrations.RunPython(create_default_tags, reverse_default_tags),
         migrations.CreateModel(
-            name='MoodEntry',
+            name="MoodEntry",
             fields=[
                 (
-                    'id',
+                    "id",
                     models.BigAutoField(
                         auto_created=True,
                         primary_key=True,
                         serialize=False,
-                        verbose_name='ID',
+                        verbose_name="ID",
                     ),
                 ),
                 (
-                    'mood',
-                    models.TextField(verbose_name='Настроение (зашифровано)'),
+                    "mood",
+                    models.TextField(verbose_name="Настроение (зашифровано)"),
                 ),
                 (
-                    'note',
+                    "note",
                     models.TextField(
                         blank=True,
-                        default='',
-                        verbose_name='Заметка (зашифровано)',
+                        default="",
+                        verbose_name="Заметка (зашифровано)",
                     ),
                 ),
                 (
-                    'timestamp',
+                    "timestamp",
                     models.DateTimeField(
                         default=django.utils.timezone.now,
-                        verbose_name='Дата и время',
+                        verbose_name="Дата и время",
                     ),
                 ),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
                 (
-                    'user',
+                    "user",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        related_name='mood_entries',
+                        related_name="mood_entries",
                         to=settings.AUTH_USER_MODEL,
-                        verbose_name='Пользователь',
+                        verbose_name="Пользователь",
                     ),
                 ),
                 (
-                    'tags',
+                    "tags",
                     models.ManyToManyField(
                         blank=True,
-                        related_name='entries',
-                        to='entries.tag',
-                        verbose_name='Теги',
+                        related_name="entries",
+                        to="entries.tag",
+                        verbose_name="Теги",
                     ),
                 ),
             ],
             options={
-                'verbose_name': 'Запись',
-                'verbose_name_plural': 'Записи',
-                'ordering': ['-timestamp'],
-                'indexes': [
+                "verbose_name": "Запись",
+                "verbose_name_plural": "Записи",
+                "ordering": ["-timestamp"],
+                "indexes": [
                     models.Index(
-                        fields=['user', '-timestamp'],
-                        name='entries_moo_user_id_d26c5a_idx',
+                        fields=["user", "-timestamp"],
+                        name="entries_moo_user_id_d26c5a_idx",
                     )
                 ],
             },

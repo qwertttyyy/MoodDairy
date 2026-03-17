@@ -118,7 +118,9 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
 
-    def perform_create(self, serializer: MoodEntactiveryWriteSerializer) -> None:
+    def perform_create(
+        self, serializer: MoodEntactiveryWriteSerializer
+    ) -> None:
         serializer.save(user=self.request.user)
         invalidate_user_cache(self.request.user.id)
         logger.info("Entry created by user_id=%d", self.request.user.id)

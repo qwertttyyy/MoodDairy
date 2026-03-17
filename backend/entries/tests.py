@@ -119,8 +119,8 @@ class FilterByMonthTest(TestCase):
     def test_regular_month(self):
         filtered = MoodEntryViewSet._filter_by_month(self.qs, "2026", "3")
         query_str = str(filtered.query)
-        self.assertIn('2026-03-01', query_str)
-        self.assertIn('2026-04-01', query_str)
+        self.assertIn("2026-03-01", query_str)
+        self.assertIn("2026-04-01", query_str)
 
     def test_december_crosses_year(self):
         filtered = MoodEntryViewSet._filter_by_month(self.qs, "2025", "12")

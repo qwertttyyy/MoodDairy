@@ -14,17 +14,18 @@ class CreateShareSerializer(serializers.Serializer):
     is_encrypted = serializers.BooleanField(default=True)
 
     def create(self, validated_data: dict) -> SharedAccess:
-        user = validated_data.pop('user')
+        user = validated_data.pop("user")
         expires_at = timezone.now() + timedelta(
-            hours=SHARED_ACCESS_EXPIRE_HOURS)
+            hours=SHARED_ACCESS_EXPIRE_HOURS
+        )
 
         shared, _ = SharedAccess.objects.update_or_create(
             user=user,
             defaults={
                 **validated_data,
-                'expires_at': expires_at,
-                'is_active': True,
-                'token': generate_token()
+                "expires_at": expires_at,
+                "is_active": True,
+                "token": generate_token(),
             },
         )
         return shared
