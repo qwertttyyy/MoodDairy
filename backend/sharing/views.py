@@ -11,22 +11,21 @@ from rest_framework.views import APIView
 
 from .models import SharedAccess
 from .serializers import CreateShareSerializer
+from .services import create_or_update_share, get_active_share, revoke_share
 
 logger = logging.getLogger("sharing")
 
 
 class ShareView(APIView):
     """GET — метаданные активной ссылки.
-    POST — создать (деактивирует предыдущую).
+    POST — создать/обновить.
     DELETE — отозвать."""
 
     permission_classes = (IsAuthenticated,)
 
     def get(self, request: Request) -> Response:
-        share = SharedAccess.objects.filter(
-            user=request.user, is_active=True
-        ).first()
-        if not share or share.is_expired:
+        share = get_active_share(request.user)
+        if not share:
             return Response({"active": False})
         return Response(
             {
@@ -40,8 +39,11 @@ class ShareView(APIView):
     def post(self, request: Request) -> Response:
         serializer = CreateShareSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        share = serializer.save(user=request.user)
-
+        share = create_or_update_share(
+            user=request.user,
+            data_blob=serializer.validated_data["data_blob"],
+            is_encrypted=serializer.validated_data["is_encrypted"],
+        )
         logger.info(
             "Share created by user_id=%d, token=%s",
             request.user.id,
@@ -50,16 +52,13 @@ class ShareView(APIView):
         return Response({"token": share.token}, status=status.HTTP_201_CREATED)
 
     def delete(self, request: Request) -> Response:
-        try:
-            shared = request.user.shared_access
-        except SharedAccess.DoesNotExist:
+        revoked = revoke_share(request.user)
+        if not revoked:
             return Response(
-                {"detail": "Ссылки нет, создайте новую"},
+                {"detail": "Активной ссылки нет"},
                 status=status.HTTP_204_NO_CONTENT,
             )
-        shared.is_active = False
-        shared.save(update_fields=["is_active"])
-        logger.info("Share inactivated by user_id=%d", request.user.id)
+        logger.info("Share revoked by user_id=%d", request.user.id)
         return Response(status=status.HTTP_200_OK)
 
 

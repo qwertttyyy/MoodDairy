@@ -8,6 +8,7 @@ from django.contrib.auth.password_validation import validate_password
 from rest_framework import serializers
 
 from .models import UserProfile
+from .services import register_user
 
 
 class RegisterSerializer(serializers.Serializer):
@@ -34,15 +35,11 @@ class RegisterSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data: dict) -> User:
-        user = User.objects.create_user(
+        return register_user(
             username=validated_data["username"],
             password=validated_data["password"],
-        )
-        UserProfile.objects.create(
-            user=user,
             encryption_salt=validated_data["encryption_salt"],
         )
-        return user
 
 
 class LoginSerializer(serializers.Serializer):

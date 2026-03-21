@@ -16,6 +16,11 @@ CACHES = {
 
 AUTH_PASSWORD_VALIDATORS = []
 
+REST_FRAMEWORK = {
+    **REST_FRAMEWORK,  # noqa: F405
+    "DEFAULT_THROTTLE_RATES": {"auth": "1000/minute"},
+}
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": True,

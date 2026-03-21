@@ -17,12 +17,10 @@ from entries.cache import (
     invalidate_user_cache,
 )
 from entries.constants import CACHE_PREFIX
+from entries.fields import validate_encrypted_value
 from entries.models import MoodEntry, Tag
-from entries.serializers import (
-    MoodEntryWriteSerializer,
-    _validate_encrypted_field,
-)
-from entries.views import MoodEntryViewSet
+from entries.serializers import MoodEntryWriteSerializer
+from entries.services import filter_by_month, parse_before
 
 
 def _enc(value: str) -> str:
@@ -33,7 +31,7 @@ def _enc(value: str) -> str:
 
 
 # ===================================================================
-#  _validate_encrypted_field
+#  validate_encrypted_value
 # ===================================================================
 class ValidateEncryptedFieldTest(TestCase):
     """Проверка формата iv:ciphertext (base64:base64)."""
@@ -42,13 +40,13 @@ class ValidateEncryptedFieldTest(TestCase):
         iv = base64.b64encode(b"iv_bytes").decode()
         ct = base64.b64encode(b"ciphertext").decode()
         value = f"{iv}:{ct}"
-        self.assertEqual(_validate_encrypted_field(value), value)
+        self.assertEqual(validate_encrypted_value(value), value)
 
     def test_no_colon_separator(self):
         from rest_framework.exceptions import ValidationError
 
         with self.assertRaises(ValidationError) as ctx:
-            _validate_encrypted_field("nocolon")
+            validate_encrypted_value("nocolon")
         self.assertIn("iv:ciphertext", str(ctx.exception.detail))
 
     def test_invalid_base64_in_ciphertext(self):
@@ -56,17 +54,16 @@ class ValidateEncryptedFieldTest(TestCase):
 
         iv = base64.b64encode(b"iv").decode()
         with self.assertRaises(ValidationError):
-            _validate_encrypted_field(f"{iv}:not!base64")
+            validate_encrypted_value(f"{iv}:not!base64")
 
     def test_empty_string_passes(self):
-        self.assertEqual(_validate_encrypted_field(""), "")
+        self.assertEqual(validate_encrypted_value(""), "")
 
     def test_both_parts_valid_base64_with_colon_in_ct(self):
-        """Если вторая часть (после первого ':') — валидный base64, то без ошибок."""
         iv = base64.b64encode(b"iv_data").decode()
         ct = base64.b64encode(b"cipher:text:with:colons").decode()
         value = f"{iv}:{ct}"
-        self.assertEqual(_validate_encrypted_field(value), value)
+        self.assertEqual(validate_encrypted_value(value), value)
 
 
 # ===================================================================
@@ -119,33 +116,32 @@ class AnxietyFieldTest(TestCase):
         return data
 
     def test_empty_anxiety_accepted(self):
-        """Поле anxiety необязательное — пустая строка проходит."""
         s = MoodEntryWriteSerializer(data=self._make_data(anxiety=""))
         self.assertTrue(s.is_valid(), s.errors)
 
     def test_missing_anxiety_accepted(self):
-        """Поле anxiety отсутствует в payload — тоже допустимо."""
-        data = {"mood": _enc("5"),
-                "timestamp": (timezone.now() - timedelta(hours=1)).isoformat()}
+        data = {
+            "mood": _enc("5"),
+            "timestamp": (timezone.now() - timedelta(hours=1)).isoformat(),
+        }
         s = MoodEntryWriteSerializer(data=data)
         self.assertTrue(s.is_valid(), s.errors)
 
     def test_valid_encrypted_anxiety(self):
-        """Корректный формат iv:ciphertext принимается."""
         s = MoodEntryWriteSerializer(data=self._make_data(anxiety=_enc("3")))
         self.assertTrue(s.is_valid(), s.errors)
 
     def test_invalid_anxiety_format_rejected(self):
-        """Строка без разделителя ':' — ошибка валидации."""
         s = MoodEntryWriteSerializer(
-            data=self._make_data(anxiety="not_encrypted"))
+            data=self._make_data(anxiety="not_encrypted")
+        )
         self.assertFalse(s.is_valid())
         self.assertIn("anxiety", s.errors)
 
     def test_invalid_base64_anxiety_rejected(self):
-        """Невалидный base64 в anxiety — ошибка."""
         s = MoodEntryWriteSerializer(
-            data=self._make_data(anxiety="abc:not!base64"))
+            data=self._make_data(anxiety="abc:not!base64")
+        )
         self.assertFalse(s.is_valid())
         self.assertIn("anxiety", s.errors)
 
@@ -223,7 +219,6 @@ class AnxietySerializerCreateUpdateTest(TestCase):
         self.assertEqual(updated.anxiety, _enc("4"))
 
     def test_clear_anxiety(self):
-        """Очистка anxiety — передаём пустую строку."""
         entry = MoodEntry.objects.create(
             user=self.user,
             mood=_enc("5"),
@@ -342,10 +337,10 @@ class AnxietyAPITest(APITestCase):
 
 
 # ===================================================================
-#  MoodEntryViewSet — статические методы
+#  Service functions: filter_by_month, parse_before
 # ===================================================================
 class FilterByMonthTest(TestCase):
-    """_filter_by_month — обычный месяц, декабрь, некорректные данные."""
+    """filter_by_month — обычный месяц, декабрь, некорректные данные."""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -354,19 +349,19 @@ class FilterByMonthTest(TestCase):
         self.qs = MoodEntry.objects.filter(user=self.user)
 
     def test_regular_month(self):
-        filtered = MoodEntryViewSet._filter_by_month(self.qs, "2026", "3")
+        filtered = filter_by_month(self.qs, "2026", "3")
         query_str = str(filtered.query)
         self.assertIn("2026-03-01", query_str)
         self.assertIn("2026-04-01", query_str)
 
     def test_december_crosses_year(self):
-        filtered = MoodEntryViewSet._filter_by_month(self.qs, "2025", "12")
+        filtered = filter_by_month(self.qs, "2025", "12")
         sql = str(filtered.query)
         self.assertIn("timestamp", sql)
 
     def test_invalid_data_returns_original_qs(self):
         original_sql = str(self.qs.query)
-        filtered = MoodEntryViewSet._filter_by_month(self.qs, "abc", "xyz")
+        filtered = filter_by_month(self.qs, "abc", "xyz")
         self.assertEqual(str(filtered.query), original_sql)
 
     def test_december_entries_filtered_correctly(self):
@@ -385,23 +380,23 @@ class FilterByMonthTest(TestCase):
         )
 
         qs = MoodEntry.objects.filter(user=self.user)
-        filtered = MoodEntryViewSet._filter_by_month(qs, "2025", "12")
+        filtered = filter_by_month(qs, "2025", "12")
         self.assertEqual(filtered.count(), 1)
         self.assertEqual(filtered.first().timestamp.month, 12)
 
 
 class ParseBeforeTest(TestCase):
-    """_parse_before — валидная дата, невалидная строка, None."""
+    """parse_before — валидная дата, невалидная строка, None."""
 
     def test_valid_date_string(self):
-        result = MoodEntryViewSet._parse_before("2026-03-01")
+        result = parse_before("2026-03-01")
         self.assertEqual(result, date(2026, 3, 1))
 
     def test_invalid_string_returns_none(self):
-        self.assertIsNone(MoodEntryViewSet._parse_before("not-a-date"))
+        self.assertIsNone(parse_before("not-a-date"))
 
     def test_none_returns_none(self):
-        self.assertIsNone(MoodEntryViewSet._parse_before(None))
+        self.assertIsNone(parse_before(None))
 
 
 # ===================================================================
@@ -509,3 +504,168 @@ class CachedActionTest(TestCase):
         view.bad_action(req)
 
         self.assertEqual(self.call_count, 2)
+
+
+# ===================================================================
+#  Изоляция данных между пользователями
+# ===================================================================
+class DataIsolationTest(APITestCase):
+    """Пользователь не видит и не может изменить чужие записи."""
+
+    def setUp(self):
+        self.alice = User.objects.create_user(
+            username="alice", password="Str0ng!Pass99"
+        )
+        self.bob = User.objects.create_user(
+            username="bob", password="Str0ng!Pass99"
+        )
+        self.alice_entry = MoodEntry.objects.create(
+            user=self.alice, mood=_enc("5")
+        )
+        self.bob_entry = MoodEntry.objects.create(
+            user=self.bob, mood=_enc("7")
+        )
+
+    def test_user_sees_only_own_entries(self):
+        self.client.force_login(self.alice)
+        resp = self.client.get("/api/entries/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        ids = [e["id"] for e in resp.data]
+        self.assertIn(self.alice_entry.id, ids)
+        self.assertNotIn(self.bob_entry.id, ids)
+
+    def test_user_cannot_retrieve_others_entry(self):
+        self.client.force_login(self.alice)
+        resp = self.client.get(f"/api/entries/{self.bob_entry.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_user_cannot_update_others_entry(self):
+        self.client.force_login(self.alice)
+        resp = self.client.put(
+            f"/api/entries/{self.bob_entry.id}/",
+            {
+                "mood": _enc("1"),
+                "timestamp": self.bob_entry.timestamp.isoformat(),
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_user_cannot_delete_others_entry(self):
+        self.client.force_login(self.alice)
+        resp = self.client.delete(f"/api/entries/{self.bob_entry.id}/")
+        self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
+        # Запись Bob осталась в БД
+        self.assertTrue(
+            MoodEntry.objects.filter(id=self.bob_entry.id).exists()
+        )
+
+
+# ===================================================================
+#  Grouped endpoint
+# ===================================================================
+class GroupedEndpointTest(APITestCase):
+    """GET /api/entries/grouped/ — группировка по дням, курсорная пагинация."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="grp_user", password="Str0ng!Pass99"
+        )
+        self.client.force_login(self.user)
+
+        now = timezone.now()
+        # Записи за 10 разных дней (по одной в день)
+        for i in range(10):
+            MoodEntry.objects.create(
+                user=self.user,
+                mood=_enc(str(i)),
+                timestamp=now - timedelta(days=i),
+            )
+
+    def test_grouped_returns_dict_by_day(self):
+        resp = self.client.get("/api/entries/grouped/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertIn("results", resp.data)
+        self.assertIn("next_before", resp.data)
+        # Каждый ключ results — дата в формате YYYY-MM-DD
+        for key in resp.data["results"]:
+            date.fromisoformat(key)
+
+    def test_grouped_pagination(self):
+        """Первая страница → next_before → вторая страница."""
+        resp1 = self.client.get("/api/entries/grouped/")
+        next_before = resp1.data["next_before"]
+        self.assertIsNotNone(next_before)
+
+        resp2 = self.client.get(f"/api/entries/grouped/?before={next_before}")
+        self.assertEqual(resp2.status_code, status.HTTP_200_OK)
+        # Даты второй страницы раньше дат первой
+        days_page1 = set(resp1.data["results"].keys())
+        days_page2 = set(resp2.data["results"].keys())
+        self.assertTrue(days_page1.isdisjoint(days_page2))
+
+    def test_grouped_empty(self):
+        other = User.objects.create_user(
+            username="empty_user", password="Str0ng!Pass99"
+        )
+        self.client.force_login(other)
+        resp = self.client.get("/api/entries/grouped/")
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.data["results"], {})
+        self.assertIsNone(resp.data["next_before"])
+
+
+# ===================================================================
+#  Инвалидация кэша после CRUD
+# ===================================================================
+class CacheInvalidationIntegrationTest(APITestCase):
+    """Кэш list обновляется после создания/обновления/удаления записи."""
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username="inv_user", password="Str0ng!Pass99"
+        )
+        self.client.force_login(self.user)
+
+    def test_list_updates_after_create(self):
+        resp1 = self.client.get("/api/entries/")
+        self.assertEqual(len(resp1.data), 0)
+
+        ts = (timezone.now() - timedelta(hours=1)).isoformat()
+        self.client.post(
+            "/api/entries/",
+            {"mood": _enc("5"), "timestamp": ts},
+            format="json",
+        )
+
+        resp2 = self.client.get("/api/entries/")
+        self.assertEqual(len(resp2.data), 1)
+
+    def test_list_updates_after_delete(self):
+        entry = MoodEntry.objects.create(user=self.user, mood=_enc("5"))
+        # Заполняем кэш
+        resp1 = self.client.get("/api/entries/")
+        self.assertEqual(len(resp1.data), 1)
+
+        self.client.delete(f"/api/entries/{entry.id}/")
+
+        resp2 = self.client.get("/api/entries/")
+        self.assertEqual(len(resp2.data), 0)
+
+    def test_list_updates_after_update(self):
+        entry = MoodEntry.objects.create(user=self.user, mood=_enc("5"))
+        # Заполняем кэш
+        self.client.get("/api/entries/")
+
+        self.client.put(
+            f"/api/entries/{entry.id}/",
+            {
+                "mood": _enc("9"),
+                "timestamp": entry.timestamp.isoformat(),
+            },
+            format="json",
+        )
+
+        resp = self.client.get("/api/entries/")
+        self.assertEqual(resp.data[0]["mood"], _enc("9"))

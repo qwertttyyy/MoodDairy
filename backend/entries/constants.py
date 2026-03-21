@@ -1,6 +1,3 @@
-from django.conf import settings
-
-CACHE_TTL: int = settings.CACHE_TTL
 CACHE_PREFIX: str = "entries"
 VERSION_TTL: int = 86400
 

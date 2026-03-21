@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+import hashlib
+import json
 from functools import wraps
 from typing import Any, Callable
 
+from django.conf import settings
 from django.core.cache import cache
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-from entries.constants import CACHE_PREFIX, CACHE_TTL, VERSION_TTL
+from entries.constants import CACHE_PREFIX, VERSION_TTL
 
 
 def _version_key(user_id: int) -> str:
@@ -24,8 +27,10 @@ def _get_version(user_id: int) -> int:
 
 def _make_key(user_id: int, action_name: str, params: dict) -> str:
     ver = _get_version(user_id)
-    sorted_params = sorted(params.items())
-    return f"{CACHE_PREFIX}:u{user_id}:v{ver}:{action_name}:{sorted_params}"
+    params_hash = hashlib.md5(
+        json.dumps(sorted(params.items())).encode()
+    ).hexdigest()[:12]
+    return f"{CACHE_PREFIX}:u{user_id}:v{ver}:{action_name}:{params_hash}"
 
 
 def invalidate_user_cache(user_id: int) -> None:
@@ -38,10 +43,16 @@ def invalidate_user_cache(user_id: int) -> None:
 
 
 def cached_action(func: Callable) -> Callable:
-    """Декоратор: кэширует response.data по user + version + action + query params."""
+    """Декоратор: кэширует response.data по user + version + action + query params.
+
+    Кэш автоматически инвалидируется при вызове invalidate_user_cache
+    (инкремент версии → новый ключ кэша).
+    Non-200 ответы не кэшируются.
+    """
 
     @wraps(func)
     def wrapper(self, request: Request, *args: Any, **kwargs: Any) -> Response:
+        cache_ttl = getattr(settings, "CACHE_TTL", 86400)
         key = _make_key(request.user.id, func.__name__, request.query_params)
         cached_data = cache.get(key)
         if cached_data is not None:
@@ -50,7 +61,7 @@ def cached_action(func: Callable) -> Callable:
         response = func(self, request, *args, **kwargs)
 
         if response.status_code == 200:
-            cache.set(key, response.data, CACHE_TTL)
+            cache.set(key, response.data, cache_ttl)
 
         return response
 

@@ -9,47 +9,56 @@ from entries.models import MoodEntry
 
 
 class Command(BaseCommand):
-    help = "Создаёт 3-5 записей настроения на каждый день за последний год"
+    help = "Создаёт 3-5 записей настроения на каждый день за указанный период"
 
-    def handle(self, *args, **kwargs):
+    def add_arguments(self, parser):
+        parser.add_argument(
+            "--username",
+            type=str,
+            default="qwerty",
+            help="Имя пользователя (по умолчанию: qwerty)",
+        )
+        parser.add_argument(
+            "--days",
+            type=int,
+            default=365,
+            help="Количество дней назад (по умолчанию: 365)",
+        )
+
+    def handle(self, *args, **options):
+        username = options["username"]
+        days_back = options["days"]
+
         User = get_user_model()
         try:
-            user = User.objects.get(username="qwerty")
+            user = User.objects.get(username=username)
         except User.DoesNotExist:
             self.stdout.write(
-                self.style.ERROR('Пользователь "qwerty" не найден.')
+                self.style.ERROR(f'Пользователь "{username}" не найден.')
             )
             return
 
         now = timezone.now()
         tz = timezone.get_current_timezone()
 
-        start_date = (now - timedelta(days=365)).date()  # год назад (по дате)
+        start_date = (now - timedelta(days=days_back)).date()
         end_date = now.date()
 
         total_created = 0
-
         days_count = (end_date - start_date).days + 1
+
         for day_offset in range(days_count):
             current_day = start_date + timedelta(days=day_offset)
-
-            # сколько записей в этот день (3..5)
             entries_per_day = random.randint(3, 5)
 
-            # границы дня (naive), затем делаем aware
-            day_start_naive = datetime.combine(current_day, time.min)
-            day_end_naive = datetime.combine(current_day, time.max)
+            day_start = timezone.make_aware(
+                datetime.combine(current_day, time.min), tz
+            )
+            day_end = timezone.make_aware(
+                datetime.combine(current_day, time.max), tz
+            )
 
-            day_start = timezone.make_aware(day_start_naive, tz)
-            day_end = timezone.make_aware(day_end_naive, tz)
-
-            # если это сегодняшний день — не допускаем времени позже now
-            if current_day == end_date:
-                max_dt = now
-            else:
-                max_dt = day_end
-
-            # если по какой-то причине границы неверны — пропускаем
+            max_dt = now if current_day == end_date else day_end
             if max_dt <= day_start:
                 continue
 
@@ -59,7 +68,6 @@ class Command(BaseCommand):
             for _ in range(entries_per_day):
                 rand_sec = random.randint(0, seconds_range)
                 random_dt = day_start + timedelta(seconds=rand_sec)
-
                 mood_value = random.randint(1, 9)
                 moods.append(
                     MoodEntry(

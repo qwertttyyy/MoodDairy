@@ -1,26 +1,27 @@
 from __future__ import annotations
 
 import logging
-from collections import OrderedDict
-from datetime import date, datetime, timedelta
-from typing import List, Optional, Tuple
+from datetime import date, datetime
 
-from django.db.models import Min
-from django.db.models.functions import TruncDate
 from django.http import JsonResponse
-from django.utils import timezone
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import action
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .cache import cached_action, invalidate_user_cache
-from .constants import DAYS_PER_PAGE, PERIOD_DAYS
 from .models import MoodEntry, Tag
 from .serializers import (
     MoodEntryReadSerializer,
     MoodEntryWriteSerializer,
     TagSerializer,
+)
+from .services import (
+    fetch_date_page,
+    filter_by_month,
+    filter_by_period,
+    get_first_entry_date,
+    parse_before,
 )
 
 logger = logging.getLogger("entries")
@@ -53,12 +54,11 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
         month = request.query_params.get("month")
 
         if year and month:
-            qs = self._filter_by_month(qs, year, month)
+            qs = filter_by_month(qs, year, month)
         else:
             period = request.query_params.get("period")
-            if period in PERIOD_DAYS:
-                cutoff = timezone.now() - timedelta(days=PERIOD_DAYS[period])
-                qs = qs.filter(timestamp__gte=cutoff)
+            if period:
+                qs = filter_by_period(qs, period)
 
         serializer = self.get_serializer(qs, many=True)
         return Response(serializer.data)
@@ -67,11 +67,7 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
     @cached_action
     def date_range(self, request: Request) -> Response:
         """Возвращает дату первой записи пользователя."""
-        first = (
-            MoodEntry.objects.filter(user=request.user)
-            .aggregate(first_date=Min("timestamp"))
-            .get("first_date")
-        )
+        first = get_first_entry_date(request.user.id)
         return Response(
             {
                 "first_date": first.isoformat() if first else None,
@@ -82,8 +78,8 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
     @cached_action
     def grouped(self, request: Request) -> Response:
         """Записи, сгруппированные по дням. Курсор ?before=YYYY-MM-DD."""
-        before = self._parse_before(request.query_params.get("before"))
-        dates, has_next = self._fetch_date_page(request.user.id, before)
+        before = parse_before(request.query_params.get("before"))
+        dates, has_next = fetch_date_page(request.user.id, before)
 
         if not dates:
             return Response({"results": {}, "next_before": None})
@@ -95,7 +91,7 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
 
         serializer = self.get_serializer(entries, many=True)
 
-        grouped: OrderedDict[str, list] = OrderedDict()
+        grouped: dict[str, list] = {}
         for item in serializer.data:
             day = datetime.fromisoformat(item["timestamp"]).date().isoformat()
             grouped.setdefault(day, []).append(item)
@@ -138,52 +134,6 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
         instance.delete()
         invalidate_user_cache(user_id)
         logger.info("Entry id=%d deleted by user_id=%d", entry_id, user_id)
-
-    @staticmethod
-    def _filter_by_month(qs, year: str, month: str):
-        """Фильтрует queryset по конкретному календарному месяцу."""
-        try:
-            y, m = int(year), int(month)
-            start = datetime(y, m, 1, tzinfo=timezone.get_current_timezone())
-            if m == 12:
-                end = datetime(
-                    y + 1, 1, 1, tzinfo=timezone.get_current_timezone()
-                )
-            else:
-                end = datetime(
-                    y, m + 1, 1, tzinfo=timezone.get_current_timezone()
-                )
-            return qs.filter(timestamp__gte=start, timestamp__lt=end)
-        except (ValueError, TypeError):
-            return qs
-
-    @staticmethod
-    def _parse_before(value: str | None) -> date | None:
-        if not value:
-            return None
-        try:
-            return date.fromisoformat(value)
-        except ValueError:
-            return None
-
-    @staticmethod
-    def _fetch_date_page(
-        user_id: int, before: Optional[date]
-    ) -> Tuple[List[date], bool]:
-        """Достаёт DAYS_PER_PAGE уникальных дат + флаг has_next."""
-        qs = (
-            MoodEntry.objects.filter(user_id=user_id)
-            .annotate(day=TruncDate("timestamp"))
-            .values_list("day", flat=True)
-            .distinct()
-            .order_by("-day")
-        )
-        if before is not None:
-            qs = qs.filter(day__lt=before)
-
-        dates: List[date] = list(qs[: DAYS_PER_PAGE + 1])
-        has_next = len(dates) > DAYS_PER_PAGE
-        return dates[:DAYS_PER_PAGE], has_next
 
 
 class TagViewSet(mixins.ListModelMixin, viewsets.GenericViewSet):

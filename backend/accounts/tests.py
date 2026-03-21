@@ -10,12 +10,9 @@ from rest_framework.test import APIRequestFactory, APITestCase
 from accounts.constants import WRAPPING_KEY_BYTES, WRAPPING_KEY_SESSION_KEY
 from accounts.models import UserProfile
 from accounts.serializers import LoginSerializer, RegisterSerializer
-from accounts.views import _generate_wrapping_key, _store_wrapping_key
+from accounts.services import generate_wrapping_key, store_wrapping_key
 
 
-# ---------------------------------------------------------------------------
-#  RegisterSerializer
-# ---------------------------------------------------------------------------
 class RegisterSerializerUsernameTest(TestCase):
     """validate_username — уникальность."""
 
@@ -52,7 +49,7 @@ class RegisterSerializerUsernameTest(TestCase):
 
 
 class RegisterSerializerSaltTest(TestCase):
-    """validate_encryption_salt — формат base64 и длина ≥ 8 байт."""
+    """validate_encryption_salt — формат base64 и длина >= 8 байт."""
 
     VALID_PAYLOAD = {
         "username": "saltuser",
@@ -78,7 +75,6 @@ class RegisterSerializerSaltTest(TestCase):
         self.assertIn("encryption_salt", s.errors)
 
     def test_salt_too_short_7_bytes(self):
-        """Граничный кейс: ровно 7 байт — должна быть ошибка."""
         s = self._make(base64.b64encode(b"1234567").decode())
         self.assertFalse(s.is_valid())
         self.assertIn("encryption_salt", s.errors)
@@ -106,16 +102,11 @@ class RegisterSerializerCreateTest(TestCase):
         self.assertTrue(UserProfile.objects.filter(user=user).exists())
 
     @patch(
-        "accounts.serializers.UserProfile.objects.create",
+        "accounts.services.UserProfile.objects.create",
         side_effect=Exception("DB error"),
     )
-    def test_profile_failure_does_not_leave_dangling_user(self, _mock):
-        """Если создание профиля упадёт — транзакция откатится (если обёрнуто в atomic).
-
-        Текущая реализация НЕ оборачивает в atomic, поэтому User останется.
-        Тест фиксирует текущее поведение — при необходимости можно добавить
-        transaction.atomic в create.
-        """
+    def test_profile_failure_rolls_back_user(self, _mock):
+        """transaction.atomic откатывает User если Profile не создался."""
         serializer = RegisterSerializer(
             data={
                 "username": "orphan",
@@ -126,8 +117,8 @@ class RegisterSerializerCreateTest(TestCase):
         serializer.is_valid(raise_exception=True)
         with self.assertRaises(Exception):
             serializer.save()
-        # Фиксируем: User создался, а Profile — нет
-        self.assertTrue(User.objects.filter(username="orphan").exists())
+        # Оба откатились
+        self.assertFalse(User.objects.filter(username="orphan").exists())
         self.assertFalse(
             UserProfile.objects.filter(user__username="orphan").exists(),
         )
@@ -168,40 +159,36 @@ class LoginSerializerTest(TestCase):
             data={"username": "alice", "password": "Str0ng!Pass99"}
         )
         self.assertFalse(s.is_valid())
-        # Django authenticate() возвращает None для is_active=False по умолчанию,
-        # поэтому сообщение — «Неверный логин или пароль.»
 
 
 # ---------------------------------------------------------------------------
-#  Helper functions: _generate_wrapping_key, _store_wrapping_key
+#  Helper functions: generate_wrapping_key, store_wrapping_key
 # ---------------------------------------------------------------------------
 class GenerateWrappingKeyTest(TestCase):
-    """_generate_wrapping_key — формат, длина, уникальность."""
+    """generate_wrapping_key — формат, длина, уникальность."""
 
     def test_returns_valid_base64(self):
-        key = _generate_wrapping_key()
+        key = generate_wrapping_key()
         raw = base64.b64decode(key)
         self.assertEqual(len(raw), WRAPPING_KEY_BYTES)
 
     def test_two_calls_produce_different_keys(self):
-        self.assertNotEqual(_generate_wrapping_key(), _generate_wrapping_key())
+        self.assertNotEqual(generate_wrapping_key(), generate_wrapping_key())
 
 
 class StoreWrappingKeyTest(TestCase):
-    """_store_wrapping_key — сохранение в сессию."""
+    """store_wrapping_key — сохранение в сессию."""
 
     def test_key_stored_in_session(self):
         factory = APIRequestFactory()
         request = factory.get("/fake/")
-        # Имитируем session dict
         request.session = SessionBase()
         request.session.save = lambda: None
 
-        key = _store_wrapping_key(request)
+        key = store_wrapping_key(request)
 
         self.assertIn(WRAPPING_KEY_SESSION_KEY, request.session)
         self.assertEqual(request.session[WRAPPING_KEY_SESSION_KEY], key)
-        # Проверяем что это валидный base64
         raw = base64.b64decode(key)
         self.assertEqual(len(raw), WRAPPING_KEY_BYTES)
 
