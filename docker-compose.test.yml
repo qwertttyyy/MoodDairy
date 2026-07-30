@@ -1,3 +1,7 @@
+# Отдельное имя проекта: иначе оно берётся от каталога и совпадает с основным compose,
+# а шаг очистки (`down -v --remove-orphans`) сносит запущенный dev-стек.
+name: mooddiary-test
+
 services:
   db:
     image: postgres:16
@@ -13,8 +17,8 @@ services:
       timeout: 2s
       retries: 10
 
-  web:
-    build: .
+  backend:
+    build: ./backend
     depends_on:
       db:
         condition: service_healthy

@@ -1,0 +1,20 @@
+# Зависимости ставятся внутри образа через npm ci
+node_modules/
+
+# Артефакты сборки
+dist/
+dist-ssr/
+
+# Секреты и локальное
+.env
+.env.*
+*.local
+*.log
+npm-debug.log*
+.idea/
+.vscode/
+
+# Не нужны внутри образа
+Dockerfile
+.dockerignore
+README.md

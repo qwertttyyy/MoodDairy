@@ -1,0 +1,93 @@
+import { Fragment, useCallback, useEffect, useMemo, useRef } from 'react'
+
+import { dayLabel } from '../../shared/lib/dates'
+import { useConfirm } from '../../shared/ui/ConfirmProvider'
+import { Spinner } from '../../shared/ui/Spinner'
+import { useToast } from '../../shared/ui/ToastProvider'
+import { mergeFeedPages, useDeleteEntry, useEntriesFeed } from './api'
+import { EntryCard } from './EntryCard'
+import { useEntryModal } from './EntryModalContext'
+import type { DecryptedEntry } from './types'
+
+/** Лента записей, сгруппированных по дням, с подгрузкой при прокрутке. */
+export function EntriesTab() {
+  const { data, error, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
+    useEntriesFeed()
+  const { mutate: deleteEntry } = useDeleteEntry()
+  const confirm = useConfirm()
+  const showToast = useToast()
+  const { open } = useEntryModal()
+  const loaderRef = useRef<HTMLDivElement>(null)
+
+  const days = useMemo(() => mergeFeedPages(data?.pages), [data?.pages])
+
+  useEffect(() => {
+    if (error) showToast('Ошибка загрузки', true)
+  }, [error, showToast])
+
+  // Лоадер попал в область видимости — просим следующую страницу.
+  // Эффект пересоздаёт наблюдателя после каждой догрузки: если лоадер всё ещё
+  // виден, колбэк срабатывает снова и лента догружается дальше.
+  useEffect(() => {
+    const loader = loaderRef.current
+    if (!loader || !hasNextPage || isFetchingNextPage) return
+
+    const observer = new IntersectionObserver((records) => {
+      if (records.some((record) => record.isIntersecting)) void fetchNextPage()
+    })
+    observer.observe(loader)
+    return () => observer.disconnect()
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
+
+  const requestDelete = useCallback(
+    (entry: DecryptedEntry) => {
+      confirm({
+        title: 'Удалить запись?',
+        text: 'Это действие нельзя отменить.',
+        onConfirm: () =>
+          deleteEntry(entry.id, {
+            onError: () => showToast('Ошибка удаления', true),
+          }),
+      })
+    },
+    [confirm, deleteEntry, showToast],
+  )
+
+  const isEmpty = !isLoading && days.length === 0
+  // Лоадер скрыт, когда страниц больше нет — как в старом фронте.
+  const loaderVisible = isLoading || hasNextPage
+
+  return (
+    <>
+      {isEmpty ? (
+        <div className="empty-state">
+          <div className="empty-icon">📝</div>
+          <p className="empty-title">Пока пусто</p>
+          <p className="empty-sub">Нажми «+» чтобы добавить первую запись</p>
+        </div>
+      ) : null}
+
+      {days.length > 0 ? (
+        <div className="entries-list">
+          {days.map((group) => (
+            <Fragment key={group.day}>
+              <div className="date-group-label">{dayLabel(group.day)}</div>
+              {group.entries.map((entry) => (
+                <EntryCard
+                  key={entry.id}
+                  entry={entry}
+                  onOpen={open}
+                  onDelete={requestDelete}
+                />
+              ))}
+            </Fragment>
+          ))}
+        </div>
+      ) : null}
+
+      <div className={loaderVisible ? 'scroll-loader' : 'scroll-loader hidden'} ref={loaderRef}>
+        <Spinner />
+      </div>
+    </>
+  )
+}

@@ -1,0 +1,28 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Виртуальные окружения и секреты
+venv/
+.venv/
+.env
+.env.*
+
+# Собирается внутри контейнера (collectstatic)
+staticfiles/
+
+# Локальное
+*.log
+db.sqlite3
+db.sqlite3-journal
+.idea/
+.vscode/
+
+# Не нужны внутри образа
+Dockerfile
+.dockerignore

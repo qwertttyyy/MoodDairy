@@ -7,3 +7,4 @@ gunicorn>=23.0
 python-dotenv==1.2.1
 redis[hiredis]>=5.0
 django-redis==6.0.0
+whitenoise==6.12.0

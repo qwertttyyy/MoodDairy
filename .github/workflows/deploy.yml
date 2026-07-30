@@ -22,6 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      frontend: ${{ steps.filter.outputs.frontend }}
       deploy: ${{ steps.filter.outputs.deploy }}
     steps:
       - uses: actions/checkout@v4
@@ -32,16 +33,14 @@ jobs:
           filters: |
             code:
               - 'backend/**'
-              - 'Dockerfile'
               - 'docker-compose.test.yml'
-              - 'requirements.txt'
+            frontend:
+              - 'frontend/**'
             deploy:
               - 'backend/**'
-              - 'Dockerfile'
-              - 'docker-compose.test.yml'
+              - 'frontend/**'
               - 'docker-compose.yml'
-              - 'requirements.txt'
-              - 'entrypoint.sh'
+              - 'docker-compose.test.yml'
 
   test:
     runs-on: ubuntu-latest
@@ -57,20 +56,52 @@ jobs:
           docker compose -f docker-compose.test.yml up \
             --build \
             --abort-on-container-exit \
-            --exit-code-from web
+            --exit-code-from backend
 
       - name: Cleanup
         if: always()
         run: docker compose -f docker-compose.test.yml down -v --remove-orphans
 
+  frontend-checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.frontend == 'true'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npm run test -- --run
+
+      - name: Production build
+        run: npm run build
+
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [changes, test]
+    needs: [changes, test, frontend-checks]
     if: |
       always() &&
       needs.changes.outputs.deploy == 'true' &&
-      (needs.test.result == 'success' || needs.test.result == 'skipped')
+      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
+      (needs['frontend-checks'].result == 'success' || needs['frontend-checks'].result == 'skipped')
     steps:
       - name: Deploy via SSH
         uses: appleboy/ssh-action@v1
@@ -86,9 +117,8 @@ jobs:
             cd /opt/projects/MoodDairy
             git fetch origin master
             git reset --hard origin/master
-            docker compose build web
-            docker compose up -d --no-deps web
-            docker image prune -f
+            docker compose build backend frontend
+            docker compose up -d --remove-orphans backend frontend
 
       - name: Notify on success
         if: success()

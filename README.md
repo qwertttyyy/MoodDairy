@@ -4,48 +4,58 @@
 
 ## О проекте
 
-MoodDiary — веб-приложение для ежедневного трекинга настроения по шкале от 1 до 9. Пользователь записывает оценку, заметку и теги. Все чувствительные данные (настроение и заметки) шифруются в браузере до отправки на сервер — бэкенд хранит только шифротекст.
+MoodDiary — веб-приложение для ежедневного трекинга настроения по шкале от 1 до 9. Пользователь записывает оценку, уровень тревоги, заметку и теги. Все чувствительные данные (настроение, тревога, заметки) шифруются в браузере до отправки на сервер — бэкенд хранит только шифротекст.
 
 Приложение задумано как инструмент самонаблюдения и помощи в работе с психиатром или психотерапевтом.<br>
 Ссылка: https://moods.qwertttyyy.ru/
 
 ### Возможности
 
-- **Записи настроения** — оценка 1–9, текстовая заметка, теги
+- **Записи настроения** — оценка 1–9, уровень тревоги 1–5, текстовая заметка, теги
 - **Клиентское шифрование** — AES-256-GCM через Web Crypto API, ключ выводится из пароля (PBKDF2)
 - **Графики** — визуализация на canvas со сглаживанием, фильтры по периодам и конкретным месяцам
 - **Доступ для врача** — одноразовая ссылка со снапшотом данных, ключ передаётся в URL-фрагменте (не попадает на сервер)
 - **Экспорт** — выгрузка всех записей в JSON
-- **Тёмная тема** — переключение вручную, поддержка `prefers-color-scheme`
+- **Тёмная тема** — переключение вручную, на странице врача — по `prefers-color-scheme`
 - **PWA-ready** — адаптивный интерфейс, `viewport-fit=cover`
 
 ## Стек
 
 | Слой | Технологии |
 |------|-----------|
-| Backend | Python 3.12, Django 6, Django REST Framework |
-| Frontend | Vanilla JS (SPA), HTML5 Canvas |
+| Backend | Python 3.12, Django 6, Django REST Framework, Gunicorn, WhiteNoise |
+| Frontend | React 19, TypeScript, Vite, react-router, TanStack Query, HTML5 Canvas |
 | БД | PostgreSQL 16 |
 | Кэш | Redis 7, django-redis |
-| Инфраструктура | Docker Compose, Gunicorn, GitHub Actions (CI/CD) |
+| Инфраструктура | Docker Compose, nginx (раздача SPA + прокси), GitHub Actions (CI/CD) |
+
+Репозиторий монорепный: бэкенд и фронтенд собираются в отдельные образы. В проде контейнер `frontend` (nginx) отдаёт собранный SPA и проксирует `/api/`, `/admin/`, `/static/` на `backend:8000`.
 
 ## Структура проекта
 
 ```
 MoodDiary/
 ├── backend/
-│   ├── accounts/        # Регистрация, аутентификация, профиль
-│   ├── entries/         # CRUD записей, теги, графики, экспорт
-│   ├── sharing/         # Доступ для врача (SharedAccess)
-│   ├── core/            # Логирование (JSON), middleware
-│   ├── config/          # Django settings, urls, wsgi
-│   ├── static/          # app.js, share.js, styles.css, favicon
-│   └── templates/       # index.html (SPA), share.html (страница врача)
-├── .github/workflows/   # CI/CD деплой
+│   ├── accounts/          # Регистрация, аутентификация, профиль
+│   ├── entries/           # CRUD записей, теги, графики, экспорт
+│   ├── sharing/           # Доступ для врача (SharedAccess)
+│   ├── core/              # Логирование (JSON), middleware, /api/config/
+│   ├── config/            # Django settings, urls, wsgi
+│   ├── Dockerfile
+│   ├── entrypoint.sh
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── pages/         # AppPage (приложение), SharePage (страница врача)
+│   │   ├── features/      # auth, entries, chart, guide, settings, sharing
+│   │   └── shared/        # api, crypto, ui, constants, lib, styles
+│   ├── Dockerfile         # multi-stage: node build → nginx
+│   ├── nginx.conf
+│   └── vite.config.ts
+├── plans/                 # Проектные документы
+├── .github/workflows/     # CI/CD
 ├── docker-compose.yml
-├── Dockerfile
-├── entrypoint.sh
-└── requirements.txt
+└── docker-compose.test.yml
 ```
 
 ## Быстрый старт
@@ -54,7 +64,9 @@ MoodDiary/
 
 ```bash
 git clone https://github.com/<your-username>/MoodDiary.git
-cd MoodDiary
+```
+
+```bash
 cp .env.example .env
 ```
 
@@ -66,7 +78,7 @@ cp .env.example .env
 docker compose up -d --build
 ```
 
-Поднимутся три контейнера: `db` (PostgreSQL), `redis`, `web` (Django + Gunicorn). При старте автоматически применяются миграции и собирается статика.
+Поднимутся четыре контейнера: `db` (PostgreSQL), `redis`, `backend` (Django + Gunicorn), `frontend` (nginx со сборкой SPA). При старте бэкенда автоматически применяются миграции и собирается статика админки.
 
 ### 3. Открытие приложения
 
@@ -75,20 +87,50 @@ docker compose up -d --build
 ### 4. Теги
 
 Дефолтный набор тегов создаётся при первом запуске проекта.
-Чтобы их изменить, нужно перейти в админку`http://localhost:8000/admin/`
+Чтобы их изменить, нужно перейти в админку `http://localhost:8000/admin/`
 <br>Админ-юзер создаётся автоматически при запуске.<br>
 Ввести логин (admin) и пароль (из переменной `ADMIN_PASSWORD`).<br>
 Перейти в раздел `Теги`.
 
-
-
 ### 5. Тестовые данные (опционально)
 
 ```bash
-docker compose exec web python manage.py seed_moods
+docker compose exec backend python manage.py seed_moods
 ```
 
-Создаёт 3–5 записей в день за послдний год для пользователя `qwerty`. Его нужно добавить заранее
+Создаёт 3–5 записей в день за последний год для пользователя `qwerty`. Его нужно добавить заранее.
+
+## Разработка
+
+Фронтенд удобнее запускать дев-сервером Vite: он отдаёт горячую перезагрузку, а запросы проксирует на Django, поэтому cookie-сессия остаётся same-origin и CORS настраивать не нужно.
+
+Бэкенд и его зависимости:
+
+```bash
+docker compose up -d db redis backend
+```
+
+Дев-сервер фронтенда:
+
+```bash
+cd frontend && npm install && npm run dev
+```
+
+Открывается http://localhost:5173, запросы `/api`, `/admin`, `/static` уходят на `http://localhost:8000` (прокси настроен в `frontend/vite.config.ts`).
+
+Проверки фронтенда:
+
+```bash
+cd frontend && npm run lint && npm run test -- --run && npm run build
+```
+
+Тесты бэкенда (эфемерная БД в tmpfs, ничего не остаётся на диске):
+
+```bash
+docker compose -f docker-compose.test.yml up --build --abort-on-container-exit --exit-code-from backend
+```
+
+Web Crypto API доступен только в secure context: работать нужно на `localhost` или по https. По голому http с другого хоста шифрование не заработает.
 
 ## Переменные окружения
 
@@ -108,6 +150,14 @@ docker compose exec web python manage.py seed_moods
 ## API
 
 Аутентификация — сессионная (cookie). CSRF-токен обязателен для мутаций.
+
+### Config (`/api/`)
+
+| Метод | Путь | Описание |
+|-------|------|----------|
+| GET | `/config/` | Флаг шифрования; заодно ставит cookie `csrftoken` (публичный) |
+
+SPA вызывает этот эндпоинт при старте: Django-шаблона, который раньше ставил CSRF-cookie, больше нет.
 
 ### Auth (`/api/auth/`)
 
@@ -148,17 +198,19 @@ docker compose exec web python manage.py seed_moods
 
 1. При регистрации клиент генерирует `salt` и выводит `encryption_key` из пароля через PBKDF2 (600 000 итераций, SHA-256)
 2. `encryption_key` хранится в `sessionStorage`, `salt` — на сервере
-3. Каждое поле (mood, note) шифруется AES-256-GCM с уникальным IV → формат хранения `iv_b64:ciphertext_b64`
+3. Каждое поле (mood, anxiety, note) шифруется AES-256-GCM с уникальным IV → формат хранения `iv_b64:ciphertext_b64`
 4. Сервер генерирует `wrapping_key` и хранит его в сессии. Клиент оборачивает `encryption_key` этим ключом и сохраняет в `localStorage` — для восстановления при обновлении страницы без повторного ввода пароля
 5. При выходе все ключи удаляются
 
-Переключение: `ENCRYPTION_ENABLED=0` в `.env` отключает шифрование (клиент отправляет данные в открытом виде) Сделано для локального тестирования.
+Переключение: `ENCRYPTION_ENABLED=0` в `.env` отключает шифрование (клиент отправляет данные в открытом виде). Сделано для локального тестирования.
+
+Формат шифротекста и имена ключей в браузерных хранилищах — часть контракта с уже сохранёнными данными пользователей, менять их нельзя. Модульные тесты в `frontend/src/shared/crypto/crypto.test.ts` фиксируют этот формат.
 
 ## Доступ для врача
 
 Механизм «снапшот»: при создании ссылки клиент расшифровывает все записи своим ключом, перешифровывает одноразовым `share_key` (AES-256-GCM), отправляет blob на сервер. `share_key` уходит в URL-фрагмент (`#`), который не передаётся на сервер.
 
-Врач открывает ссылку → JS берёт ключ из `#fragment` → расшифровывает blob → видит график и записи по месяцам.
+Врач открывает ссылку → SPA берёт ключ из `#fragment` → расшифровывает blob → видит график и записи по месяцам. Страница врача работает без авторизации и обращается только к `/api/sharing/{token}/data/`.
 
 Компрометация сервера не раскрывает данные. Отзыв ссылки мгновенно прекращает доступ.
 
@@ -172,7 +224,9 @@ docker compose exec web python manage.py seed_moods
 
 ## Деплой
 
-GitHub Actions при пуше в `master`: подключение по SSH → `git pull` → пересборка контейнера `web` → перезапуск. Секреты хранятся в Settings → Secrets репозитория.
+GitHub Actions при пуше в `master`: изменённые пути определяются фильтром, дальше прогоняются тесты бэкенда и проверки фронтенда (lint, тесты, сборка), затем подключение по SSH → `git reset --hard origin/master` → пересборка контейнеров `backend` и `frontend` → перезапуск. Секреты хранятся в Settings → Secrets репозитория.
+
+Флаг `--remove-orphans` при перезапуске обязателен: сервис `web` был переименован в `backend`, без него старый контейнер продолжал бы держать порт 8000.
 
 ## Лицензия
 

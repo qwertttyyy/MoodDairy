@@ -29,6 +29,9 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
+    # Статику админки и DRF отдаёт gunicorn: nginx проксирует /static/ сюда,
+    # общий volume между контейнерами не нужен.
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -43,7 +46,8 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "templates"],
+        # Своих шаблонов нет: HTML раздаёт фронтенд. Остаются шаблоны админки из APP_DIRS.
+        "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -194,12 +198,10 @@ TIME_ZONE = "Europe/Moscow"
 USE_I18N = True
 USE_TZ = True
 
+# Статика только служебная (админка, DRF): collectstatic собирает её из приложений,
+# раздаёт WhiteNoise. Ассеты приложения живут в сборке фронтенда.
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
-
-STATICFILES_DIRS = [
-    BASE_DIR / "static",
-]
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
