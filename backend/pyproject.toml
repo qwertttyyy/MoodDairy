@@ -1,0 +1,22 @@
+[project]
+name = "mooddiary-backend"
+version = "1.2.0"
+description = "API дневника настроения с клиентским шифрованием: Django + DRF"
+requires-python = "==3.12.*"
+
+# Только прямые зависимости. Транзитивные (asgiref, sqlparse, hiredis и прочие)
+# фиксирует uv.lock — его и надо коммитить.
+dependencies = [
+    "Django==6.0.2",
+    "djangorestframework==3.16.1",
+    "psycopg2-binary==2.9.11",
+    "gunicorn>=23.0",
+    "python-dotenv==1.2.1",
+    "redis[hiredis]>=5.0",
+    "django-redis==6.0.0",
+    "whitenoise==6.12.0",
+]
+
+[tool.uv]
+# Это приложение, а не библиотека: сам проект устанавливать не нужно, только зависимости.
+package = false

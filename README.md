@@ -23,7 +23,7 @@ MoodDiary — веб-приложение для ежедневного трек
 
 | Слой | Технологии |
 |------|-----------|
-| Backend | Python 3.12, Django 6, Django REST Framework, Gunicorn, WhiteNoise |
+| Backend | Python 3.12, Django 6, Django REST Framework, Gunicorn, WhiteNoise, uv |
 | Frontend | React 19, TypeScript, Vite, react-router, TanStack Query, HTML5 Canvas |
 | БД | PostgreSQL 16 |
 | Кэш | Redis 7, django-redis |
@@ -43,7 +43,8 @@ MoodDiary/
 │   ├── config/            # Django settings, urls, wsgi
 │   ├── Dockerfile
 │   ├── entrypoint.sh
-│   └── requirements.txt
+│   ├── pyproject.toml     # прямые зависимости
+│   └── uv.lock            # точные версии, в том числе транзитивные
 ├── frontend/
 │   ├── src/
 │   │   ├── pages/         # AppPage (приложение), SharePage (страница врача)
@@ -104,11 +105,19 @@ docker compose exec backend python manage.py seed_moods
 
 Фронтенд удобнее запускать дев-сервером Vite: он отдаёт горячую перезагрузку, а запросы проксирует на Django, поэтому cookie-сессия остаётся same-origin и CORS настраивать не нужно.
 
-Бэкенд и его зависимости:
+Бэкенд и его зависимости целиком в докере:
 
 ```bash
 docker compose up -d db redis backend
 ```
+
+Либо Django на хосте (в `.env` тогда нужны `DB_HOST=localhost` и `REDIS_HOST=localhost`, а базу и кэш поднять через `docker compose up -d db redis`):
+
+```bash
+cd backend && uv run python manage.py runserver
+```
+
+`uv run` сам создаёт окружение из `uv.lock` при первом запуске — активировать venv вручную не нужно.
 
 Дев-сервер фронтенда:
 
@@ -131,6 +140,18 @@ docker compose -f docker-compose.test.yml up --build --abort-on-container-exit -
 ```
 
 Web Crypto API доступен только в secure context: работать нужно на `localhost` или по https. По голому http с другого хоста шифрование не заработает.
+
+### Зависимости бэкенда
+
+Управляются uv: прямые перечислены в `backend/pyproject.toml`, точные версии (включая транзитивные) — в `backend/uv.lock`. Лок коммитится, образ собирается командой `uv sync --frozen`, поэтому сборка воспроизводима.
+
+```bash
+cd backend && uv add <пакет>        # добавить зависимость и обновить лок
+cd backend && uv remove <пакет>     # убрать
+cd backend && uv lock --upgrade     # пересчитать лок в пределах ограничений pyproject.toml
+```
+
+Править `uv.lock` руками не нужно, устанавливать uv в образ отдельно тоже: бинарник копируется из официального образа `ghcr.io/astral-sh/uv`.
 
 ## Переменные окружения
 
