@@ -21,10 +21,36 @@
             transparent 100%
     );
 
-    /* ── Text ── */
+    /* ── Плотные поверхности ──
+       Модалка и карточка входа перекрывают пёструю ленту, поэтому читаемость
+       у них держится на своём фоне, а не на backdrop-filter: он есть не везде. */
+    --surface: rgba(252, 251, 255, 0.93);
+    --surface-solid: #f7f5fb;
+    --surface-border: 0.5px solid rgba(255, 255, 255, 0.7);
+    --surface-shadow: 0 0.5px 0 0 rgba(255, 255, 255, 0.8) inset,
+    0 12px 40px rgba(0, 0, 0, 0.18);
+    --surface-highlight: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.55) 0%,
+            rgba(255, 255, 255, 0) 90px
+    );
+    --scrim: rgba(0, 0, 0, 0.45);
+
+    /* ── Поля и чипы на плотной поверхности ── */
+    --field-bg: rgba(0, 0, 0, 0.05);
+    --field-border: rgba(0, 0, 0, 0.14);
+    --field-raised: #fff;
+    --field-inset: inset 0 0.5px 0 0 rgba(255, 255, 255, 0.6);
+    /* Выключенный тумблер не следует за --c-tertiary: у текста и у дорожки
+       переключателя разные требования, связывать их одним токеном нельзя. */
+    --toggle-off: rgba(120, 120, 128, 0.28);
+
+    /* ── Text ──
+       Вторичный плотнее эппловских 0.6: подписи полей и описания памятки идут
+       мелким кеглем, и на светлой теме 0.6 давало контраст 3.3 при норме 4.5. */
     --c-primary: #1c1c1e;
-    --c-secondary: rgba(60, 60, 67, 0.6);
-    --c-tertiary: rgba(60, 60, 67, 0.3);
+    --c-secondary: rgba(60, 60, 67, 0.75);
+    --c-tertiary: rgba(60, 60, 67, 0.45);
 
     /* ── Accent ── */
     --accent: #007aff;
@@ -75,9 +101,27 @@
             transparent 100%
     );
 
+    --surface: rgba(30, 30, 34, 0.94);
+    --surface-solid: #1c1c20;
+    --surface-border: 0.5px solid rgba(255, 255, 255, 0.14);
+    --surface-shadow: 0 0.5px 0 0 rgba(255, 255, 255, 0.14) inset,
+    0 12px 40px rgba(0, 0, 0, 0.55);
+    --surface-highlight: linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.07) 0%,
+            rgba(255, 255, 255, 0) 90px
+    );
+    --scrim: rgba(0, 0, 0, 0.6);
+
+    --field-bg: rgba(255, 255, 255, 0.08);
+    --field-border: rgba(255, 255, 255, 0.16);
+    --field-raised: rgba(255, 255, 255, 0.18);
+    --field-inset: inset 0 0.5px 0 0 rgba(255, 255, 255, 0.1);
+    --toggle-off: rgba(120, 120, 128, 0.5);
+
     --c-primary: #f5f5f7;
     --c-secondary: rgba(235, 235, 245, 0.6);
-    --c-tertiary: rgba(235, 235, 245, 0.2);
+    --c-tertiary: rgba(235, 235, 245, 0.3);
 
     --accent-10: rgba(0, 122, 255, 0.2);
     --accent-20: rgba(0, 122, 255, 0.3);
@@ -89,6 +133,9 @@
     --lg-bg: var(--bg) !important;
     --lg-blur: 0px !important;
     --lg-highlight: none !important;
+    --surface: var(--surface-solid) !important;
+    --surface-highlight: none !important;
+    --scrim: rgba(0, 0, 0, 0.75) !important;
 }
 
 .reduce-transparency .liquid-glass {
@@ -252,10 +299,12 @@ textarea, input {
     z-index: 2;
 }
 
+/* Без backdrop-filter (старые WebView, Firefox без флага) прозрачность нечем
+   компенсировать: гасим её фоном. Прежний вариант приглушал opacity всего
+   элемента — вместе с содержимым, отчего текст выцветал. */
 @supports not (backdrop-filter: blur(1px)) {
     .liquid-glass {
-        background: var(--bg);
-        opacity: 0.92;
+        background: var(--surface-solid);
     }
 
     .liquid-glass::before {
@@ -267,23 +316,15 @@ textarea, input {
    GLASS INPUT
    ============================================ */
 .glass-input {
-    background: rgba(255, 255, 255, 0.12);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    border: 0.5px solid rgba(255, 255, 255, 0.35);
+    background: var(--field-bg);
+    border: 0.5px solid var(--field-border);
     border-radius: var(--r-md);
     padding: 11px 14px;
     width: 100%;
     outline: none;
     resize: none;
-    box-shadow: inset 0 0.5px 0 0 rgba(255, 255, 255, 0.3);
+    box-shadow: var(--field-inset);
     transition: border-color var(--t-fast), box-shadow var(--t-fast);
-}
-
-[data-theme="dark"] .glass-input {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.1);
-    box-shadow: inset 0 0.5px 0 0 rgba(255, 255, 255, 0.08);
 }
 
 .glass-input::placeholder {
@@ -292,7 +333,7 @@ textarea, input {
 
 .glass-input:focus {
     border-color: var(--accent);
-    box-shadow: 0 0 0 3px var(--accent-10), inset 0 0.5px 0 0 rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 0 3px var(--accent-10), var(--field-inset);
 }
 
 /* ============================================
@@ -395,10 +436,8 @@ textarea, input {
 }
 
 .btn-secondary {
-    background: rgba(255, 255, 255, 0.15);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    border: 0.5px solid rgba(255, 255, 255, 0.3);
+    background: var(--field-bg);
+    border: 0.5px solid var(--field-border);
     font-weight: 700;
     padding: 10px 20px;
     border-radius: var(--r-pill);
@@ -430,7 +469,7 @@ textarea, input {
     display: block;
     width: 51px;
     height: 31px;
-    background: var(--c-tertiary);
+    background: var(--toggle-off);
     border-radius: 16px;
     position: relative;
     transition: background var(--t-spring);
@@ -786,7 +825,7 @@ textarea, input {
 .modal-overlay {
     position: fixed;
     inset: 0;
-    background: rgba(0, 0, 0, 0.25);
+    background: var(--scrim);
     z-index: 500;
     display: flex;
     align-items: flex-end;
@@ -798,7 +837,6 @@ textarea, input {
 .reduce-transparency .modal-overlay {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
-    background: rgba(0, 0, 0, 0.5);
 }
 
 @keyframes fadeIn {
@@ -817,6 +855,41 @@ textarea, input {
     overflow-y: auto;
     padding: 18px 20px 22px;
     animation: slideUp 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+/* Модалка и карточка входа — плотные поверхности поверх стеклянных карточек:
+   стекло здесь пропускало цветные бейджи записей, и подписи полей терялись. */
+.modal.liquid-glass,
+.auth-card.liquid-glass {
+    background: var(--surface);
+    border: var(--surface-border);
+    box-shadow: var(--surface-shadow);
+}
+
+.modal.liquid-glass::before,
+.auth-card.liquid-glass::before {
+    background: var(--surface-highlight);
+}
+
+/* Отдельный блок ниже общего: там правило слабее по специфичности и проиграло
+   бы. Без размытия остаток прозрачности показал бы ленту сквозь форму. */
+@supports not (backdrop-filter: blur(1px)) {
+    .modal.liquid-glass,
+    .auth-card.liquid-glass {
+        background: var(--surface-solid);
+    }
+}
+
+/* Крестик закрытия стоит на плотной поверхности, поэтому берёт её палитру:
+   белый кружок из общего .btn-icon-glass на светлой теме сливался бы с ней. */
+.modal .btn-icon-glass {
+    background: var(--field-bg);
+    border-color: var(--field-border);
+    box-shadow: none;
+}
+
+.modal .btn-icon-glass:active {
+    background: var(--field-raised);
 }
 
 .modal-sm {
@@ -952,7 +1025,9 @@ textarea, input {
     font-size: 0.82rem;
     font-weight: 800;
     color: #fff;
-    opacity: 0.35;
+    /* Тень держит белую цифру читаемой на приглушённой жёлто-салатовой заливке. */
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+    opacity: 0.5;
     flex: 1;
     transition: opacity var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
 }
@@ -1002,13 +1077,8 @@ textarea, input {
     gap: 12px;
     padding: 10px 12px;
     border-radius: var(--r-md);
-    background: rgba(255, 255, 255, 0.08);
-    border: 0.5px solid rgba(255, 255, 255, 0.15);
-}
-
-[data-theme="dark"] .guide-item {
-    background: rgba(255, 255, 255, 0.04);
-    border-color: rgba(255, 255, 255, 0.06);
+    background: var(--field-bg);
+    border: 0.5px solid var(--field-border);
 }
 
 .guide-badge {
@@ -1263,6 +1333,9 @@ textarea, input {
         --lg-bg: var(--bg);
         --lg-blur: 0px;
         --lg-highlight: none;
+        --surface: var(--surface-solid);
+        --surface-highlight: none;
+        --scrim: rgba(0, 0, 0, 0.75);
     }
 
     .liquid-glass {
@@ -1322,7 +1395,7 @@ textarea, input {
     display: flex;
     gap: 0;
     margin-bottom: 20px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--field-bg);
     border-radius: var(--r-pill);
     padding: 3px;
 }
@@ -1338,13 +1411,9 @@ textarea, input {
 }
 
 .auth-tab.active {
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--field-raised);
     color: var(--c-primary);
-    box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.4);
-}
-
-[data-theme="dark"] .auth-tab.active {
-    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 .auth-form {
@@ -1386,8 +1455,8 @@ textarea, input {
     border-radius: var(--r-pill);
     font-size: 0.75rem;
     font-weight: 700;
-    background: rgba(255, 255, 255, 0.12);
-    border: 0.5px solid rgba(255, 255, 255, 0.3);
+    background: var(--field-bg);
+    border: 0.5px solid var(--field-border);
     color: var(--c-secondary);
     cursor: pointer;
     transition: background var(--t-fast), color var(--t-fast), border-color var(--t-fast);
@@ -1401,11 +1470,6 @@ textarea, input {
 
 .tag-chip:active {
     transform: scale(0.95);
-}
-
-[data-theme="dark"] .tag-chip {
-    background: rgba(255, 255, 255, 0.06);
-    border-color: rgba(255, 255, 255, 0.1);
 }
 
 /* ============================================
@@ -1603,7 +1667,8 @@ textarea, input {
     font-size: 0.82rem;
     font-weight: 800;
     color: #fff;
-    opacity: 0.35;
+    text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+    opacity: 0.5;
     transition: opacity var(--t-fast), transform var(--t-fast), box-shadow var(--t-fast);
 }
 
@@ -1641,7 +1706,7 @@ textarea, input {
     display: flex;
     gap: 0;
     margin-bottom: 12px;
-    background: rgba(255, 255, 255, 0.1);
+    background: var(--field-bg);
     border-radius: var(--r-pill);
     padding: 3px;
     position: relative;
@@ -1660,13 +1725,9 @@ textarea, input {
 }
 
 .guide-tab-btn.active {
-    background: rgba(255, 255, 255, 0.3);
+    background: var(--field-raised);
     color: var(--c-primary);
-    box-shadow: inset 0 0.5px 0 rgba(255, 255, 255, 0.4);
-}
-
-[data-theme="dark"] .guide-tab-btn.active {
-    background: rgba(255, 255, 255, 0.1);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
 
 /* ============================================
