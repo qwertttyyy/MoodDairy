@@ -29,8 +29,8 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # Статику админки и DRF отдаёт gunicorn: nginx проксирует /static/ сюда,
-    # общий volume между контейнерами не нужен.
+    # Статику админки и DRF отдаёт сам gunicorn: nginx проксирует /static/ сюда,
+    # и каталог staticfiles не нужно отдавать наружу из контейнера.
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",

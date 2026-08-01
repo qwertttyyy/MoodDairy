@@ -117,8 +117,14 @@ jobs:
             cd /opt/projects/MoodDairy
             git fetch origin master
             git reset --hard origin/master
-            docker compose build backend frontend
-            docker compose up -d --remove-orphans backend frontend
+
+            docker run --rm -v "$PWD/frontend":/app -w /app node:22-alpine \
+              sh -c "npm ci && npm run build"
+            mkdir -p /var/www/moods
+            cp -a frontend/dist/. /var/www/moods/
+
+            docker compose build backend
+            docker compose up -d --remove-orphans backend
 
       - name: Notify on success
         if: success()
