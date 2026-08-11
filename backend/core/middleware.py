@@ -10,7 +10,10 @@ from .logging_utils import clear_request_context, set_request_context
 
 logger = logging.getLogger("core.request")
 
-SKIP_PATHS = ("/static/", "/favicon.ico")
+SKIP_PATHS = ("/favicon.ico",)
+
+# С этого кода ответ считается ошибкой и логируется уровнем WARNING.
+HTTP_ERROR_THRESHOLD = 400
 
 
 class RequestLoggingMiddleware:
@@ -42,36 +45,44 @@ class RequestLoggingMiddleware:
         )
 
         start = time.monotonic()
-        response = self.get_response(request)
-        duration_ms = round((time.monotonic() - start) * 1000, 1)
+        try:
+            response = self.get_response(request)
+            duration_ms = round((time.monotonic() - start) * 1000, 1)
 
-        user_id = (
-            request.user.id
-            if hasattr(request, "user") and request.user.is_authenticated
-            else user_id
-        )
+            # Логин мог произойти внутри запроса — перечитываем пользователя.
+            user_id = (
+                request.user.id
+                if hasattr(request, "user") and request.user.is_authenticated
+                else user_id
+            )
 
-        level = (
-            logging.WARNING if response.status_code >= 400 else logging.INFO
-        )
+            level = (
+                logging.WARNING
+                if response.status_code >= HTTP_ERROR_THRESHOLD
+                else logging.INFO
+            )
 
-        logger.log(
-            level,
-            "%s %s %s %.1fms",
-            request.method,
-            request.path,
-            response.status_code,
-            duration_ms,
-            extra={
-                "status_code": response.status_code,
-                "duration_ms": duration_ms,
-                "user_id": user_id,
-            },
-        )
+            logger.log(
+                level,
+                "%s %s %s %.1fms",
+                request.method,
+                request.path,
+                response.status_code,
+                duration_ms,
+                extra={
+                    "status_code": response.status_code,
+                    "duration_ms": duration_ms,
+                    "user_id": user_id,
+                },
+            )
 
-        response["X-Request-ID"] = request_id
-        clear_request_context()
-        return response
+            response["X-Request-ID"] = request_id
+            return response
+        finally:
+            # Контекст живёт в thread-local, а поток переиспользуется под
+            # следующий запрос. Без finally исключение оставило бы чужие
+            # request_id и user_id в логах соседнего запроса.
+            clear_request_context()
 
     @staticmethod
     def _get_client_ip(request: HttpRequest) -> str:

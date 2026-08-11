@@ -7,15 +7,23 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 
 import { useSettings } from '../../shared/settings/SettingsProvider'
 import { useChartEntries, useDateRange } from '../entries/api'
-import type { ChartPeriod, ChartQuery } from '../entries/api'
+import type { ChartQuery } from '../entries/api'
 import { ChartStats } from './ChartStats'
 import { MoodChart } from './MoodChart'
 import { MonthPicker, currentYearMonth } from './MonthPicker'
 import type { YearMonth } from './MonthPicker'
+import { YearPicker, clampYear, currentYear } from './YearPicker'
 
-/** Порядок и подписи кнопок сегмент-контрола — как в эталонной разметке. */
-const PERIODS: ReadonlyArray<{ value: ChartPeriod; label: string }> = [
-  { value: 'all', label: 'Всё' },
+/**
+ * Режим графика. `year` и `month` — календарные, с навигацией по стрелкам;
+ * остальные — относительные отрезки от текущего момента.
+ *
+ * Режим «всё время» убран: бэкенд требует период, чтобы одним запросом нельзя
+ * было получить всю историю. Прошлые годы доступны через переключение года.
+ */
+type ChartMode = 'year' | '6months' | 'month' | '2weeks'
+
+const MODES: ReadonlyArray<{ value: ChartMode; label: string }> = [
   { value: 'year', label: 'Год' },
   { value: '6months', label: '6 мес' },
   { value: 'month', label: 'Месяц' },
@@ -26,13 +34,17 @@ const RESIZE_DEBOUNCE_MS = 150
 
 export function ChartTab({ active }: { active: boolean }) {
   const { settings } = useSettings()
-  const [period, setPeriod] = useState<ChartPeriod>('month')
+  const [mode, setMode] = useState<ChartMode>('month')
   const [selectedMonth, setSelectedMonth] = useState<YearMonth>(currentYearMonth)
+  const [selectedYear, setSelectedYear] = useState<number>(currentYear)
 
-  const isMonthMode = period === 'month'
+  const isMonthMode = mode === 'month'
+  const isYearMode = mode === 'year'
   const query: ChartQuery = isMonthMode
     ? { kind: 'month', year: selectedMonth.year, month: selectedMonth.month }
-    : { kind: 'period', period }
+    : isYearMode
+      ? { kind: 'year', year: selectedYear }
+      : { kind: 'period', period: mode }
 
   // Запросы уходят только на открытом табе — как в switchTo, где загрузка шла по переходу.
   const { data, isPending } = useChartEntries(query, active)
@@ -61,7 +73,7 @@ export function ChartTab({ active }: { active: boolean }) {
     if (!active) return
     const frame = requestAnimationFrame(updateIndicator)
     return () => cancelAnimationFrame(frame)
-  }, [active, period, updateIndicator])
+  }, [active, mode, updateIndicator])
 
   useEffect(() => {
     if (!active) return
@@ -77,10 +89,12 @@ export function ChartTab({ active }: { active: boolean }) {
     }
   }, [active, updateIndicator])
 
-  const selectPeriod = (next: ChartPeriod) => {
-    setPeriod(next)
-    // Порт MonthPicker.reset: вход в режим месяца всегда начинается с текущего месяца.
+  const selectMode = (next: ChartMode) => {
+    setMode(next)
+    // Порт MonthPicker.reset: вход в календарный режим начинается с текущего
+    // месяца или года, а не с того, на котором остановились в прошлый раз.
     if (next === 'month') setSelectedMonth(currentYearMonth())
+    if (next === 'year') setSelectedYear(clampYear(currentYear(), firstMonth?.year ?? null))
   }
 
   return (
@@ -88,11 +102,11 @@ export function ChartTab({ active }: { active: boolean }) {
       <div className="chart-filters">
         <div className="seg-control liquid-glass" ref={segRef}>
           <div className="seg-indicator" ref={indicatorRef} />
-          {PERIODS.map((item) => (
+          {MODES.map((item) => (
             <button
               key={item.value}
-              className={item.value === period ? 'seg-btn active' : 'seg-btn'}
-              onClick={() => selectPeriod(item.value)}
+              className={item.value === mode ? 'seg-btn active' : 'seg-btn'}
+              onClick={() => selectMode(item.value)}
             >
               {item.label}
             </button>
@@ -107,6 +121,14 @@ export function ChartTab({ active }: { active: boolean }) {
           minYear={firstMonth?.year ?? null}
           minMonth={firstMonth?.month ?? null}
           onChange={(year, month) => setSelectedMonth({ year, month })}
+        />
+      )}
+
+      {isYearMode && (
+        <YearPicker
+          year={selectedYear}
+          minYear={firstMonth?.year ?? null}
+          onChange={setSelectedYear}
         />
       )}
 

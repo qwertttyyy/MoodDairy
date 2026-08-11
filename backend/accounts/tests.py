@@ -3,14 +3,26 @@ from unittest.mock import patch
 
 from django.contrib.auth.models import User
 from django.contrib.sessions.backends.base import SessionBase
-from django.test import TestCase
+from django.core.cache import cache
+from django.db import DatabaseError
+from django.test import TestCase, override_settings
 from rest_framework import status
-from rest_framework.test import APIRequestFactory, APITestCase
+from rest_framework.test import (
+    APIClient,
+    APIRequestFactory,
+    APITestCase,
+)
+from rest_framework.throttling import SimpleRateThrottle
 
 from accounts.constants import WRAPPING_KEY_BYTES, WRAPPING_KEY_SESSION_KEY
 from accounts.models import UserProfile
 from accounts.serializers import LoginSerializer, RegisterSerializer
-from accounts.services import generate_wrapping_key, store_wrapping_key
+from accounts.services import (
+    authenticate_user,
+    generate_wrapping_key,
+    store_wrapping_key,
+)
+from core.exceptions import InvalidCredentials
 
 
 class RegisterSerializerUsernameTest(TestCase):
@@ -84,6 +96,36 @@ class RegisterSerializerSaltTest(TestCase):
         self.assertTrue(s.is_valid(), s.errors)
 
 
+class RegisterSerializerBlankSaltTest(TestCase):
+    """Пустой salt допустим только при выключенном шифровании."""
+
+    PAYLOAD = {"username": "nosalt", "password": "Str0ng!Pass99"}
+
+    @override_settings(ENCRYPTION_ENABLED=False)
+    def test_blank_salt_accepted_when_encryption_off(self):
+        s = RegisterSerializer(data={**self.PAYLOAD, "encryption_salt": ""})
+        self.assertTrue(s.is_valid(), s.errors)
+        user = s.save()
+        self.assertEqual(user.profile.encryption_salt, "")
+
+    @override_settings(ENCRYPTION_ENABLED=False)
+    def test_missing_salt_accepted_when_encryption_off(self):
+        s = RegisterSerializer(data=self.PAYLOAD)
+        self.assertTrue(s.is_valid(), s.errors)
+
+    @override_settings(ENCRYPTION_ENABLED=True)
+    def test_blank_salt_rejected_when_encryption_on(self):
+        s = RegisterSerializer(data={**self.PAYLOAD, "encryption_salt": ""})
+        self.assertFalse(s.is_valid())
+        self.assertIn("encryption_salt", s.errors)
+
+    @override_settings(ENCRYPTION_ENABLED=True)
+    def test_missing_salt_rejected_when_encryption_on(self):
+        s = RegisterSerializer(data=self.PAYLOAD)
+        self.assertFalse(s.is_valid())
+        self.assertIn("encryption_salt", s.errors)
+
+
 class RegisterSerializerCreateTest(TestCase):
     """create — атомарность: User + UserProfile."""
 
@@ -91,7 +133,7 @@ class RegisterSerializerCreateTest(TestCase):
         serializer = RegisterSerializer(
             data={
                 "username": "newguy",
-                "password": "anypass",
+                "password": "Str0ng!Pass99",
                 "encryption_salt": base64.b64encode(b"12345678").decode(),
             }
         )
@@ -103,7 +145,7 @@ class RegisterSerializerCreateTest(TestCase):
 
     @patch(
         "accounts.services.UserProfile.objects.create",
-        side_effect=Exception("DB error"),
+        side_effect=DatabaseError("DB error"),
     )
     def test_profile_failure_rolls_back_user(self, _mock):
         """transaction.atomic откатывает User если Profile не создался."""
@@ -115,7 +157,7 @@ class RegisterSerializerCreateTest(TestCase):
             }
         )
         serializer.is_valid(raise_exception=True)
-        with self.assertRaises(Exception):
+        with self.assertRaises(DatabaseError):
             serializer.save()
         # Оба откатились
         self.assertFalse(User.objects.filter(username="orphan").exists())
@@ -128,7 +170,20 @@ class RegisterSerializerCreateTest(TestCase):
 #  LoginSerializer
 # ---------------------------------------------------------------------------
 class LoginSerializerTest(TestCase):
-    """validate — аутентификация, деактивированный аккаунт."""
+    """Сериализатор проверяет только форму запроса."""
+
+    def test_both_fields_required(self):
+        s = LoginSerializer(data={"username": "alice"})
+        self.assertFalse(s.is_valid())
+        self.assertIn("password", s.errors)
+
+    def test_valid_shape_passes(self):
+        s = LoginSerializer(data={"username": "alice", "password": "any"})
+        self.assertTrue(s.is_valid(), s.errors)
+
+
+class AuthenticateUserTest(TestCase):
+    """authenticate_user — проверка учётных данных и статуса аккаунта."""
 
     def setUp(self):
         self.user = User.objects.create_user(
@@ -137,28 +192,22 @@ class LoginSerializerTest(TestCase):
         )
 
     def test_valid_credentials(self):
-        s = LoginSerializer(
-            data={"username": "alice", "password": "Str0ng!Pass99"}
-        )
-        self.assertTrue(s.is_valid(), s.errors)
-        self.assertEqual(s.validated_data["user"], self.user)
+        user = authenticate_user(username="alice", password="Str0ng!Pass99")
+        self.assertEqual(user, self.user)
 
     def test_wrong_password(self):
-        s = LoginSerializer(data={"username": "alice", "password": "wrong"})
-        self.assertFalse(s.is_valid())
-        self.assertIn("non_field_errors", s.errors)
+        with self.assertRaises(InvalidCredentials):
+            authenticate_user(username="alice", password="wrong")
 
     def test_nonexistent_user(self):
-        s = LoginSerializer(data={"username": "ghost", "password": "any"})
-        self.assertFalse(s.is_valid())
+        with self.assertRaises(InvalidCredentials):
+            authenticate_user(username="ghost", password="any")
 
     def test_inactive_user(self):
         self.user.is_active = False
         self.user.save()
-        s = LoginSerializer(
-            data={"username": "alice", "password": "Str0ng!Pass99"}
-        )
-        self.assertFalse(s.is_valid())
+        with self.assertRaises(InvalidCredentials):
+            authenticate_user(username="alice", password="Str0ng!Pass99")
 
 
 # ---------------------------------------------------------------------------
@@ -223,3 +272,93 @@ class UnwrapKeyViewTest(APITestCase):
         self.client.logout()
         resp = self.client.get("/api/auth/unwrap-key/")
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ---------------------------------------------------------------------------
+#  Троттлинг и CSRF на входе
+# ---------------------------------------------------------------------------
+@patch.dict(SimpleRateThrottle.THROTTLE_RATES, {"auth": "3/minute"})
+class AuthThrottleTest(APITestCase):
+    """Перебор паролей ограничен по частоте.
+
+    Ставки патчатся напрямую в классе: DRF читает DEFAULT_THROTTLE_RATES один
+    раз при импорте и кладёт в атрибут класса, поэтому override_settings
+    на них не влияет.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.user = User.objects.create_user(
+            username="throttled", password="Str0ng!Pass99"
+        )
+
+    def test_login_attempts_are_limited(self):
+        payload = {"username": "throttled", "password": "wrong"}
+        for _ in range(3):
+            resp = self.client.post("/api/auth/login/", payload, format="json")
+            self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+        resp = self.client.post("/api/auth/login/", payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        self.assertEqual(resp.data["error"]["code"], "rate_limited")
+
+    def test_registration_attempts_are_limited(self):
+        """Считаются и неудачные попытки: лимит проверяется до валидации."""
+        payload = {"username": "", "password": "short"}
+        for _ in range(3):
+            resp = self.client.post(
+                "/api/auth/register/", payload, format="json"
+            )
+            self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+
+        resp = self.client.post("/api/auth/register/", payload, format="json")
+        self.assertEqual(resp.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+
+
+class CsrfProtectionTest(APITestCase):
+    """Вход и регистрация защищены от login CSRF.
+
+    SessionAuthentication проверяет токен только для уже аутентифицированных
+    запросов, поэтому на анонимных эндпоинтах он навешен явно.
+    """
+
+    def setUp(self):
+        cache.clear()
+        self.client = APIClient(enforce_csrf_checks=True)
+        User.objects.create_user(
+            username="csrf_user", password="Str0ng!Pass99"
+        )
+
+    def test_login_without_token_rejected(self):
+        resp = self.client.post(
+            "/api/auth/login/",
+            {"username": "csrf_user", "password": "Str0ng!Pass99"},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(resp.data["error"]["code"], "csrf_failed")
+
+    def test_register_without_token_rejected(self):
+        resp = self.client.post(
+            "/api/auth/register/",
+            {
+                "username": "newbie",
+                "password": "Str0ng!Pass99",
+                "encryption_salt": base64.b64encode(b"12345678").decode(),
+            },
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_login_with_token_passes(self):
+        """Токен фронтенд получает из GET /api/config/."""
+        self.client.get("/api/config/")
+        token = self.client.cookies["csrftoken"].value
+
+        resp = self.client.post(
+            "/api/auth/login/",
+            {"username": "csrf_user", "password": "Str0ng!Pass99"},
+            format="json",
+            HTTP_X_CSRFTOKEN=token,
+        )
+        self.assertEqual(resp.status_code, status.HTTP_200_OK)

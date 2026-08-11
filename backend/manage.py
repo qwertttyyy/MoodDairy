@@ -7,7 +7,9 @@ import sys
 
 def main():
     """Run administrative tasks."""
-    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
+    # По умолчанию — настройки разработки. В контейнере значение задаётся
+    # переменной DJANGO_SETTINGS_MODULE=config.settings.prod из Dockerfile.
+    os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
     try:
         from django.core.management import execute_from_command_line
     except ImportError as exc:

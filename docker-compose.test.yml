@@ -17,28 +17,44 @@ services:
       timeout: 2s
       retries: 10
 
+  # Тесты идут на настоящем Redis: поведение incr и TTL, от которого зависит
+  # версионная инвалидация кэша, на LocMemCache не воспроизводится.
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass test-redis-password --save ""
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli -a test-redis-password ping | grep PONG"]
+      interval: 3s
+      timeout: 2s
+      retries: 10
+
   backend:
     build: ./backend
     depends_on:
       db:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       SECRET_KEY: ci-test-secret-key-not-for-production
-      DEBUG: "1"
+      ALLOWED_HOSTS: testserver,localhost,127.0.0.1
       DB_NAME: moods_test
       DB_USER: moods
       DB_PASSWORD: moods
       DB_HOST: db
       DB_PORT: "5432"
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: test-redis-password
+      REDIS_DB: "0"
       ENCRYPTION_ENABLED: "1"
-      ADMIN_PASSWORD: admin
-      DJANGO_SETTINGS_MODULE: config.settings_test
+      DJANGO_SETTINGS_MODULE: config.settings.test
     entrypoint:
       [
         "python",
         "manage.py",
         "test",
-        "--settings=config.settings_test",
+        "--settings=config.settings.test",
         "--verbosity=2",
         "--no-input",
       ]

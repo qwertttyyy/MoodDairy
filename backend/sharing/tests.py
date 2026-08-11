@@ -1,11 +1,13 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.core.management import call_command
 from django.test import TestCase
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+from sharing.constants import SHARE_BLOB_MAX_LENGTH
 from sharing.models import SharedAccess, generate_token
 
 
@@ -172,20 +174,49 @@ class ShareViewTest(APITestCase):
             ).exists()
         )
 
-    def test_post_deactivates_previous_share(self):
-        """Новая созданная ссылка активна"""
+    def test_post_replaces_share_and_rotates_token(self):
+        """Повторный POST заменяет блоб и делает старый токен нерабочим."""
         share = SharedAccess.objects.create(
             user=self.user,
             data_blob="share",
             is_active=False,
         )
+        old_token = share.token
+
         self.client.post(
             "/api/sharing/",
-            {"data_blob": "new_data", "is_encrypted": True},
+            {"data_blob": "new_data"},
             format="json",
         )
+
         share.refresh_from_db()
         self.assertTrue(share.is_active)
+        self.assertEqual(share.data_blob, "new_data")
+        self.assertNotEqual(share.token, old_token)
+
+        stale = self.client.get(f"/api/sharing/{old_token}/data/")
+        self.assertEqual(stale.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_is_encrypted_comes_from_settings_not_client(self):
+        """Клиент не может пометить блоб как незашифрованный."""
+        resp = self.client.post(
+            "/api/sharing/",
+            {"data_blob": "encrypted_data", "is_encrypted": False},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_201_CREATED)
+        share = SharedAccess.objects.get(user=self.user)
+        self.assertTrue(share.is_encrypted)
+
+    def test_blob_size_is_limited(self):
+        """Без ограничения один пользователь мог бы занять всю память кэша."""
+        resp = self.client.post(
+            "/api/sharing/",
+            {"data_blob": "x" * (SHARE_BLOB_MAX_LENGTH + 1)},
+            format="json",
+        )
+        self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("data_blob", resp.data["error"]["fields"])
 
     def test_get_active_share_returns_metadata(self):
         SharedAccess.objects.create(
@@ -205,14 +236,15 @@ class ShareViewTest(APITestCase):
             is_active=True,
         )
         resp = self.client.delete("/api/sharing/")
-        self.assertEqual(resp.status_code, status.HTTP_200_OK)
+        self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(
             SharedAccess.objects.filter(
                 user=self.user, is_active=True
             ).exists(),
         )
 
-    def test_delete_no_active_returns_204(self):
+    def test_delete_is_idempotent(self):
+        """Отзыв несуществующей ссылки — не ошибка, результат тот же."""
         resp = self.client.delete("/api/sharing/")
         self.assertEqual(resp.status_code, status.HTTP_204_NO_CONTENT)
 
@@ -220,3 +252,59 @@ class ShareViewTest(APITestCase):
         self.client.logout()
         resp = self.client.get("/api/sharing/")
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
+
+
+# ===================================================================
+#  cleanup_shares
+# ===================================================================
+class CleanupSharesCommandTest(TestCase):
+    """Отработавшие ссылки удаляются, действующие остаются."""
+
+    def setUp(self):
+        self.old = timezone.now() - timedelta(days=30)
+
+    def _make(self, username, **kwargs):
+        user = User.objects.create_user(
+            username=username, password="Str0ng!Pass99"
+        )
+        share = SharedAccess.objects.create(
+            user=user, data_blob="blob", **kwargs
+        )
+        # created_at заполняется auto_now_add, поэтому правим отдельно.
+        SharedAccess.objects.filter(pk=share.pk).update(created_at=self.old)
+        return share
+
+    def test_revoked_share_removed(self):
+        share = self._make("revoked", is_active=False)
+        call_command("cleanup_shares")
+        self.assertFalse(SharedAccess.objects.filter(pk=share.pk).exists())
+
+    def test_expired_share_removed(self):
+        share = self._make(
+            "expired", expires_at=timezone.now() - timedelta(hours=1)
+        )
+        call_command("cleanup_shares")
+        self.assertFalse(SharedAccess.objects.filter(pk=share.pk).exists())
+
+    def test_active_share_kept(self):
+        share = self._make(
+            "active", expires_at=timezone.now() + timedelta(hours=5)
+        )
+        call_command("cleanup_shares")
+        self.assertTrue(SharedAccess.objects.filter(pk=share.pk).exists())
+
+    def test_recent_revoked_share_kept(self):
+        """Свежие записи хранятся на случай разбора жалобы."""
+        user = User.objects.create_user(
+            username="fresh", password="Str0ng!Pass99"
+        )
+        share = SharedAccess.objects.create(
+            user=user, data_blob="blob", is_active=False
+        )
+        call_command("cleanup_shares")
+        self.assertTrue(SharedAccess.objects.filter(pk=share.pk).exists())
+
+    def test_dry_run_deletes_nothing(self):
+        share = self._make("dry", is_active=False)
+        call_command("cleanup_shares", "--dry-run")
+        self.assertTrue(SharedAccess.objects.filter(pk=share.pk).exists())

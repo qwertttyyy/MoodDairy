@@ -17,6 +17,62 @@ dependencies = [
     "whitenoise==6.12.0",
 ]
 
+[dependency-groups]
+# В образ не попадают: Dockerfile ставит зависимости через `uv sync --no-dev`.
+dev = [
+    "ruff>=0.9",
+    "coverage>=7.6",
+]
+
 [tool.uv]
 # Это приложение, а не библиотека: сам проект устанавливать не нужно, только зависимости.
 package = false
+
+[tool.ruff]
+line-length = 79
+target-version = "py312"
+extend-exclude = ["*/migrations/*"]
+
+[tool.ruff.lint]
+select = [
+    "E",   # pycodestyle: ошибки
+    "W",   # pycodestyle: предупреждения
+    "F",   # pyflakes: неиспользуемое, неопределённое
+    "I",   # isort: порядок импортов
+    "UP",  # pyupgrade: устаревшие конструкции
+    "B",   # flake8-bugbear: типичные ловушки
+    "DJ",  # flake8-django
+    "S",   # bandit: небезопасные конструкции
+    "T20", # flake8-print: забытые print
+]
+ignore = [
+    # Docstring в каждом модуле/классе не требуем — комментируем только сложное.
+    "D",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# В тестах допустимы assert, хардкод паролей и обращение к приватным методам.
+"*/tests.py" = ["S101", "S105", "S106", "SLF001"]
+"*/tests/*" = ["S101", "S105", "S106", "SLF001"]
+# manage.py — стандартный шаблон Django.
+"manage.py" = ["T20"]
+# Management-команды пишут в stdout через self.stdout, но random там осознанный.
+"*/management/commands/*" = ["S311"]
+
+[tool.coverage.run]
+source = ["accounts", "core", "entries", "sharing"]
+omit = [
+    "*/migrations/*",
+    "*/tests.py",
+    "*/apps.py",
+    "config/asgi.py",
+    "config/wsgi.py",
+    "manage.py",
+]
+
+[tool.coverage.report]
+show_missing = true
+skip_covered = true
+# Порог взят чуть ниже текущего уровня: смысл не в цифре, а в том, чтобы
+# покрытие не сползало вниз незаметно.
+fail_under = 90

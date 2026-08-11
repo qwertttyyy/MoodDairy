@@ -7,7 +7,10 @@ from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
+
+from core.exceptions import Gone
 
 from .models import SharedAccess
 from .serializers import CreateShareSerializer
@@ -17,9 +20,11 @@ logger = logging.getLogger("sharing")
 
 
 class ShareView(APIView):
-    """GET — метаданные активной ссылки.
-    POST — создать/обновить.
-    DELETE — отозвать."""
+    """Управление ссылкой для врача.
+
+    GET — метаданные активной ссылки, POST — создать или заменить,
+    DELETE — отозвать.
+    """
 
     permission_classes = (IsAuthenticated,)
 
@@ -42,7 +47,6 @@ class ShareView(APIView):
         share = create_or_update_share(
             user=request.user,
             data_blob=serializer.validated_data["data_blob"],
-            is_encrypted=serializer.validated_data["is_encrypted"],
         )
         logger.info(
             "Share created by user_id=%d, token=%s",
@@ -52,29 +56,24 @@ class ShareView(APIView):
         return Response({"token": share.token}, status=status.HTTP_201_CREATED)
 
     def delete(self, request: Request) -> Response:
-        revoked = revoke_share(request.user)
-        if not revoked:
-            return Response(
-                {"detail": "Активной ссылки нет"},
-                status=status.HTTP_204_NO_CONTENT,
-            )
-        logger.info("Share revoked by user_id=%d", request.user.id)
-        return Response(status=status.HTTP_200_OK)
+        """Идемпотентно: повторный отзыв не считается ошибкой."""
+        if revoke_share(request.user):
+            logger.info("Share revoked by user_id=%d", request.user.id)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ShareDataView(APIView):
-    """Публичный эндпоинт: отдаёт blob по token."""
+    """Публичный эндпоинт: отдаёт блоб по токену."""
 
     permission_classes = (AllowAny,)
     authentication_classes = []
+    throttle_classes = (ScopedRateThrottle,)
+    throttle_scope = "share"
 
     def get(self, request: Request, token: str) -> Response:
         share = get_object_or_404(SharedAccess, token=token)
         if not share.is_valid:
-            return Response(
-                {"detail": "Ссылка недействительна"},
-                status=status.HTTP_410_GONE,
-            )
+            raise Gone()
         return Response(
             {
                 "data_blob": share.data_blob,
