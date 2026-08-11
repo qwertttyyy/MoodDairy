@@ -27,9 +27,6 @@ defaults:
   run:
     shell: bash
 
-env:
-  IMAGE_NAME: ghcr.io/${{ github.repository }}/backend
-
 jobs:
   changes:
     runs-on: ubuntu-latest
@@ -37,8 +34,18 @@ jobs:
       backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       deploy: ${{ steps.filter.outputs.deploy }}
+      image: ${{ steps.image.outputs.name }}
     steps:
       - uses: actions/checkout@v4
+
+      # Имя образа в registry обязано быть в нижнем регистре, а
+      # github.repository сохраняет регистр владельца и репозитория.
+      # Выражения GitHub Actions переводить регистр не умеют, поэтому
+      # это делает bash: ${VAR,,}.
+      - name: Build image name
+        id: image
+        run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}/backend" >> "$GITHUB_OUTPUT"
+
       - name: Detect changed paths
         id: filter
         uses: dorny/paths-filter@v3
@@ -47,7 +54,7 @@ jobs:
             backend:
               - 'backend/**'
               - 'docker-compose.test.yml'
-            frontend:
+            frontend:`
               - 'frontend/**'
             deploy:
               - 'backend/**'
@@ -193,8 +200,8 @@ jobs:
           context: ./backend
           push: true
           tags: |
-            ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
-            ${{ env.IMAGE_NAME }}:latest
+            ${{ needs.changes.outputs.image }}:sha-${{ github.sha }}
+            ${{ needs.changes.outputs.image }}:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
@@ -233,6 +240,8 @@ jobs:
 
       - name: Deploy backend
         uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_NAME: ${{ needs.changes.outputs.image }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
@@ -261,6 +270,8 @@ jobs:
 
       - name: Verify service is healthy
         uses: appleboy/ssh-action@v1
+        env:
+          IMAGE_NAME: ${{ needs.changes.outputs.image }}
         with:
           host: ${{ secrets.SERVER_HOST }}
           username: ${{ secrets.SERVER_USER }}
