@@ -3,12 +3,22 @@ name: Test & Deploy
 on:
   push:
     branches: [master]
+  # Проверки на PR: иначе о поломке узнаём, когда код уже в master.
+  pull_request:
+    branches: [master]
 
-run-name: Deploy master by @${{ github.actor }}
+run-name: >-
+  ${{ github.event_name == 'pull_request'
+      && format('Checks for PR #{0}', github.event.number)
+      || format('Deploy master by @{0}', github.actor) }}
 
+# Устаревшие прогоны проверок отменяются, деплой — никогда: прерванный между
+# сборкой и перезапуском контейнера, он оставил бы сервер в промежуточном
+# состоянии. Раньше здесь было условие с github.job, но на уровне workflow
+# этот контекст пуст, и отменялся в том числе деплой.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: ${{ github.job != 'deploy' }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -17,11 +27,14 @@ defaults:
   run:
     shell: bash
 
+env:
+  IMAGE_NAME: ghcr.io/${{ github.repository }}/backend
+
 jobs:
   changes:
     runs-on: ubuntu-latest
     outputs:
-      code: ${{ steps.filter.outputs.code }}
+      backend: ${{ steps.filter.outputs.backend }}
       frontend: ${{ steps.filter.outputs.frontend }}
       deploy: ${{ steps.filter.outputs.deploy }}
     steps:
@@ -31,7 +44,7 @@ jobs:
         uses: dorny/paths-filter@v3
         with:
           filters: |
-            code:
+            backend:
               - 'backend/**'
               - 'docker-compose.test.yml'
             frontend:
@@ -42,11 +55,55 @@ jobs:
               - 'docker-compose.yml'
               - 'docker-compose.test.yml'
 
-  test:
+  backend-checks:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     needs: changes
-    if: needs.changes.outputs.code == 'true'
+    if: needs.changes.outputs.backend == 'true'
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --frozen
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Format check
+        run: uv run ruff format --check .
+
+      # Ловит расхождение «модель изменили, миграцию забыли»: иначе оно
+      # обнаружится только на проде при первом запросе.
+      - name: Migrations are up to date
+        run: uv run python manage.py makemigrations --check --dry-run
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.dev
+
+      # Django сам проверяет HSTS, куки, DEBUG и SECRET_KEY боевых настроек.
+      - name: Deployment checklist
+        run: uv run python manage.py check --deploy --fail-level WARNING
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings.prod
+          SECRET_KEY: ci-only-key-long-enough-to-pass-the-length-check-000000
+          ALLOWED_HOSTS: example.com
+          CSRF_TRUSTED_ORIGINS: https://example.com
+          DB_PASSWORD: ci
+          REDIS_PASSWORD: ci
+
+  backend-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: changes
+    if: needs.changes.outputs.backend == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -93,17 +150,88 @@ jobs:
       - name: Production build
         run: npm run build
 
+      # Собранная статика едет на сервер артефактом: пересобирать её там
+      # значит тратить ресурсы прода и рисковать другим результатом.
+      - name: Upload build
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-dist
+          path: frontend/dist
+          retention-days: 7
+
+  build-image:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: [changes, backend-checks, backend-tests]
+    if: |
+      github.event_name == 'push' &&
+      needs.changes.outputs.backend == 'true' &&
+      needs.backend-checks.result == 'success' &&
+      needs.backend-tests.result == 'success'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Log in to registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # Два тега: sha-<коммит> для точного отката, latest — для ручных команд
+      # на сервере, где переменная BACKEND_IMAGE не задана.
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: ./backend
+          push: true
+          tags: |
+            ${{ env.IMAGE_NAME }}:sha-${{ github.sha }}
+            ${{ env.IMAGE_NAME }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [changes, test, frontend-checks]
+    needs: [changes, backend-checks, backend-tests, frontend-checks, build-image]
     if: |
       always() &&
+      github.event_name == 'push' &&
       needs.changes.outputs.deploy == 'true' &&
-      (needs.test.result == 'success' || needs.test.result == 'skipped') &&
-      (needs['frontend-checks'].result == 'success' || needs['frontend-checks'].result == 'skipped')
+      needs.backend-checks.result != 'failure' &&
+      needs.backend-tests.result != 'failure' &&
+      needs.frontend-checks.result != 'failure' &&
+      needs.build-image.result != 'failure'
     steps:
-      - name: Deploy via SSH
+      - name: Download frontend build
+        if: needs.frontend-checks.result == 'success'
+        uses: actions/download-artifact@v4
+        with:
+          name: frontend-dist
+          path: dist
+
+      - name: Copy frontend to server
+        if: needs.frontend-checks.result == 'success'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: dist/*
+          target: /var/www/moods
+          strip_components: 1
+          overwrite: true
+
+      - name: Deploy backend
         uses: appleboy/ssh-action@v1
         with:
           host: ${{ secrets.SERVER_HOST }}
@@ -112,24 +240,42 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           timeout: 30s
           command_timeout: 15m
+          envs: IMAGE_NAME
           script: |
             set -e
             cd /opt/projects/MoodDairy
+
+            # Нужны только compose-файлы: код приезжает внутри образа.
             git fetch origin master
-            git reset --hard origin/master
+            git checkout --force ${{ github.sha }} -- \
+              docker-compose.yml docker-compose.test.yml
 
-            docker run --rm -v "$PWD/frontend":/app -w /app node:22-alpine \
-              sh -c "npm ci && npm run build"
-            mkdir -p /var/www/moods
-            cp -a frontend/dist/. /var/www/moods/
+            echo "${{ secrets.GHCR_TOKEN }}" \
+              | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            docker compose build backend
+            export BACKEND_IMAGE="${IMAGE_NAME}:sha-${{ github.sha }}"
+            docker compose pull backend
             docker compose up -d --remove-orphans backend
 
-      - name: Notify on success
-        if: success()
-        run: echo "✅ Deploy successful"
+            docker image prune -f --filter "until=168h"
 
-      - name: Notify on failure
-        if: failure()
-        run: echo "❌ Deploy failed"
+      - name: Verify service is healthy
+        uses: appleboy/ssh-action@v1
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            set -e
+            for attempt in $(seq 1 20); do
+              if curl -fsS http://127.0.0.1:8000/api/health/ > /dev/null; then
+                echo "✅ Сервис отвечает"
+                exit 0
+              fi
+              echo "Попытка $attempt: сервис ещё не готов"
+              sleep 3
+            done
+            echo "❌ Сервис не поднялся, откат:"
+            echo "   BACKEND_IMAGE=${IMAGE_NAME}:sha-<предыдущий> docker compose up -d backend"
+            exit 1

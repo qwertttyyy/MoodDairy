@@ -13,9 +13,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '../../shared/api/client'
 import type {
   CreateShareResponse,
-  RawEntry,
   ShareEntry,
   SharingStatusResponse,
+  SnapshotRawEntry,
 } from '../../shared/api/types'
 import {
   decrypt,
@@ -53,8 +53,8 @@ export function useCreateShare() {
 export function useRevokeShare() {
   const queryClient = useQueryClient()
   return useMutation<void, Error, void>({
-    // Сервер отвечает 200 при отзыве и 204, если активной ссылки не было, —
-    // оба ответа успешные, ApiError не бросается.
+    // Отзыв идемпотентен: сервер отвечает 204 и когда ссылка была,
+    // и когда её не существовало.
     mutationFn: () => api.del<void>('/api/sharing/'),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: sharingKeys.status }),
   })
@@ -73,10 +73,12 @@ export function buildShareUrl(token: string, shareKeyB64: string): string {
 async function createShare(): Promise<CreatedShare> {
   const plainJson = await buildSnapshotJson()
 
+  // Флаг is_encrypted серверу не передаём: режим шифрования — состояние
+  // бэкенда, а не выбор клиента, иначе укравший сессию мог бы создать ссылку,
+  // помеченную как незашифрованная.
   if (!isEncryptionEnabled()) {
     const { token } = await api.post<CreateShareResponse>('/api/sharing/', {
       data_blob: plainJson,
-      is_encrypted: false,
     })
     return { token, shareKeyB64: '' }
   }
@@ -85,15 +87,20 @@ async function createShare(): Promise<CreatedShare> {
   const dataBlob = await encryptWithKey(shareKey.raw, plainJson)
   const { token } = await api.post<CreateShareResponse>('/api/sharing/', {
     data_blob: dataBlob,
-    is_encrypted: true,
   })
   // В запросе только шифротекст: `shareKey.b64` остаётся в памяти вкладки.
   return { token, shareKeyB64: shareKey.b64 }
 }
 
-/** Снапшот всех записей в открытом виде — то, что будет зашифровано ключом ссылки. */
+/**
+ * Снапшот всех записей в открытом виде — то, что будет зашифровано ключом ссылки.
+ *
+ * Берётся из `/api/entries/snapshot/`, а не из списка записей: список отдаёт
+ * только поля для графика и требует период, тогда как врачу нужен дневник
+ * целиком, вместе с заметками.
+ */
 async function buildSnapshotJson(): Promise<string> {
-  const raw = await api.get<RawEntry[]>('/api/entries/')
+  const raw = await api.get<SnapshotRawEntry[]>('/api/entries/snapshot/')
   const entries: ShareEntry[] = await Promise.all(
     raw.map(async (item) => ({
       mood: parseInt(await decrypt(item.mood), 10) || 0,

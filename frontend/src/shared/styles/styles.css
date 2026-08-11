@@ -1629,6 +1629,59 @@ textarea, input {
     word-break: break-word;
 }
 
+/* ── Tags manager in settings ── */
+.tags-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.tag-row {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+}
+
+/* Занимает всё свободное место, кнопки прижаты вправо. */
+.tag-row .tag-name,
+.tag-row .glass-input {
+    flex: 1;
+    min-width: 0;
+}
+
+.tag-name {
+    font-size: 0.85rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.tag-row .glass-input {
+    font-size: 0.85rem;
+    padding: 8px 12px;
+}
+
+.btn-sm {
+    padding: 6px 14px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    border-radius: var(--r-pill);
+    min-height: 32px;
+    background: var(--field-bg);
+    color: var(--c-secondary);
+    border: 0.5px solid var(--field-border);
+    transition: transform var(--t-fast);
+}
+
+.btn-sm:active {
+    transform: scale(0.95);
+}
+
+.setting-hint {
+    font-size: 0.78rem;
+    color: var(--c-tertiary);
+}
+
 /* ── Share link in settings ── */
 .share-link-box {
     padding: 0 0 4px;

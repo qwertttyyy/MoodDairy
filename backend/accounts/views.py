@@ -3,6 +3,7 @@ from __future__ import annotations
 import logging
 
 from django.contrib.auth import login, logout
+from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.request import Request
@@ -10,21 +11,35 @@ from rest_framework.response import Response
 from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
+from core.authentication import CsrfEnforcedSessionAuthentication
+from core.exceptions import WrappingKeyMissing
+
+from .models import UserProfile
 from .serializers import (
     LoginSerializer,
     ProfileSerializer,
     RegisterSerializer,
     UserSerializer,
 )
-from .services import clear_wrapping_key, get_wrapping_key, store_wrapping_key
+from .services import (
+    authenticate_user,
+    clear_wrapping_key,
+    get_wrapping_key,
+    store_wrapping_key,
+)
 
 logger = logging.getLogger("accounts")
 
 
 class RegisterView(APIView):
-    """Регистрация: создаёт User + UserProfile(salt), отдаёт wrapping_key."""
+    """Регистрация: создаёт User + UserProfile(salt), отдаёт wrapping_key.
+
+    CSRF проверяется явным классом аутентификации: штатный
+    SessionAuthentication для анонимных запросов проверку пропускает.
+    """
 
     permission_classes = (AllowAny,)
+    authentication_classes = (CsrfEnforcedSessionAuthentication,)
     throttle_classes = (ScopedRateThrottle,)
     throttle_scope = "auth"
 
@@ -45,22 +60,22 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
-    """Вход: аутентификация, новый wrapping_key в сессию."""
+    """Вход: аутентификация, новый wrapping_key в сессию.
+
+    Без проверки CSRF возможна атака login CSRF: жертву незаметно логинят
+    в аккаунт атакующего, и она продолжает писать записи туда.
+    """
 
     permission_classes = (AllowAny,)
+    authentication_classes = (CsrfEnforcedSessionAuthentication,)
     throttle_classes = (ScopedRateThrottle,)
     throttle_scope = "auth"
 
     def post(self, request: Request) -> Response:
         serializer = LoginSerializer(data=request.data)
-        if not serializer.is_valid():
-            username = request.data.get("username", "?")
-            logger.warning("Login failed for username=%s", username)
-            return Response(
-                serializer.errors, status=status.HTTP_400_BAD_REQUEST
-            )
+        serializer.is_valid(raise_exception=True)
 
-        user = serializer.validated_data["user"]
+        user = authenticate_user(**serializer.validated_data)
         login(request, user)
         wrapping_key = store_wrapping_key(request)
         logger.info("User logged in: %s (id=%d)", user.username, user.id)
@@ -99,8 +114,11 @@ class ProfileView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request: Request) -> Response:
-        serializer = ProfileSerializer(request.user.profile)
-        return Response(serializer.data)
+        # get_object_or_404 вместо request.user.profile: у пользователей,
+        # созданных через createsuperuser или админку, профиля нет, и
+        # обращение к связи давало бы 500 вместо понятного ответа.
+        profile = get_object_or_404(UserProfile, user=request.user)
+        return Response(ProfileSerializer(profile).data)
 
 
 class UnwrapKeyView(APIView):
@@ -114,10 +132,5 @@ class UnwrapKeyView(APIView):
             logger.warning(
                 "Wrapping key missing in session, user_id=%d", request.user.id
             )
-            return Response(
-                {
-                    "detail": "Wrapping key отсутствует. Требуется повторный вход."
-                },
-                status=status.HTTP_401_UNAUTHORIZED,
-            )
+            raise WrappingKeyMissing()
         return Response({"wrapping_key": wrapping_key})

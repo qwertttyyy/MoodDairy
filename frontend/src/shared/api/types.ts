@@ -36,6 +36,28 @@ export interface RawEntry {
   timestamp: string
 }
 
+/**
+ * Запись для графика: `GET /api/entries/` отдаёт только то, что нужно кривой.
+ * Заметок и тегов здесь нет — они весят больше остального вместе взятого.
+ */
+export interface ChartRawEntry {
+  id: number
+  mood: string
+  anxiety: string
+  timestamp: string
+}
+
+/**
+ * Запись снапшота: `GET /api/entries/snapshot/` отдаёт всю историю со всеми
+ * полями — это единственный источник для сборки ссылки врачу.
+ */
+export interface SnapshotRawEntry {
+  mood: string
+  note: string
+  anxiety: string
+  timestamp: string
+}
+
 export interface GroupedEntriesResponse {
   results: Record<string, RawEntry[]>
   next_before: string | null

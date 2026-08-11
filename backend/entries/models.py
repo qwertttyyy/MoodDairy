@@ -2,27 +2,45 @@ from __future__ import annotations
 
 from django.conf import settings
 from django.db import models
+from django.db.models.functions import TruncDate
 from django.utils import timezone
 
 
 class Tag(models.Model):
-    """Тег настроения. Создаётся в админке, общий для всех."""
+    """Тег настроения. У каждого пользователя свой набор.
 
-    name = models.CharField(
-        max_length=50, unique=True, verbose_name="Название"
+    При удалении тега записи сохраняются: каскад убирает только строки
+    промежуточной таблицы, и тег просто исчезает из списка тегов записи.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="tags",
+        verbose_name="Пользователь",
     )
+    name = models.CharField(max_length=50, verbose_name="Название")
 
     class Meta:
         verbose_name = "Тег"
         verbose_name_plural = "Теги"
         ordering = ["name"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "name"], name="uniq_tag_name_per_user"
+            )
+        ]
 
     def __str__(self) -> str:
-        return self.name
+        return f"{self.name} ({self.user})"
 
 
 class MoodEntry(models.Model):
-    """Запись настроения. mood, note, anxiety зашифрованы на клиенте (iv:ciphertext)."""
+    """Запись настроения.
+
+    Поля mood, note и anxiety шифруются на клиенте и хранятся в формате
+    iv:ciphertext — сервер их содержимое не читает.
+    """
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -55,6 +73,14 @@ class MoodEntry(models.Model):
         ordering = ["-timestamp"]
         indexes = [
             models.Index(fields=["user", "-timestamp"]),
+            # Лента группирует записи по календарным дням через TruncDate.
+            # Обычный индекс по timestamp для DISTINCT по выражению не
+            # применим, поэтому нужен функциональный.
+            models.Index(
+                TruncDate("timestamp"),
+                "user",
+                name="entry_user_day_idx",
+            ),
         ]
 
     def __str__(self) -> str:

@@ -36,6 +36,9 @@ class SharedAccess(models.Model):
         verbose_name_plural = "Общие доступы"
         ordering = ["-created_at"]
 
+    def __str__(self) -> str:
+        return f"Share {self.token[:8]}… — {self.user}"
+
     @property
     def is_expired(self) -> bool:
         return self.expires_at is not None and timezone.now() > self.expires_at
@@ -43,6 +46,3 @@ class SharedAccess(models.Model):
     @property
     def is_valid(self) -> bool:
         return self.is_active and not self.is_expired
-
-    def __str__(self) -> str:
-        return f"Share {self.token[:8]}… — {self.user}"

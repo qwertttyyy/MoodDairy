@@ -1,15 +1,20 @@
 import random
 from datetime import datetime, time, timedelta
 
+from django.conf import settings
 from django.contrib.auth import get_user_model
-from django.core.management.base import BaseCommand
+from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
 from entries.models import MoodEntry
 
 
 class Command(BaseCommand):
-    help = "Создаёт 3-5 записей настроения на каждый день за указанный период"
+    help = (
+        "Создаёт 3-5 записей настроения на каждый день за указанный период. "
+        "Работает только при ENCRYPTION_ENABLED=0: записи пишутся открытым "
+        "текстом, и клиент с включённым шифрованием их не прочитает."
+    )
 
     def add_arguments(self, parser):
         parser.add_argument(
@@ -26,17 +31,25 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        # Отказ вместо предупреждения: тихо засорить базу записями, которые
+        # фронтенд не расшифрует, хуже, чем понятная ошибка на старте.
+        if settings.ENCRYPTION_ENABLED:
+            raise CommandError(
+                "ENCRYPTION_ENABLED=1: команда создаст записи, которые "
+                "фронтенд не сможет расшифровать. "
+                "Запустите с ENCRYPTION_ENABLED=0."
+            )
+
         username = options["username"]
         days_back = options["days"]
 
         User = get_user_model()
         try:
             user = User.objects.get(username=username)
-        except User.DoesNotExist:
-            self.stdout.write(
-                self.style.ERROR(f'Пользователь "{username}" не найден.')
-            )
-            return
+        except User.DoesNotExist as exc:
+            raise CommandError(
+                f'Пользователь "{username}" не найден.'
+            ) from exc
 
         now = timezone.now()
         tz = timezone.get_current_timezone()
@@ -73,7 +86,7 @@ class Command(BaseCommand):
                     MoodEntry(
                         user=user,
                         mood=str(mood_value),
-                        note="encrypted_note",
+                        note="Тестовая заметка",
                         timestamp=random_dt,
                     )
                 )

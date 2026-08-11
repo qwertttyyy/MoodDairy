@@ -14,6 +14,7 @@ class UserProfile(models.Model):
     )
     encryption_salt = models.CharField(
         max_length=64,
+        blank=True,  # пусто, когда ENCRYPTION_ENABLED=0
         verbose_name="Salt (base64)",
     )
 

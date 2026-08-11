@@ -13,6 +13,7 @@ import {
 
 import { api } from '../../shared/api/client'
 import type {
+  ChartRawEntry,
   DateRangeResponse,
   GroupedEntriesResponse,
   RawEntry,
@@ -22,11 +23,19 @@ import { decrypt, encrypt } from '../../shared/crypto/crypto'
 import type { ChartEntry } from '../chart/types'
 import type { DecryptedEntry, EntryDayGroup, EntryFormData } from './types'
 
-export type ChartPeriod = 'all' | 'year' | '6months' | 'month' | '2weeks'
+/** Относительные отрезки от текущего момента. */
+export type ChartPeriod = '6months' | '2weeks'
 
-/** Что показываем на графике: период целиком или конкретный месяц. */
+/**
+ * Что показываем на графике.
+ *
+ * Режима «всё время» больше нет: бэкенд требует период, чтобы одним запросом
+ * нельзя было вытянуть всю историю. Вместо него — переключение по календарным
+ * годам, как по месяцам.
+ */
 export type ChartQuery =
   | { kind: 'period'; period: ChartPeriod }
+  | { kind: 'year'; year: number }
   | { kind: 'month'; year: number; month: number }
 
 export const entriesKeys = {
@@ -101,7 +110,7 @@ export function useChartEntries(query: ChartQuery, enabled: boolean) {
     // как в старом фронте, где график не исчезал на время запроса.
     placeholderData: keepPreviousData,
     queryFn: async () => {
-      const raw = await api.get<RawEntry[]>(buildChartUrl(query))
+      const raw = await api.get<ChartRawEntry[]>(buildChartUrl(query))
       const entries = await Promise.all(
         raw.map(async (item) => ({
           mood: parseInt(await decrypt(item.mood), 10) || 0,
@@ -115,9 +124,16 @@ export function useChartEntries(query: ChartQuery, enabled: boolean) {
   })
 }
 
-function buildChartUrl(query: ChartQuery): string {
-  if (query.kind === 'month') return `/api/entries/?year=${query.year}&month=${query.month}`
-  return query.period === 'all' ? '/api/entries/' : `/api/entries/?period=${query.period}`
+/** Период обязателен: без него бэкенд отвечает 400. */
+export function buildChartUrl(query: ChartQuery): string {
+  switch (query.kind) {
+    case 'month':
+      return `/api/entries/?year=${query.year}&month=${query.month}`
+    case 'year':
+      return `/api/entries/?year=${query.year}`
+    default:
+      return `/api/entries/?period=${query.period}`
+  }
 }
 
 /** Дата первой записи — нижняя граница помесячной навигации. */
@@ -134,6 +150,41 @@ export function useTags() {
     queryKey: entriesKeys.tags,
     queryFn: () => api.get<Tag[]>('/api/tags/'),
   })
+}
+
+/**
+ * Мутации тегов.
+ *
+ * Теги принадлежат пользователю, поэтому их можно заводить и удалять из
+ * интерфейса. После любой правки сбрасываем и список тегов, и записи: теги
+ * входят в ленту, а на сервере их изменение обнуляет кэш записей.
+ */
+function useTagMutation<TVariables>(
+  mutationFn: (variables: TVariables) => Promise<unknown>,
+) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: entriesKeys.tags })
+      void queryClient.invalidateQueries({ queryKey: entriesKeys.all })
+    },
+  })
+}
+
+export function useCreateTag() {
+  return useTagMutation((name: string) => api.post<Tag>('/api/tags/', { name }))
+}
+
+export function useRenameTag() {
+  return useTagMutation(({ id, name }: { id: number; name: string }) =>
+    api.patch<Tag>(`/api/tags/${id}/`, { name }),
+  )
+}
+
+/** Удаление тега не трогает записи: пропадает только связь с ними. */
+export function useDeleteTag() {
+  return useTagMutation((id: number) => api.del<void>(`/api/tags/${id}/`))
 }
 
 export function useSaveEntry() {

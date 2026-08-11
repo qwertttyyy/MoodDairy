@@ -13,6 +13,7 @@ class SharedAccessAdmin(admin.ModelAdmin):
         "created_at",
     )
     list_filter = ("is_active", "is_encrypted")
+    list_select_related = ("user",)
     readonly_fields = (
         "token",
         "user",

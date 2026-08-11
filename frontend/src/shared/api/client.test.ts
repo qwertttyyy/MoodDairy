@@ -1,15 +1,25 @@
 /**
  * Тесты API-клиента.
  *
- * Главное здесь — parseErrors: он превращает любой формат ответа DRF об ошибке
- * в одну строку для пользователя. Порт `Api.parseErrors` из backend/static/app.js.
+ * Главное здесь — разбор ошибок. Бэкенд отдаёт единый конверт
+ * `{"error": {code, message, fields, request_id}}` (docs/api-errors.md);
+ * parseErrors остаётся запасным путём для ответов вне контракта.
  */
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ApiError, api, parseErrors } from './client'
+import { ApiError, ERROR_CODES, api, isApiError, parseApiError, parseErrors } from './client'
 
 const FALLBACK = 'Произошла ошибка'
+
+/** Конверт ошибки в том виде, в каком его отдаёт бэкенд. */
+function envelope(
+  code: string,
+  message: string,
+  extra: Record<string, unknown> = {},
+): Record<string, unknown> {
+  return { error: { code, message, request_id: 'req-1', ...extra } }
+}
 
 describe('parseErrors', () => {
   describe('строка на входе', () => {
@@ -102,27 +112,108 @@ describe('parseErrors', () => {
   })
 })
 
+describe('parseApiError', () => {
+  it('читает код, сообщение и request_id из конверта', () => {
+    const payload = parseApiError(envelope('gone', 'Ссылка недействительна.'))
+
+    expect(payload.code).toBe(ERROR_CODES.gone)
+    expect(payload.message).toBe('Ссылка недействительна.')
+    expect(payload.requestId).toBe('req-1')
+  })
+
+  it('читает ошибки по полям', () => {
+    const payload = parseApiError(
+      envelope('validation_error', 'Проверьте поля', {
+        fields: { mood: ['Ожидается формат iv:ciphertext.'] },
+      }),
+    )
+
+    expect(payload.fields).toEqual({ mood: ['Ожидается формат iv:ciphertext.'] })
+  })
+
+  it('приводит нестроковые значения полей к массиву строк', () => {
+    const payload = parseApiError(
+      envelope('validation_error', 'Ошибка', { fields: { year: 42 } }),
+    )
+
+    expect(payload.fields).toEqual({ year: ['42'] })
+  })
+
+  it('без fields отдаёт пустой объект, а не undefined', () => {
+    expect(parseApiError(envelope('not_found', 'Не найдено')).fields).toEqual({})
+  })
+
+  it('незнакомый код сохраняется как есть — фронт не должен ломаться', () => {
+    const payload = parseApiError(envelope('some_future_code', 'Новая ошибка'))
+
+    expect(payload.code).toBe('some_future_code')
+    expect(payload.message).toBe('Новая ошибка')
+  })
+
+  describe('ответы вне контракта', () => {
+    it('HTML-заглушка прокси отдаёт запасной код и её текст', () => {
+      const payload = parseApiError('<html>502</html>')
+
+      expect(payload.code).toBe(ERROR_CODES.unknown)
+      expect(payload.message).toBe('<html>502</html>')
+    })
+
+    it('голый ответ DRF разбирается запасным путём', () => {
+      const payload = parseApiError({ detail: 'Страница не найдена.' })
+
+      expect(payload.code).toBe(ERROR_CODES.unknown)
+      expect(payload.message).toBe('Страница не найдена.')
+    })
+
+    it('конверт без message считается чужим ответом', () => {
+      const payload = parseApiError({ error: { code: 'gone' } })
+
+      expect(payload.code).toBe(ERROR_CODES.unknown)
+      expect(payload.message).toBe(FALLBACK)
+    })
+
+    it('пустое тело даёт общий текст', () => {
+      expect(parseApiError(undefined).message).toBe(FALLBACK)
+    })
+  })
+})
+
 describe('ApiError', () => {
-  it('несёт status, message и data', () => {
-    const data = { detail: 'Ссылка отозвана' }
-    const error = new ApiError(410, 'Ссылка отозвана', data)
+  const payload = {
+    code: ERROR_CODES.gone,
+    message: 'Ссылка отозвана',
+    fields: {},
+    requestId: 'req-1',
+  }
+
+  it('несёт status, code, message, requestId и data', () => {
+    const data = envelope('gone', 'Ссылка отозвана')
+    const error = new ApiError(410, payload, data)
 
     expect(error.status).toBe(410)
+    expect(error.code).toBe(ERROR_CODES.gone)
     expect(error.message).toBe('Ссылка отозвана')
+    expect(error.requestId).toBe('req-1')
     expect(error.data).toBe(data)
   })
 
   it('является настоящим Error с именем ApiError', () => {
-    const error = new ApiError(401, 'Нет сессии')
+    const error = new ApiError(401, payload)
 
     expect(error).toBeInstanceOf(Error)
     expect(error).toBeInstanceOf(ApiError)
     expect(error.name).toBe('ApiError')
-    expect(String(error)).toContain('Нет сессии')
+    expect(String(error)).toContain('Ссылка отозвана')
+  })
+
+  it('isApiError отличает её от обычной ошибки', () => {
+    expect(isApiError(new ApiError(500, payload))).toBe(true)
+    expect(isApiError(new Error('обычная'))).toBe(false)
+    expect(isApiError('строка')).toBe(false)
   })
 
   it('без data оставляет её undefined', () => {
-    expect(new ApiError(500, 'Ошибка сервера').data).toBeUndefined()
+    expect(new ApiError(500, payload).data).toBeUndefined()
   })
 })
 
@@ -205,16 +296,40 @@ describe('api', () => {
     await expect(api.get('/api/ping/')).resolves.toBe('<html>ok</html>')
   })
 
-  it('на не-2xx бросает ApiError со статусом и разобранным текстом', async () => {
-    stubFetch(jsonResponse({ non_field_errors: ['Неверный пароль.'] }, 400))
+  it('на не-2xx бросает ApiError с кодом и текстом из конверта', async () => {
+    const body = envelope('invalid_credentials', 'Неверный логин или пароль.')
+    stubFetch(jsonResponse(body, 400))
 
-    const error = await api.post('/api/login/', { username: 'u' }).catch((e: unknown) => e)
+    const error = await api.post('/api/auth/login/', { username: 'u' }).catch((e: unknown) => e)
 
     expect(error).toBeInstanceOf(ApiError)
     const apiError = error as ApiError
     expect(apiError.status).toBe(400)
-    expect(apiError.message).toBe('Неверный пароль.')
-    expect(apiError.data).toEqual({ non_field_errors: ['Неверный пароль.'] })
+    expect(apiError.code).toBe(ERROR_CODES.invalidCredentials)
+    expect(apiError.message).toBe('Неверный логин или пароль.')
+    expect(apiError.data).toEqual(body)
+  })
+
+  it('ошибка валидации доносит поля до формы', async () => {
+    const body = envelope('validation_error', 'Проверьте правильность заполнения полей', {
+      fields: { username: ['Имя пользователя занято.'] },
+    })
+    stubFetch(jsonResponse(body, 400))
+
+    const error = await api
+      .post('/api/auth/register/', { username: 'taken' })
+      .catch((e: unknown) => e)
+
+    expect((error as ApiError).fields).toEqual({ username: ['Имя пользователя занято.'] })
+  })
+
+  it('PATCH сериализует тело в JSON', async () => {
+    const mock = stubFetch(jsonResponse({ id: 1, name: 'Отдых' }))
+
+    await api.patch('/api/tags/1/', { name: 'Отдых' })
+
+    expect(mock.mock.calls[0][1]?.method).toBe('PATCH')
+    expect(mock.mock.calls[0][1]?.body).toBe('{"name":"Отдых"}')
   })
 
   it('на 401 без тела бросает ApiError с общим текстом', async () => {
