@@ -54,7 +54,7 @@ jobs:
             backend:
               - 'backend/**'
               - 'docker-compose.test.yml'
-            frontend:`
+            frontend:
               - 'frontend/**'
             deploy:
               - 'backend/**'
