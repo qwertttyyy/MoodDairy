@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useState } from 'react'
+import type { MouseEvent, ReactNode } from 'react'
 
 import { AuthProvider, useAuth } from '../../features/auth/AuthProvider'
 import { AuthScreen } from '../../features/auth/AuthScreen'
@@ -13,14 +14,6 @@ import { ConfirmProvider } from '../../shared/ui/ConfirmProvider'
 import { SettingsProvider } from '../../shared/settings/SettingsProvider'
 
 type TabName = 'home' | 'chart' | 'settings'
-
-const TAB_TITLES: Record<TabName, string> = {
-  home: 'Moods',
-  chart: 'График',
-  settings: 'Настройки',
-}
-
-const RESIZE_DEBOUNCE_MS = 150
 
 /** Главная страница: экран входа либо оболочка приложения с тремя табами. */
 export function AppPage() {
@@ -57,69 +50,64 @@ function AppShell() {
 
   return (
     <div className="app-shell">
-      <header className="app-header liquid-glass">
-        <h1 className="app-title">{TAB_TITLES[tab]}</h1>
-        <div className="header-actions">
-          {tab === 'home' && (
-            <>
-              <button
-                className="btn-icon-glass"
-                onClick={() => guide.open('mood')}
-                aria-label="Шкала настроения"
-              >
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M12 16v-4" />
-                  <path d="M12 8h.01" />
-                </svg>
-              </button>
-              <button
-                className="btn-icon-glass"
-                onClick={() => entryModal.open()}
-                aria-label="Добавить запись"
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                >
-                  <line x1="12" y1="5" x2="12" y2="19" />
-                  <line x1="5" y1="12" x2="19" y2="12" />
-                </svg>
-              </button>
-            </>
-          )}
-        </div>
-      </header>
+      {/* Памятка объясняет шкалы оценок, поэтому висит там, где оценки видны.
+          На настройках её нет ещё и потому, что при прокрутке кнопка встала бы
+          ровно над переключателями в правом столбце. */}
+      <button
+        className={tab === 'settings' ? 'btn-icon-glass float-info hidden' : 'btn-icon-glass float-info'}
+        onClick={() => guide.open('mood')}
+        aria-label="Шкала настроения"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.7"
+          strokeLinecap="round"
+        >
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 11v6" />
+          <circle cx="12" cy="7.5" r="1.05" fill="currentColor" stroke="none" />
+        </svg>
+      </button>
 
       {/* Табы остаются в DOM и скрываются классом — как в старом фронте:
           так лента не теряет прокрутку при переключении. */}
       <main className={tabClass(tab === 'home')} id="tab-home">
+        <h2 className="large-title">Записи</h2>
         <EntriesTab />
       </main>
 
       <section className={tabClass(tab === 'chart')} id="tab-chart">
+        <h2 className="large-title">График</h2>
         <ChartTab active={tab === 'chart'} />
       </section>
 
       <section className={tabClass(tab === 'settings')} id="tab-settings">
+        <h2 className="large-title">Настройки</h2>
         <SettingsTab />
       </section>
 
-      <TabBar tab={tab} onChange={setTab} />
+      <div className="tab-dock">
+        <TabBar tab={tab} onChange={setTab} />
+        <button
+          className={entryModal.isOpen ? 'fab-add is-hidden' : 'fab-add'}
+          onClick={(event: MouseEvent<HTMLButtonElement>) => {
+            entryModal.open(null, event.currentTarget.getBoundingClientRect())
+          }}
+          aria-label="Добавить запись"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.1"
+            strokeLinecap="round"
+          >
+            <path d="M12 5.4v13.2M5.4 12h13.2" />
+          </svg>
+        </button>
+      </div>
     </div>
   )
 }
@@ -133,49 +121,46 @@ interface TabBarProps {
   onChange: (tab: TabName) => void
 }
 
-/** Таб-бар с бегающим индикатором: позиция считается по активной кнопке. */
+const TABS: ReadonlyArray<{ name: TabName; label: string; icon: ReactNode }> = [
+  {
+    name: 'home',
+    label: 'Записи',
+    icon: (
+      <>
+        <path d="M3.6 10.6 12 3.9l8.4 6.7" />
+        <path d="M5.9 9.6V19a1.2 1.2 0 0 0 1.2 1.2h9.8A1.2 1.2 0 0 0 18.1 19V9.6" />
+      </>
+    ),
+  },
+  {
+    name: 'chart',
+    label: 'График',
+    icon: <path d="M2.8 12.4h3.6l2.1-6.2 3.5 12.1 2.3-7 1.5 3.1h5.4" />,
+  },
+  {
+    name: 'settings',
+    label: 'Настройки',
+    icon: (
+      <>
+        <circle cx="12" cy="12" r="3.1" />
+        <path d="M12 2.9v2.3M12 18.8v2.3M21.1 12h-2.3M5.2 12H2.9M18.4 5.6l-1.6 1.6M7.2 16.8l-1.6 1.6M18.4 18.4l-1.6-1.6M7.2 7.2 5.6 5.6" />
+      </>
+    ),
+  },
+]
+
+/** Плавающая капсула вкладок. Активная подсвечена своей плашкой. */
 function TabBar({ tab, onChange }: TabBarProps) {
-  const barRef = useRef<HTMLDivElement>(null)
-  const indicatorRef = useRef<HTMLDivElement>(null)
-
-  const updateIndicator = useCallback(() => {
-    const active = barRef.current?.querySelector<HTMLElement>('.tab-btn.active')
-    const indicator = indicatorRef.current
-    if (!active || !indicator) return
-    indicator.style.width = `${active.offsetWidth}px`
-    indicator.style.transform = `translateX(${active.offsetLeft}px)`
-  }, [])
-
-  useEffect(() => {
-    const frame = requestAnimationFrame(updateIndicator)
-    return () => cancelAnimationFrame(frame)
-  }, [tab, updateIndicator])
-
-  useEffect(() => {
-    let timer = 0
-    const onResize = () => {
-      clearTimeout(timer)
-      timer = window.setTimeout(updateIndicator, RESIZE_DEBOUNCE_MS)
-    }
-    window.addEventListener('resize', onResize)
-    return () => {
-      clearTimeout(timer)
-      window.removeEventListener('resize', onResize)
-    }
-  }, [updateIndicator])
-
   return (
-    <nav className="tab-bar-wrap">
-      <div className="tab-bar liquid-glass" ref={barRef}>
-        <div className="tab-indicator" ref={indicatorRef} />
+    <nav className="tab-bar liquid-glass">
+      {TABS.map((item) => (
         <button
-          className={tab === 'home' ? 'tab-btn active' : 'tab-btn'}
-          onClick={() => onChange('home')}
-          aria-label="Записи"
+          key={item.name}
+          className={item.name === tab ? 'tab-btn active' : 'tab-btn'}
+          onClick={() => onChange(item.name)}
+          aria-label={item.label}
         >
           <svg
-            width="20"
-            height="20"
             viewBox="0 0 24 24"
             fill="none"
             stroke="currentColor"
@@ -183,51 +168,11 @@ function TabBar({ tab, onChange }: TabBarProps) {
             strokeLinecap="round"
             strokeLinejoin="round"
           >
-            <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />
-            <polyline points="9 22 9 12 15 12 15 22" />
+            {item.icon}
           </svg>
-          <span>Записи</span>
+          <span>{item.label}</span>
         </button>
-        <button
-          className={tab === 'chart' ? 'tab-btn active' : 'tab-btn'}
-          onClick={() => onChange('chart')}
-          aria-label="График"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="22 12 18 12 15 21 9 3 6 12 2 12" />
-          </svg>
-          <span>График</span>
-        </button>
-        <button
-          className={tab === 'settings' ? 'tab-btn active' : 'tab-btn'}
-          onClick={() => onChange('settings')}
-          aria-label="Настройки"
-        >
-          <svg
-            width="20"
-            height="20"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.8"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="3" />
-            <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z" />
-          </svg>
-          <span>Настройки</span>
-        </button>
-      </div>
+      ))}
     </nav>
   )
 }

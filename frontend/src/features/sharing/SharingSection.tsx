@@ -24,7 +24,7 @@ function resolveShareUrl(
 }
 
 /**
- * Блок «Доступ для врача» внутри группы настроек.
+ * Блок «Доступ для врача»: группа настроек и пояснение под ней.
  *
  * Одноразовый ключ ссылки живёт только в этом состоянии и в #-фрагменте URL.
  * После перезагрузки страницы его взять негде: сервер хранит лишь шифротекст,
@@ -65,7 +65,6 @@ export function SharingSection() {
       title: 'Отозвать ссылку?',
       text: 'Врач потеряет доступ к данным.',
       confirmLabel: 'Отозвать',
-      icon: '🔗',
       onConfirm: () =>
         revokeShare.mutate(undefined, {
           onSuccess: () => {
@@ -79,48 +78,43 @@ export function SharingSection() {
 
   return (
     <>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span className="setting-label">Доступ для врача</span>
-        <button className="btn-sm-accent" onClick={handleCreate} disabled={createShare.isPending}>
-          {createShare.isPending ? 'Загрузка…' : 'Создать ссылку'}
-        </button>
-      </div>
-
-      {boxVisible && (
-        <div className="share-link-box">
-          <div className="share-link-display">
-            <input
-              type="text"
-              className="glass-input share-link-input"
-              readOnly
-              value={fullUrl ?? HIDDEN_LINK_TEXT}
-              style={{ fontSize: fullUrl ? undefined : '0.7rem' }}
-            />
-            <button className="btn-icon-glass" aria-label="Копировать" onClick={handleCopy}>
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              >
-                <rect x="9" y="9" width="13" height="13" rx="2" />
-                <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" />
-              </svg>
-            </button>
-          </div>
-          <button
-            className="btn-sm-danger"
-            style={{ marginTop: 8, width: '100%' }}
-            onClick={handleRevoke}
-          >
-            Отозвать ссылку
+      <div className="settings-group">
+        <div className="set-row">
+          <span className="set-label">Ссылка на дневник</span>
+          <button className="btn-plain" onClick={handleCreate} disabled={createShare.isPending}>
+            {createShare.isPending ? 'Загрузка…' : 'Создать ссылку'}
           </button>
         </div>
-      )}
+
+        {boxVisible && (
+          <>
+            <div className="set-sep" />
+            <div className="set-row share-row">
+              <input
+                type="text"
+                className="share-input"
+                readOnly
+                value={fullUrl ?? HIDDEN_LINK_TEXT}
+              />
+              <button className="btn-plain" onClick={handleCopy}>
+                Копировать
+              </button>
+            </div>
+            <div className="set-sep" />
+            <div className="set-row">
+              <span className="set-label">Закрыть доступ</span>
+              <button className="btn-plain btn-plain-danger" onClick={handleRevoke}>
+                Отозвать
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      <p className="settings-note">
+        Врач увидит записи только для чтения. Ключ ссылки хранится в её адресе —
+        покажите её целиком сразу после создания.
+      </p>
     </>
   )
 }

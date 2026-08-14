@@ -1,0 +1,280 @@
+/* chart.css — экран «График»: выбор периода, сводка, два холста и статистика.
+   Стекла здесь нет: оно живёт только в навигации оболочки. */
+
+/* На этом экране крупный заголовок стоит ближе к содержимому, чем в ленте:
+   сразу под ним идёт сегмент-контрол, а не карточка. */
+#tab-chart .large-title {
+    margin-bottom: 6px;
+}
+
+/* ============================================
+   СЕГМЕНТ-КОНТРОЛ ПЕРИОДОВ
+   Не индикатор, который ездит, а подсветка активной кнопки.
+   ============================================ */
+.chart-seg {
+    height: 36px;
+    padding: 2px;
+    display: flex;
+    border-radius: 18px;
+    background: rgba(120, 120, 128, 0.12);
+}
+
+[data-theme="dark"] .chart-seg {
+    background: rgba(120, 120, 128, 0.24);
+}
+
+.chart-seg-btn {
+    flex: 1;
+    /* Концентричность: 18 внешний минус 2 отступа. */
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--c-secondary);
+    transition: background var(--t-fast), color var(--t-fast);
+}
+
+.chart-seg-btn.active {
+    background: #ffffff;
+    color: var(--c-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+}
+
+[data-theme="dark"] .chart-seg-btn.active {
+    background: #48484a;
+    color: #ffffff;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+}
+
+/* ============================================
+   НАВИГАЦИЯ ПО МЕСЯЦУ И ГОДУ
+   ============================================ */
+.chart-nav {
+    height: 40px;
+    margin-top: 6px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.chart-nav-btn {
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    transition: opacity var(--t-fast);
+}
+
+.chart-nav-btn:active {
+    opacity: 0.5;
+}
+
+.chart-nav-btn:disabled {
+    color: var(--c-tertiary);
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.chart-nav-btn svg {
+    width: 18px;
+    height: 18px;
+    display: block;
+}
+
+.chart-nav-label {
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--c-primary);
+}
+
+/* ============================================
+   СВОДКА ЗА ПЕРИОД
+   ============================================ */
+.chart-summary {
+    margin-top: 8px;
+    display: flex;
+    align-items: flex-end;
+    gap: 10px;
+}
+
+.chart-avg {
+    font-size: 38px;
+    line-height: 38px;
+    font-weight: 400;
+    letter-spacing: -0.02em;
+    color: var(--c-primary);
+}
+
+.chart-caption {
+    font-size: 13px;
+    line-height: 16px;
+    color: var(--c-tertiary);
+}
+
+/* Капсула тренда выровнена по крупному числу, а не по подписи под ним. */
+.chart-trend {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    height: 22px;
+    padding: 0 8px;
+    margin-bottom: 17px;
+    border-radius: 11px;
+    background: var(--accent-10);
+    color: var(--accent);
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.chart-trend svg {
+    width: 11px;
+    height: 11px;
+    display: block;
+}
+
+/* ============================================
+   ЗАГОЛОВОК ОБЛАСТИ ГРАФИКА
+   ============================================ */
+.chart-sechead {
+    margin-top: 12px;
+    height: 20px;
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+}
+
+.chart-sechead-title {
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--c-primary);
+}
+
+.chart-sechead-scale {
+    margin-left: auto;
+    font-size: 12px;
+    line-height: 16px;
+    color: var(--c-tertiary);
+}
+
+/* ============================================
+   ХОЛСТЫ
+   Цвета заданы переменными на самом канвасе: движок читает их через
+   getComputedStyle, поэтому графики меняются вместе с темой.
+   Значения --ch-pad-* и --ch-font без единиц — движок разбирает их числом.
+   ============================================ */
+.chartbox {
+    position: relative;
+    margin-top: 4px;
+}
+
+.cb-mood {
+    height: 124px;
+}
+
+.cb-anx {
+    height: 92px;
+}
+
+.chartbox canvas {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+}
+
+.ch-mood {
+    --ch-line: #0a7c8c;
+    --ch-fill-top: rgba(10, 124, 140, 0.2);
+    --ch-fill-bottom: rgba(10, 124, 140, 0.01);
+    --ch-grid: #c6c6c8;
+    --ch-text: #72727a;
+    --ch-font: 11;
+    --ch-width: 2;
+    --ch-dot: #0a7c8c;
+    --ch-dot-size: 1.8;
+    --ch-pad-left: 14;
+    --ch-pad-right: 4;
+    --ch-pad-top: 8;
+    --ch-pad-bottom: 18;
+}
+
+[data-theme="dark"] .ch-mood {
+    --ch-line: #64d2ff;
+    --ch-fill-top: rgba(100, 210, 255, 0.22);
+    --ch-fill-bottom: rgba(100, 210, 255, 0.01);
+    --ch-grid: #38383a;
+    --ch-text: #8e8e93;
+    --ch-dot: #64d2ff;
+}
+
+/* Тревога — самостоятельный график по своей шкале 1–5: цвет столбика тянется
+   от спокойного тона к тревожному, как кружки в форме записи. */
+.ch-anx {
+    --ch-bar: #e8b93c;
+    --ch-bar-hi: #ce3a2a;
+    /* Предел ширины столбика. В макете месяц из 31 дня даёт столбик около 7px;
+       на коротких периодах без предела он раздувался бы до плашки. */
+    --ch-bar-max: 16;
+    --ch-grid: #dcdce0;
+    --ch-text: #72727a;
+    --ch-font: 11;
+    --ch-pad-left: 14;
+    --ch-pad-right: 4;
+    --ch-pad-top: 8;
+    --ch-pad-bottom: 18;
+}
+
+[data-theme="dark"] .ch-anx {
+    --ch-bar: #ffd60a;
+    --ch-bar-hi: #ff6f63;
+    --ch-grid: #2e2e31;
+    --ch-text: #8e8e93;
+}
+
+/* ============================================
+   СТАТИСТИКА
+   ============================================ */
+.stats-card {
+    margin-top: 12px;
+    background: var(--card);
+    border-radius: var(--r-lg);
+    box-shadow: var(--card-shadow);
+    overflow: hidden;
+}
+
+.stats-row {
+    height: 40px;
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+}
+
+.stats-key {
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--c-primary);
+}
+
+.stats-value {
+    margin-left: auto;
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 600;
+    color: var(--c-primary);
+}
+
+.stats-sep {
+    height: 1px;
+    margin-left: 16px;
+    background: var(--sep);
+}

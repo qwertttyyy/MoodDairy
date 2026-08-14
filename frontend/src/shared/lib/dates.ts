@@ -1,6 +1,10 @@
 /** Форматирование дат. Порт утилит из backend/static/app.js и share.js. */
 
-/** «Сегодня» / «Вчера» / «5 марта 2026 г.» — для ленты записей. */
+/** «Сегодня» / «Вчера» / «5 марта» / «5 марта 2025 г.» — для ленты записей.
+ *
+ * Год печатается только у дат прошлых лет: в ленте текущего года он повторялся
+ * бы в каждом заголовке, ничего при этом не различая.
+ */
 export function dayLabel(dateStr: string): string {
   const today = new Date()
   today.setHours(0, 0, 0, 0)
@@ -8,7 +12,12 @@ export function dayLabel(dateStr: string): string {
   const diff = Math.round((today.getTime() - d.getTime()) / 86400000)
   if (diff === 0) return 'Сегодня'
   if (diff === 1) return 'Вчера'
-  return d.toLocaleDateString('ru-RU', { day: 'numeric', month: 'long', year: 'numeric' })
+  const sameYear = d.getFullYear() === today.getFullYear()
+  return d.toLocaleDateString('ru-RU', {
+    day: 'numeric',
+    month: 'long',
+    ...(sameYear ? {} : { year: 'numeric' }),
+  })
 }
 
 /** Полная дата без «Сегодня»/«Вчера» — для страницы врача. */

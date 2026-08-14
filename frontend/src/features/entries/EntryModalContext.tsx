@@ -9,7 +9,9 @@ interface EntryModalValue {
   editing: DecryptedEntry | null
   mood: number
   anxiety: number
-  open: (entry?: DecryptedEntry | null) => void
+  /** Кнопка, из которой выросло окно: из неё же оно и схлопнется при закрытии. */
+  origin: DOMRect | null
+  open: (entry?: DecryptedEntry | null, origin?: DOMRect | null) => void
   close: () => void
   selectMood: (value: number) => void
   /** Повторный клик по той же оценке сбрасывает тревогу (она необязательна). */
@@ -33,14 +35,18 @@ export function EntryModalProvider({ children }: { children: ReactNode }) {
   const [editing, setEditing] = useState<DecryptedEntry | null>(null)
   const [mood, setMood] = useState(0)
   const [anxiety, setAnxiety] = useState(0)
+  const [origin, setOrigin] = useState<DOMRect | null>(null)
 
-  const open = useCallback((entry?: DecryptedEntry | null) => {
+  const open = useCallback((entry?: DecryptedEntry | null, from?: DOMRect | null) => {
     setEditing(entry ?? null)
     setMood(entry ? entry.mood : 0)
     setAnxiety(entry?.anxiety ?? 0)
+    setOrigin(from ?? null)
     setIsOpen(true)
   }, [])
 
+  // Точку роста не сбрасываем: окно ещё схлопывается в неё, пока идёт анимация
+  // закрытия, и обнуление посреди неё уронило бы окно в центр экрана.
   const close = useCallback(() => {
     setIsOpen(false)
     setEditing(null)
@@ -53,8 +59,18 @@ export function EntryModalProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const value = useMemo(
-    () => ({ isOpen, editing, mood, anxiety, open, close, selectMood: setMood, selectAnxiety }),
-    [isOpen, editing, mood, anxiety, open, close, selectAnxiety],
+    () => ({
+      isOpen,
+      editing,
+      mood,
+      anxiety,
+      origin,
+      open,
+      close,
+      selectMood: setMood,
+      selectAnxiety,
+    }),
+    [isOpen, editing, mood, anxiety, origin, open, close, selectAnxiety],
   )
 
   return <EntryModalContext.Provider value={value}>{children}</EntryModalContext.Provider>

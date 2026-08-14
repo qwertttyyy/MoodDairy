@@ -9,12 +9,9 @@ export interface ConfirmRequest {
   onConfirm: () => void
   /** Подпись кнопки подтверждения. По умолчанию — «Удалить». */
   confirmLabel?: string
-  /** Эмодзи над заголовком. По умолчанию — корзина. */
-  icon?: string
 }
 
 const DEFAULT_CONFIRM_LABEL = 'Удалить'
-const DEFAULT_ICON = '🗑️'
 
 type Confirm = (request: ConfirmRequest) => void
 
@@ -37,8 +34,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       <Modal open={request !== null} onClose={close} className="modal-sm">
-        <div className="modal-body" style={{ textAlign: 'center' }}>
-          <div className="confirm-icon">{request?.icon ?? DEFAULT_ICON}</div>
+        <div className="modal-body">
           <h3>{request?.title}</h3>
           <p>{request?.text}</p>
         </div>

@@ -6,6 +6,8 @@
  * как месяцы — от года первой записи до текущего.
  */
 
+import { ChartNavButton } from './ChartNav'
+
 interface YearPickerProps {
   year: number
   /** Год первой записи; null — нижней границы пока нет. */
@@ -32,50 +34,15 @@ export function YearPicker({ year, minYear, onChange }: YearPickerProps) {
   const step = (delta: number) => onChange(clampYear(year + delta, minYear))
 
   return (
-    <div className="month-picker">
-      <div className="month-picker-inner liquid-glass">
-        <button
-          className="month-nav-btn"
-          aria-label="Предыдущий год"
-          disabled={atMin}
-          style={{ opacity: atMin ? '0.3' : '1' }}
-          onClick={() => step(-1)}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        <span className="month-label">{year}</span>
-        <button
-          className="month-nav-btn"
-          aria-label="Следующий год"
-          disabled={atMax}
-          style={{ opacity: atMax ? '0.3' : '1' }}
-          onClick={() => step(1)}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-      </div>
+    <div className="chart-nav">
+      <ChartNavButton
+        direction={-1}
+        label="Предыдущий год"
+        disabled={atMin}
+        onClick={() => step(-1)}
+      />
+      <span className="chart-nav-label">{year}</span>
+      <ChartNavButton direction={1} label="Следующий год" disabled={atMax} onClick={() => step(1)} />
     </div>
   )
 }

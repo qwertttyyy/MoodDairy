@@ -9,15 +9,9 @@ import { useParams } from 'react-router'
 import { ChartStats } from '../../features/chart/ChartStats'
 import { MoodChart } from '../../features/chart/MoodChart'
 import type { ShareEntry } from '../../shared/api/types'
-import {
-  ANXIETY_COLORS,
-  ANXIETY_EMOJI,
-  MONTH_NAMES,
-  MOOD_COLORS,
-  MOOD_EMOJI,
-  MOOD_LABELS,
-} from '../../shared/constants'
+import { MONTH_NAMES, MOOD_LABELS } from '../../shared/constants'
 import { dayLabelPlain, formatTime } from '../../shared/lib/dates'
+import { ChartIcon, LockIcon } from '../../shared/ui/EmptyStateIcons'
 import { clampMonth, compareMonths, getMonthBounds, monthOf, shiftMonth } from './month'
 import type { YearMonth } from './month'
 import { MissingKeyError, loadShareEntries, readShareKeyFromHash } from './snapshot'
@@ -64,6 +58,11 @@ export function SharePage() {
 
   return (
     <div className="share-page">
+      <header className="share-header">
+        <span className="share-header-title">Moods</span>
+        <span className="share-readonly">только чтение</span>
+      </header>
+
       {state.status === 'loading' ? <ShareLoading /> : null}
       {state.status === 'error' ? <ShareError title={state.title} /> : null}
       {state.status === 'ready' ? <ShareContent entries={state.entries} /> : null}
@@ -87,9 +86,7 @@ function ShareLoading() {
   return (
     <div className="share-loading">
       <div className="spinner" />
-      <p style={{ marginTop: '12px', color: 'var(--c-secondary)', fontSize: '0.85rem' }}>
-        Загрузка…
-      </p>
+      <p className="share-loading-text">Загрузка…</p>
     </div>
   )
 }
@@ -98,7 +95,9 @@ function ShareError({ title }: { title: string }) {
   return (
     <div className="share-error">
       <div className="empty-state">
-        <div className="empty-icon">🔒</div>
+        <div className="empty-icon">
+          <LockIcon />
+        </div>
         <p className="empty-title">{title}</p>
         <p className="empty-sub">Запросите новую ссылку у пациента</p>
       </div>
@@ -125,17 +124,10 @@ function ShareContent({ entries }: { entries: ShareEntry[] }) {
 
   return (
     <div className="share-content">
-      <header className="share-header liquid-glass">
-        <h1 className="app-title">Moods</h1>
-        <span className="share-badge">Просмотр</span>
-      </header>
-
-      <div className="month-picker">
-        <div className="month-picker-inner liquid-glass">
-          <MonthNavButton direction={-1} disabled={atMin} onClick={() => moveMonth(-1)} />
-          <span className="month-label">{`${MONTH_NAMES[month.month - 1]} ${month.year}`}</span>
-          <MonthNavButton direction={1} disabled={atMax} onClick={() => moveMonth(1)} />
-        </div>
+      <div className="share-monthnav">
+        <MonthNavButton direction={-1} disabled={atMin} onClick={() => moveMonth(-1)} />
+        <span className="share-month-label">{`${MONTH_NAMES[month.month - 1]} ${month.year}`}</span>
+        <MonthNavButton direction={1} disabled={atMax} onClick={() => moveMonth(1)} />
       </div>
 
       {monthEntries.length > 0 ? (
@@ -145,22 +137,26 @@ function ShareContent({ entries }: { entries: ShareEntry[] }) {
         </>
       ) : (
         <div className="empty-state">
-          <div className="empty-icon">📊</div>
+          <div className="empty-icon">
+            <ChartIcon />
+          </div>
           <p className="empty-title">Нет записей за этот месяц</p>
         </div>
       )}
 
-      {/* Подписи дней и карточки — плоские соседи: .share-entries раздаёт им gap. */}
-      <div className="share-entries">
-        {dayGroups.map((group) => (
-          <Fragment key={group.day}>
-            <div className="date-group-label">{dayLabelPlain(group.day)}</div>
+      {dayGroups.map((group) => (
+        <Fragment key={group.day}>
+          <div className="share-dayhead">{dayLabelPlain(group.day)}</div>
+          <div className="share-group">
             {group.items.map((entry, index) => (
-              <ShareEntryCard key={`${group.day}-${index}`} entry={entry} />
+              <Fragment key={`${group.day}-${index}`}>
+                {index > 0 ? <div className="share-sep" /> : null}
+                <ShareEntryRow entry={entry} />
+              </Fragment>
             ))}
-          </Fragment>
-        ))}
-      </div>
+          </div>
+        </Fragment>
+      ))}
     </div>
   )
 }
@@ -175,10 +171,9 @@ interface MonthNavButtonProps {
 function MonthNavButton({ direction, disabled, onClick }: MonthNavButtonProps) {
   return (
     <button
-      className="month-nav-btn"
+      className={disabled ? 'share-arrow off' : 'share-arrow'}
       disabled={disabled}
-      // Порт share.js: на границе кнопка не только заблокирована, но и приглушена.
-      style={{ opacity: disabled ? '0.3' : '1' }}
+      aria-label={direction === -1 ? 'Предыдущий месяц' : 'Следующий месяц'}
       onClick={onClick}
     >
       <svg
@@ -197,32 +192,21 @@ function MonthNavButton({ direction, disabled, onClick }: MonthNavButtonProps) {
   )
 }
 
-function ShareEntryCard({ entry }: { entry: ShareEntry }) {
+/** Строка записи: та же раскладка, что в ленте приложения, но без действий. */
+function ShareEntryRow({ entry }: { entry: ShareEntry }) {
   const mood = entry.mood || 0
   const anxiety = entry.anxiety || 0
 
   return (
-    <div className="share-entry-card">
-      <div className="entry-mood-badge" style={{ background: MOOD_COLORS[mood] }}>
-        <span className="badge-emoji">{MOOD_EMOJI[mood]}</span>
-        <span className="badge-num">{mood}</span>
-      </div>
+    <div className="share-entry">
+      <div className={`share-mood m${mood}`}>{mood}</div>
       <div className="share-entry-body">
-        <div className="entry-top-row">
-          <span className="entry-mood-text">
-            {MOOD_LABELS[mood]}
-            {anxiety > 0 ? (
-              <span
-                className="entry-anxiety-badge"
-                style={{ background: ANXIETY_COLORS[anxiety] }}
-              >
-                {`${ANXIETY_EMOJI[anxiety]} ${anxiety}`}
-              </span>
-            ) : null}
-          </span>
-          <span className="entry-time">{formatTime(entry.timestamp)}</span>
+        <div className="share-entry-line">
+          <span className="share-mood-label">{MOOD_LABELS[mood]}</span>
+          {anxiety > 0 ? <span className={`share-anx a${anxiety}`}>{anxiety}</span> : null}
+          <span className="share-time">{formatTime(entry.timestamp)}</span>
         </div>
-        {entry.note ? <p className="share-entry-note">{entry.note}</p> : null}
+        {entry.note ? <p className="share-note">{entry.note}</p> : null}
       </div>
     </div>
   )
