@@ -1,15 +1,6 @@
 import { useEffect, useState } from 'react'
 
-import {
-  ANXIETY_COLORS,
-  ANXIETY_EMOJI,
-  ANXIETY_LABELS,
-  MAX_ANXIETY,
-  MAX_MOOD,
-  MOOD_COLORS,
-  MOOD_EMOJI,
-  MOOD_LABELS,
-} from '../../shared/constants'
+import { ANXIETY_LABELS, MAX_ANXIETY, MAX_MOOD, MOOD_LABELS } from '../../shared/constants'
 import { isoDateStr, isoTimeStr } from '../../shared/lib/dates'
 import { Modal, ModalCloseButton } from '../../shared/ui/Modal'
 import { useToast } from '../../shared/ui/ToastProvider'
@@ -18,30 +9,30 @@ import { useSaveEntry, useTags } from './api'
 import { useEntryModal } from './EntryModalContext'
 
 /**
- * Различия двух шкал: классы из styles.css, подписи и палитры.
+ * Различия двух шкал: классы, подписи и палитры.
  * Логика пикеров одинаковая, поэтому она живёт в одном ScaleField.
+ *
+ * `colorClass` — префикс класса заливки из base.css: `.m1…m9` у настроения,
+ * `.p1…p5` у тревоги. Цвета различаются между темами, поэтому задавать их
+ * инлайновым стилем нельзя.
  */
 const SCALES = {
   mood: {
     title: 'Как настроение?',
     hintLabel: 'Подсказка',
-    pickerClass: 'mood-picker',
-    buttonClass: 'mood-btn',
+    scaleClass: 'mood-scale',
+    colorClass: 'm',
     max: MAX_MOOD,
-    colors: MOOD_COLORS,
     labels: MOOD_LABELS,
-    emoji: MOOD_EMOJI,
     emptyText: '—',
   },
   anxiety: {
     title: 'Уровень тревоги',
     hintLabel: 'Подсказка тревоги',
-    pickerClass: 'anxiety-picker',
-    buttonClass: 'anxiety-btn',
+    scaleClass: 'anxiety-scale',
+    colorClass: 'p',
     max: MAX_ANXIETY,
-    colors: ANXIETY_COLORS,
     labels: ANXIETY_LABELS,
-    emoji: ANXIETY_EMOJI,
     emptyText: '— (необязательно)',
   },
 } as const
@@ -59,6 +50,17 @@ function clampTime(date: string, time: string): string {
   return time > maxTime ? maxTime : time
 }
 
+/** Иконка-кружок рядом с надписью «Памятка». */
+function InfoIcon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 11v6" />
+      <circle cx="12" cy="7.4" r="1.1" fill="currentColor" stroke="none" />
+    </svg>
+  )
+}
+
 interface ScaleFieldProps {
   scale: ScaleName
   value: number
@@ -66,57 +68,52 @@ interface ScaleFieldProps {
   onOpenGuide: () => void
 }
 
-/** Подпись со ссылкой на памятку, сетка оценок и текст выбранной оценки. */
+/** Подпись со ссылкой на памятку, ряд оценок и строка выбранной оценки. */
 function ScaleField({ scale, value, onSelect, onOpenGuide }: ScaleFieldProps) {
   const meta = SCALES[scale]
   const grades = Array.from({ length: meta.max }, (_, index) => index + 1)
 
   return (
-    <>
-      <div className="mood-label-row">
-        <label className="field-label">{meta.title}</label>
+    <div className="field-block">
+      <div className="field-label-row">
+        <span className="field-label">{meta.title}</span>
         <button
           type="button"
-          className="mood-guide-hint"
+          className="field-guide-btn"
           onClick={onOpenGuide}
           aria-label={meta.hintLabel}
         >
-          <svg
-            width="14"
-            height="14"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10" />
-            <path d="M12 16v-4" />
-            <path d="M12 8h.01" />
-          </svg>
+          <InfoIcon />
           Памятка
         </button>
       </div>
 
-      <div className={meta.pickerClass}>
-        {grades.map((grade) => (
-          <button
-            key={grade}
-            type="button"
-            className={grade === value ? `${meta.buttonClass} selected` : meta.buttonClass}
-            style={{ background: meta.colors[grade] }}
-            onClick={() => onSelect(grade)}
-          >
-            {grade}
-          </button>
-        ))}
+      <div className={meta.scaleClass}>
+        {grades.map((grade) => {
+          const classes = ['scale-cell', `${meta.colorClass}${grade}`]
+          if (grade === value) classes.push('selected')
+          return (
+            <button
+              key={grade}
+              type="button"
+              className={classes.join(' ')}
+              aria-pressed={grade === value}
+              onClick={() => onSelect(grade)}
+            >
+              {grade}
+            </button>
+          )
+        })}
       </div>
 
-      <div className="mood-value-display">
-        {value ? `${meta.emoji[value]} ${meta.labels[value]}` : meta.emptyText}
+      <div className="scale-result">
+        {value ? (
+          meta.labels[value]
+        ) : (
+          <span className="scale-result-empty">{meta.emptyText}</span>
+        )}
       </div>
-    </>
+    </div>
   )
 }
 
@@ -127,7 +124,8 @@ function ScaleField({ scale, value, onSelect, onOpenGuide }: ScaleFieldProps) {
  * EntryModalContext — их выставляет ещё и памятка, открытая поверх формы.
  */
 export function EntryModal() {
-  const { isOpen, editing, mood, anxiety, close, selectMood, selectAnxiety } = useEntryModal()
+  const { isOpen, editing, mood, anxiety, origin, close, selectMood, selectAnxiety } =
+    useEntryModal()
   const { open: openGuide } = useGuide()
   const showToast = useToast()
   const { data: tags } = useTags()
@@ -201,7 +199,7 @@ export function EntryModal() {
   }
 
   return (
-    <Modal open={isOpen} onClose={close}>
+    <Modal open={isOpen} onClose={close} className="entry-form" morphFrom={origin}>
       <div className="modal-handle" />
       <div className="modal-header">
         <h2>{isEditing ? 'Редактировать' : 'Новая запись'}</h2>
@@ -222,50 +220,86 @@ export function EntryModal() {
           onOpenGuide={() => openGuide('anxiety')}
         />
 
-        <label className="field-label" htmlFor="entry-note">
-          Заметка
-        </label>
-        <textarea
-          id="entry-note"
-          className="glass-input"
-          rows={3}
-          placeholder="Что произошло?"
-          value={note}
-          onChange={(event) => setNote(event.target.value)}
-        />
-
-        <label className="field-label">
-          Теги <span className="field-hint">(необязательно)</span>
-        </label>
-        <div className="tag-chips">
-          {(tags ?? []).map((tag) => (
-            <button
-              key={tag.id}
-              type="button"
-              className={selectedTagIds.includes(tag.id) ? 'tag-chip selected' : 'tag-chip'}
-              onClick={() => toggleTag(tag.id)}
-            >
-              {tag.name}
-            </button>
-          ))}
+        <div className="field-block">
+          <div className="field-label-row">
+            <label className="field-label" htmlFor="entry-note">
+              Заметка
+            </label>
+          </div>
+          <textarea
+            id="entry-note"
+            className="glass-input entry-note"
+            placeholder="Что произошло?"
+            value={note}
+            onChange={(event) => setNote(event.target.value)}
+          />
         </div>
 
-        <label className="field-label">Дата и время</label>
-        <div className="datetime-row">
-          <input
-            type="date"
-            className="glass-input dt-input"
-            value={date}
-            max={today}
-            onChange={(event) => handleDateChange(event.target.value)}
-          />
-          <input
-            type="time"
-            className="glass-input dt-input"
-            value={time}
-            max={timeMax}
-            onChange={(event) => setTime(clampTime(date, event.target.value))}
-          />
+        <div className="field-block">
+          <div className="field-label-row">
+            <span className="field-label">Теги</span>
+            <span className="field-hint">(необязательно)</span>
+          </div>
+          <div className="tag-chips">
+            {(tags ?? []).map((tag) => (
+              <button
+                key={tag.id}
+                type="button"
+                className={selectedTagIds.includes(tag.id) ? 'tag-chip selected' : 'tag-chip'}
+                onClick={() => toggleTag(tag.id)}
+              >
+                {tag.name}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="field-block">
+          <div className="field-label-row">
+            <span className="field-label">Дата и время</span>
+          </div>
+          <div className="datetime-row">
+            <div className="dt-field">
+              <input
+                type="date"
+                value={date}
+                max={today}
+                aria-label="Дата записи"
+                onChange={(event) => handleDateChange(event.target.value)}
+              />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <rect x="3.6" y="5.2" width="16.8" height="15.2" rx="3.4" />
+                <path d="M3.6 10h16.8M8.4 3.6v3M15.6 3.6v3" />
+              </svg>
+            </div>
+            <div className="dt-field">
+              <input
+                type="time"
+                value={time}
+                max={timeMax}
+                aria-label="Время записи"
+                onChange={(event) => setTime(clampTime(date, event.target.value))}
+              />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.7"
+                strokeLinecap="round"
+                aria-hidden="true"
+              >
+                <circle cx="12" cy="12" r="8.6" />
+                <path d="M12 7.2V12l3.2 2" />
+              </svg>
+            </div>
+          </div>
         </div>
 
         {error && <div className="form-error">{error}</div>}

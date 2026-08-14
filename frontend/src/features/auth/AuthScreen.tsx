@@ -57,7 +57,7 @@ export function AuthScreen() {
 
   return (
     <div className="screen auth-screen">
-      <div className="auth-card liquid-glass">
+      <div className="auth-card">
         <h1 className="auth-title">Moods</h1>
         <p className="auth-sub">Войди или создай аккаунт</p>
 
@@ -79,14 +79,14 @@ export function AuthScreen() {
         </div>
 
         <form className="auth-form" onSubmit={handleSubmit}>
-          <div className="field-group">
-            <label className="field-label" htmlFor="auth-username">
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="auth-username">
               Логин
             </label>
             <input
               type="text"
               id="auth-username"
-              className="glass-input"
+              className="glass-input auth-input"
               placeholder="Имя пользователя"
               autoComplete="username"
               value={username}
@@ -94,14 +94,14 @@ export function AuthScreen() {
             />
           </div>
 
-          <div className="field-group">
-            <label className="field-label" htmlFor="auth-password">
+          <div className="auth-field">
+            <label className="auth-label" htmlFor="auth-password">
               Пароль
             </label>
             <input
               type="password"
               id="auth-password"
-              className="glass-input"
+              className="glass-input auth-input"
               placeholder={isRegister ? 'Минимум 8 символов' : 'Пароль'}
               autoComplete="current-password"
               value={password}

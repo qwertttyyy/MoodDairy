@@ -570,9 +570,11 @@ class DataIsolationTest(APITestCase):
         self.client.force_login(self.alice)
         resp = self.client.get(CHART_URL)
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        ids = [e["id"] for e in resp.data]
-        self.assertIn(self.alice_entry.id, ids)
-        self.assertNotIn(self.bob_entry.id, ids)
+        # Идентификаторов в выдаче для графика нет, поэтому записи различаем
+        # по зашифрованной оценке: у Алисы и Боба они заведомо разные.
+        moods = [e["mood"] for e in resp.data]
+        self.assertIn(self.alice_entry.mood, moods)
+        self.assertNotIn(self.bob_entry.mood, moods)
 
     def test_user_cannot_retrieve_others_entry(self):
         self.client.force_login(self.alice)
@@ -904,7 +906,7 @@ class ChartEndpointTest(APITestCase):
     def test_relative_period(self):
         resp = self.client.get("/api/entries/?period=2weeks")
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertEqual([e["id"] for e in resp.data], [self.recent.id])
+        self.assertEqual([e["mood"] for e in resp.data], [self.recent.mood])
 
     def test_calendar_year(self):
         year = timezone.localtime(self.recent.timestamp).year
@@ -918,7 +920,7 @@ class ChartEndpointTest(APITestCase):
             f"/api/entries/?year={local.year}&month={local.month}"
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
-        self.assertIn(self.recent.id, [e["id"] for e in resp.data])
+        self.assertIn(self.recent.mood, [e["mood"] for e in resp.data])
 
     def test_month_without_year_rejected(self):
         resp = self.client.get("/api/entries/?month=3")
@@ -941,9 +943,7 @@ class ChartEndpointTest(APITestCase):
     def test_response_contains_only_chart_fields(self):
         """Заметки и теги в графике не нужны и заметно утяжеляют ответ."""
         resp = self.client.get(CHART_URL)
-        self.assertEqual(
-            set(resp.data[0]), {"id", "timestamp", "mood", "anxiety"}
-        )
+        self.assertEqual(set(resp.data[0]), {"timestamp", "mood", "anxiety"})
 
     def test_entries_ordered_chronologically(self):
         """График строится слева направо — разворачивать массив не нужно."""

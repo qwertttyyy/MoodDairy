@@ -1,10 +1,11 @@
 /**
- * Помесячная навигация графика.
- * Порт MonthPicker из backend/static/app.js (831-920): шаг на месяц с переносом
- * через год, clamp по текущему месяцу сверху и по месяцу первой записи снизу.
+ * Помесячная навигация графика: стрелка — подпись — стрелка, без карточки.
+ * Шаг на месяц с переносом через год, clamp по текущему месяцу сверху и по
+ * месяцу первой записи снизу.
  */
 
 import { MONTH_NAMES } from '../../shared/constants'
+import { ChartNavButton } from './ChartNav'
 
 /** Месяц как пара «год + номер месяца 1..12». */
 export interface YearMonth {
@@ -21,7 +22,7 @@ interface MonthPickerProps {
   onChange: (year: number, month: number) => void
 }
 
-/** Текущий месяц: верхняя граница навигации и точка сброса (порт reset). */
+/** Текущий месяц: верхняя граница навигации и точка сброса. */
 export function currentYearMonth(): YearMonth {
   const now = new Date()
   return { year: now.getFullYear(), month: now.getMonth() + 1 }
@@ -39,7 +40,7 @@ function shiftMonth({ year, month }: YearMonth, step: number): YearMonth {
   return { year: Math.floor(absolute / 12), month: (absolute % 12) + 1 }
 }
 
-/** Зажимает месяц в диапазон [min, текущий месяц]. Порт MonthPicker._clamp. */
+/** Зажимает месяц в диапазон [min, текущий месяц]. */
 export function clampMonth(value: YearMonth, min: YearMonth | null): YearMonth {
   const max = currentYearMonth()
   if (compareMonths(value, max) > 0) return max
@@ -60,50 +61,20 @@ export function MonthPicker({ year, month, minYear, minMonth, onChange }: MonthP
   }
 
   return (
-    <div className="month-picker">
-      <div className="month-picker-inner liquid-glass">
-        <button
-          className="month-nav-btn"
-          aria-label="Предыдущий месяц"
-          disabled={atMin}
-          style={{ opacity: atMin ? '0.3' : '1' }}
-          onClick={() => step(-1)}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="15 18 9 12 15 6" />
-          </svg>
-        </button>
-        <span className="month-label">{`${MONTH_NAMES[month - 1]} ${year}`}</span>
-        <button
-          className="month-nav-btn"
-          aria-label="Следующий месяц"
-          disabled={atMax}
-          style={{ opacity: atMax ? '0.3' : '1' }}
-          onClick={() => step(1)}
-        >
-          <svg
-            width="18"
-            height="18"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </button>
-      </div>
+    <div className="chart-nav">
+      <ChartNavButton
+        direction={-1}
+        label="Предыдущий месяц"
+        disabled={atMin}
+        onClick={() => step(-1)}
+      />
+      <span className="chart-nav-label">{`${MONTH_NAMES[month - 1]} ${year}`}</span>
+      <ChartNavButton
+        direction={1}
+        label="Следующий месяц"
+        disabled={atMax}
+        onClick={() => step(1)}
+      />
     </div>
   )
 }

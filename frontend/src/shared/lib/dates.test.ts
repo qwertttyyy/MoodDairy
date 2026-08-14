@@ -34,15 +34,23 @@ describe('dayLabel', () => {
     expect(dayLabel(isoDateStr(daysAgo(1)))).toBe('Вчера')
   })
 
-  it('для более старой даты возвращает полную дату', () => {
+  it('для более старой даты возвращает день и месяц', () => {
     const old = daysAgo(10)
     const label = dayLabel(isoDateStr(old))
 
     expect(label).not.toBe('Сегодня')
     expect(label).not.toBe('Вчера')
-    expect(label).toContain(String(old.getFullYear()))
     expect(label).toMatch(new RegExp(`\\b${old.getDate()}\\b`))
     expect(label).toMatch(/\p{L}/u)
+  })
+
+  it('год печатает только для прошлых лет', () => {
+    const now = new Date()
+    const thisYear = new Date(now.getFullYear(), 0, 15)
+    const lastYear = new Date(now.getFullYear() - 1, 5, 20)
+
+    expect(dayLabel(isoDateStr(thisYear))).not.toContain(String(thisYear.getFullYear()))
+    expect(dayLabel(isoDateStr(lastYear))).toContain(String(lastYear.getFullYear()))
   })
 
   it('для будущей даты не возвращает «Сегодня»/«Вчера»', () => {
@@ -68,9 +76,11 @@ describe('dayLabelPlain', () => {
     expect(label).toMatch(new RegExp(`\\b${old.getDate()}\\b`))
   })
 
-  it('совпадает с dayLabel для старых дат', () => {
+  /* Год здесь обязателен всегда: страницу открывает врач, и период выборки
+     ему заранее не известен — в отличие от ленты, где год подразумевается. */
+  it('печатает год и для дат текущего года', () => {
     const iso = isoDateStr(daysAgo(30))
-    expect(dayLabelPlain(iso)).toBe(dayLabel(iso))
+    expect(dayLabelPlain(iso)).toContain(String(new Date(`${iso}T12:00:00`).getFullYear()))
   })
 })
 

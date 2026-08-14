@@ -1,0 +1,186 @@
+/* settings.css — экран «Настройки»: группы-inset, строки, теги и доступ для врача.
+
+   Метрики повторяют .group/.row/.sep макета frag_v1.html: карточка радиуса 20
+   с паддингом 8, внутренняя строка радиуса 12. Стекла здесь нет — только
+   плотная заливка var(--card), как в системных «Настройках» iOS. */
+
+/* ============================================
+   ГРУППА И ЕЁ ЗАГОЛОВОК
+   ============================================ */
+.settings-title {
+    padding: 0 16px;
+    margin: 0 0 7px;
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--c-secondary);
+}
+
+/* 18 px между группами набегает от заголовка следующей: он всегда идёт после
+   группы или после пояснения к ней. */
+.settings-group + .settings-title,
+.settings-note + .settings-title {
+    margin-top: 18px;
+}
+
+.settings-group {
+    background: var(--card);
+    border-radius: var(--r-lg);
+    padding: 8px;
+    box-shadow: var(--card-shadow);
+}
+
+.settings-note {
+    padding: 7px 16px 0;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--c-tertiary);
+}
+
+.settings-footer {
+    margin-top: 18px;
+    text-align: center;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--c-tertiary);
+}
+
+/* ============================================
+   СТРОКА НАСТРОЙКИ
+   ============================================ */
+.set-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    height: 50px;
+    padding: 0 12px;
+    border-radius: var(--r-sm);
+    background: var(--card);
+}
+
+.set-label {
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--c-primary);
+    /* Длинное имя тега сжимает себя, а не выдавливает кнопку за край. */
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.set-hint {
+    flex: 1;
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--c-tertiary);
+}
+
+.set-sep {
+    height: 1px;
+    background: var(--sep);
+    margin-left: 12px;
+}
+
+/* ============================================
+   ТЕГИ
+   ============================================ */
+/* Обойма свайпа: строка ездит поверх кнопки удаления, лежащей у правого края. */
+.tag-swipe {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--r-sm);
+}
+
+.tag-swipe .set-row {
+    position: relative;
+    z-index: 1;
+    /* Скругление держит обойма: у своих скруглённых углов строка пропускала
+       красную кнопку наружу. */
+    border-radius: 0;
+    /* Вертикальную прокрутку отдаём странице, горизонтальный жест — строке. */
+    touch-action: pan-y;
+}
+
+.tag-delete {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 88px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 600;
+    color: #ffffff;
+    background: var(--danger);
+}
+
+/* Карандаш: акцентный контур без заливки — самая тихая кнопка в списке. */
+.tag-edit {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    flex: none;
+    border-radius: 16px;
+    color: var(--accent);
+    transition: opacity var(--t-fast);
+}
+
+.tag-edit:active {
+    opacity: 0.5;
+}
+
+.tag-edit svg {
+    width: 19px;
+    height: 19px;
+    display: block;
+}
+
+/* Поле переименования и поле нового тега сидят прямо на строке: рамка здесь
+   лишняя, границу строки уже держит разделитель. */
+.tag-input {
+    flex: 1;
+    min-width: 0;
+    border: none;
+    outline: none;
+    background: none;
+    padding: 0;
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--c-primary);
+}
+
+.tag-input::placeholder {
+    color: var(--c-tertiary);
+}
+
+/* ============================================
+   ДОСТУП ДЛЯ ВРАЧА
+   ============================================ */
+.share-row {
+    height: auto;
+    padding: 9px 12px;
+}
+
+.share-input {
+    flex: 1;
+    min-width: 0;
+    height: 36px;
+    padding: 0 12px;
+    border: none;
+    border-radius: var(--r-sm);
+    background: var(--field-bg);
+    color: var(--c-secondary);
+    font-size: 15px;
+    line-height: 20px;
+    outline: none;
+    text-overflow: ellipsis;
+}

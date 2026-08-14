@@ -1,12 +1,8 @@
 import {
-  ANXIETY_COLORS,
-  ANXIETY_EMOJI,
   ANXIETY_GUIDE,
   ANXIETY_LABELS,
   MAX_ANXIETY,
   MAX_MOOD,
-  MOOD_COLORS,
-  MOOD_EMOJI,
   MOOD_GUIDE,
   MOOD_LABELS,
 } from '../../shared/constants'
@@ -15,32 +11,30 @@ import { useEntryModal } from '../entries/EntryModalContext'
 import { useGuide } from './GuideContext'
 import type { GuideTab } from './GuideContext'
 
-/** Данные шкал для памятки: подпись таба, палитра, эмодзи, названия и описания оценок. */
+/** Данные шкал для памятки: подпись таба, префикс класса цвета, названия и описания. */
 const SCALES: Record<
   GuideTab,
   {
     tabTitle: string
     max: number
-    colors: string[]
+    /** Префикс класса заливки бейджа: m1…m9 для настроения, p1…p5 для тревоги. */
+    colorClass: string
     labels: string[]
-    emoji: string[]
     descriptions: string[]
   }
 > = {
   mood: {
     tabTitle: 'Настроение',
     max: MAX_MOOD,
-    colors: MOOD_COLORS,
+    colorClass: 'm',
     labels: MOOD_LABELS,
-    emoji: MOOD_EMOJI,
     descriptions: MOOD_GUIDE,
   },
   anxiety: {
     tabTitle: 'Тревога',
     max: MAX_ANXIETY,
-    colors: ANXIETY_COLORS,
+    colorClass: 'p',
     labels: ANXIETY_LABELS,
-    emoji: ANXIETY_EMOJI,
     descriptions: ANXIETY_GUIDE,
   },
 }
@@ -96,10 +90,7 @@ export function MoodGuideModal() {
             className={isEntryFormOpen ? 'guide-item guide-item-clickable' : 'guide-item'}
             onClick={isEntryFormOpen ? () => pickGrade(grade) : undefined}
           >
-            <div className="guide-badge" style={{ background: scale.colors[grade] }}>
-              <span>{scale.emoji[grade]}</span>
-              <span className="guide-badge-num">{grade}</span>
-            </div>
+            <div className={`guide-badge ${scale.colorClass}${grade}`}>{grade}</div>
             <div className="guide-text">
               <strong>{scale.labels[grade]}</strong>
               <p>{scale.descriptions[grade]}</p>

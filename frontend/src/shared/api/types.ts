@@ -41,7 +41,6 @@ export interface RawEntry {
  * Заметок и тегов здесь нет — они весят больше остального вместе взятого.
  */
 export interface ChartRawEntry {
-  id: number
   mood: string
   anxiety: string
   timestamp: string

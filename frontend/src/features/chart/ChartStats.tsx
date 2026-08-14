@@ -1,8 +1,12 @@
+/** Карточка-группа со сводкой за период: строки «подпись — значение». */
+
+import { Fragment } from 'react'
+
 import { MAX_ANXIETY } from '../../shared/constants'
 import type { ChartStatsProps, StatsEntry } from './types'
 
-/** Одна плитка статистики: крупное значение и подпись под ним. */
-interface StatTile {
+/** Одна строка карточки. */
+interface StatRow {
   label: string
   value: string
 }
@@ -21,30 +25,33 @@ function anxietyAverage(entries: StatsEntry[]): string {
   return anxieties.length ? average(anxieties).toFixed(1) : NO_VALUE
 }
 
-function buildTiles(entries: StatsEntry[], showAnxiety: boolean): StatTile[] {
+function buildRows(entries: StatsEntry[], showAnxiety: boolean): StatRow[] {
   const moods = entries.map((entry) => entry.mood)
-  const tiles: StatTile[] = [
-    { label: 'Среднее', value: average(moods).toFixed(1) },
-    { label: 'Макс', value: String(Math.max(...moods)) },
-    { label: 'Мин', value: String(Math.min(...moods)) },
+  const rows: StatRow[] = [
+    { label: 'Среднее настроение', value: average(moods).toFixed(1) },
+    { label: 'Мин / макс', value: `${Math.min(...moods)} / ${Math.max(...moods)}` },
   ]
-  if (showAnxiety) tiles.push({ label: 'Тревога', value: anxietyAverage(entries) })
-  tiles.push({ label: 'Записей', value: String(entries.length) })
-  return tiles
+  if (showAnxiety) rows.push({ label: 'Средняя тревога', value: anxietyAverage(entries) })
+  rows.push({ label: 'Записей', value: String(entries.length) })
+  return rows
 }
 
-/** Блок статистики под графиком. Колонка «Тревога» — только на странице врача. */
 export function ChartStats({ entries, showAnxiety }: ChartStatsProps) {
   // Без записей считать нечего: средние и минимумы дали бы NaN и Infinity.
   if (!entries.length) return null
 
+  const rows = buildRows(entries, showAnxiety)
+
   return (
-    <div className="chart-stats">
-      {buildTiles(entries, showAnxiety).map((tile) => (
-        <div className="stat-item" key={tile.label}>
-          <div className="stat-value">{tile.value}</div>
-          <div className="stat-label">{tile.label}</div>
-        </div>
+    <div className="stats-card">
+      {rows.map((row, index) => (
+        <Fragment key={row.label}>
+          {index > 0 && <div className="stats-sep" />}
+          <div className="stats-row">
+            <span className="stats-key">{row.label}</span>
+            <span className="stats-value">{row.value}</span>
+          </div>
+        </Fragment>
       ))}
     </div>
   )

@@ -1,11 +1,11 @@
-import { Fragment, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { dayLabel } from '../../shared/lib/dates'
 import { useConfirm } from '../../shared/ui/ConfirmProvider'
+import { NotesIcon } from '../../shared/ui/EmptyStateIcons'
 import { Spinner } from '../../shared/ui/Spinner'
 import { useToast } from '../../shared/ui/ToastProvider'
 import { mergeFeedPages, useDeleteEntry, useEntriesFeed } from './api'
-import { EntryCard } from './EntryCard'
+import { DayGroup } from './DayGroup'
 import { useEntryModal } from './EntryModalContext'
 import type { DecryptedEntry } from './types'
 
@@ -61,26 +61,23 @@ export function EntriesTab() {
     <>
       {isEmpty ? (
         <div className="empty-state">
-          <div className="empty-icon">📝</div>
+          <div className="empty-icon">
+            <NotesIcon />
+          </div>
           <p className="empty-title">Пока пусто</p>
           <p className="empty-sub">Нажми «+» чтобы добавить первую запись</p>
         </div>
       ) : null}
 
       {days.length > 0 ? (
-        <div className="entries-list">
+        <div className="feed">
           {days.map((group) => (
-            <Fragment key={group.day}>
-              <div className="date-group-label">{dayLabel(group.day)}</div>
-              {group.entries.map((entry) => (
-                <EntryCard
-                  key={entry.id}
-                  entry={entry}
-                  onOpen={open}
-                  onDelete={requestDelete}
-                />
-              ))}
-            </Fragment>
+            <DayGroup
+              key={group.day}
+              group={group}
+              onOpen={open}
+              onDelete={requestDelete}
+            />
           ))}
         </div>
       ) : null}

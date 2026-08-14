@@ -1,0 +1,264 @@
+/* entries.css — лента записей.
+
+   Один день = один заголовок плюс одна плотная группа строк. Стекла здесь нет:
+   материал живёт только в навигации, а под содержимым должен быть холст —
+   иначе стекло ложится на стекло и края плашек грязнят картинку. */
+
+/* ============================================
+   ДЕНЬ
+   ============================================ */
+.feed-day {
+    position: relative;
+}
+
+/* Первому дню отступ сверху не нужен: его держит нижний отступ большого
+   заголовка экрана. */
+.feed-day + .feed-day {
+    margin-top: 18px;
+}
+
+/* ============================================
+   ЗАГОЛОВОК ДНЯ
+   Он же липкая сводка дня. В потоке это крупный заголовок 20 pt; упёршись в
+   верхнюю панель, он ужимается до строки 15 pt на подложке --pin и показывает
+   полосу с оценками дня. Высота в обоих состояниях одна — прилипание не
+   двигает содержимое.
+   Отрицательные поля по бокам компенсируют padding таба: подложка прилипшего
+   заголовка должна доходить до кромок экрана.
+   ============================================ */
+.feed-dayhead {
+    position: sticky;
+    top: var(--sticky-top);
+    /* Выше строк (у них z-index 1), но ниже затухания у нижней кромки (40):
+       у последнего дня заголовок доезжает до низа экрана, и там он должен
+       гаснуть вместе с содержимым, а не лежать поверх капсулы таб-бара. */
+    z-index: 30;
+    display: flex;
+    align-items: flex-end;
+    gap: 12px;
+    height: 34px;
+    margin: 0 -16px 8px;
+    padding: 0 16px;
+    font-size: 20px;
+    line-height: 25px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--c-primary);
+}
+
+.feed-dayhead-text {
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.feed-dayhead.is-pinned {
+    align-items: center;
+    font-size: 15px;
+    line-height: 20px;
+    letter-spacing: -0.01em;
+    background: var(--pin);
+    box-shadow: inset 0 -0.5px 0 var(--sep);
+}
+
+/* ── Полоса-сводка дня ── */
+/* Ширина считается от числа записей: по 34 px на сегмент, но не шире 180.
+   Сегменты пустые, поэтому по содержимому полосу не измерить — размер даёт
+   переменная --n из разметки. */
+.feed-strip {
+    display: none;
+    margin-left: auto;
+    gap: 2px;
+    height: 6px;
+    width: calc(var(--n) * 34px);
+    max-width: 180px;
+}
+
+.feed-dayhead.is-pinned .feed-strip {
+    display: flex;
+}
+
+.feed-strip i {
+    flex: 1;
+    min-width: 3px;
+    height: 6px;
+    border-radius: 3px;
+    box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+}
+
+[data-theme="dark"] .feed-strip i {
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+}
+
+/* ============================================
+   ГРУППА СТРОК
+   Радиусы концентричны: 20 снаружи, 12 у строки при отступе 8.
+   ============================================ */
+.feed-group {
+    background: var(--card);
+    border-radius: var(--r-lg);
+    padding: 8px;
+    box-shadow: var(--card-shadow);
+}
+
+/* Разделитель начинается там же, где текст записи: 44 бейджа + 12 зазора. */
+.feed-sep {
+    height: 1px;
+    background: var(--sep);
+    margin-left: 56px;
+}
+
+/* ============================================
+   СТРОКА ЗАПИСИ
+   Обёртка обрезает всё, что выезжает за её края: под строкой прячется кнопка
+   удаления, строка сдвигается по X поверх неё.
+   ============================================ */
+.feed-rw {
+    position: relative;
+    overflow: hidden;
+    border-radius: var(--r-sm);
+}
+
+.feed-row {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    gap: 12px;
+    width: 100%;
+    min-height: 64px;
+    padding: 8px;
+    border-radius: var(--r-sm);
+    background: var(--card);
+    text-align: left;
+    letter-spacing: -0.01em;
+    /* Вертикальные жесты остаются прокрутке, горизонтальные забирает свайп. */
+    touch-action: pan-y;
+    transition: transform var(--t-spring);
+}
+
+.feed-row.is-dragging {
+    transition: none;
+}
+
+.feed-row:active {
+    background: var(--hl);
+}
+
+/* Во время свайпа подсветка тапа только мешает читать сдвиг. */
+.feed-row.is-dragging:active {
+    background: var(--card);
+}
+
+.feed-del {
+    position: absolute;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 0;
+    width: 88px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--danger);
+    color: #ffffff;
+    font-size: 15px;
+    font-weight: 600;
+}
+
+/* ── Бейдж оценки ── */
+.feed-badge {
+    flex: none;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 19px;
+    line-height: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+/* Цвет цифры на самой тёмной ступени шкалы задан в base.css — здесь её
+   исключаем, чтобы не перебить это правило порядком каскада. */
+.feed-badge:not(.m1) {
+    color: var(--chip-ink);
+}
+
+[data-theme="dark"] .feed-badge {
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+}
+
+/* ── Тело строки ── */
+.feed-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.feed-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 20px;
+}
+
+.feed-mood {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 600;
+    color: var(--c-primary);
+}
+
+.feed-anx {
+    flex: none;
+    height: 20px;
+    min-width: 20px;
+    padding: 0 8px;
+    border-radius: 10px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 600;
+}
+
+.feed-time {
+    flex: none;
+    margin-left: auto;
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 400;
+    color: var(--c-secondary);
+}
+
+/* Заметка обрезается тремя строками с многоточием. */
+.feed-note {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    margin-top: 2px;
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 400;
+    color: var(--c-primary);
+}
+
+.feed-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.feed-tags span {
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--c-secondary);
+}

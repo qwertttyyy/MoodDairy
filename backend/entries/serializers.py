@@ -98,12 +98,13 @@ class MoodEntryChartSerializer(serializers.ModelSerializer):
     """Минимум полей для графиков: без заметок, тегов и служебных дат.
 
     Заметки в графике не участвуют, а весят больше всего остального вместе
-    взятого — и в ответе, и в кэше.
+    взятого — и в ответе, и в кэше. Идентификатор тоже не нужен: точку на
+    графике не открывают, а выборка за год — это больше тысячи строк.
     """
 
     class Meta:
         model = MoodEntry
-        fields = ("id", "timestamp", "mood", "anxiety")
+        fields = ("timestamp", "mood", "anxiety")
 
 
 class MoodEntrySnapshotSerializer(serializers.ModelSerializer):

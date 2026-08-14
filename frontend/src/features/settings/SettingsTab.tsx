@@ -16,16 +16,14 @@ function ToggleRow({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <div className="setting-row">
-      <div className="setting-info">
-        <span className="setting-label">{label}</span>
-      </div>
+    <div className="set-row">
+      <span className="set-label">{label}</span>
       <Toggle checked={checked} onChange={onChange} />
     </div>
   )
 }
 
-/** Таб настроек: тема, прозрачность, вид графика, теги, доступ для врача, выход. */
+/** Таб настроек: вид, теги, доступ для врача, выход. */
 export function SettingsTab() {
   const { settings, update } = useSettings()
   const confirm = useConfirm()
@@ -36,7 +34,6 @@ export function SettingsTab() {
       title: 'Выйти из аккаунта?',
       text: 'Зашифрованные ключи будут удалены.',
       confirmLabel: 'Выйти',
-      icon: '🚪',
       onConfirm: () => {
         void logout()
       },
@@ -45,17 +42,20 @@ export function SettingsTab() {
 
   return (
     <>
-      <div className="settings-group liquid-glass">
+      <h3 className="settings-title">Вид</h3>
+      <div className="settings-group">
         <ToggleRow
           label="Тёмная тема"
           checked={settings.darkMode}
           onChange={(darkMode) => update({ darkMode })}
         />
+        <div className="set-sep" />
         <ToggleRow
           label="Уменьшить прозрачность"
           checked={settings.reduceTransparency}
           onChange={(reduceTransparency) => update({ reduceTransparency })}
         />
+        <div className="set-sep" />
         <ToggleRow
           label="Плавный график"
           checked={settings.chartSmooth}
@@ -63,30 +63,17 @@ export function SettingsTab() {
         />
       </div>
 
-      <div className="settings-group liquid-glass">
-        <div
-          className="setting-row"
-          style={{ flexDirection: 'column', alignItems: 'stretch', gap: '10px' }}
-        >
-          <TagsSection />
-        </div>
-      </div>
+      <h3 className="settings-title">Теги</h3>
+      <TagsSection />
 
-      <div className="settings-group liquid-glass">
-        <div
-          className="setting-row"
-          style={{ flexDirection: 'column', alignItems: 'stretch', gap: '10px' }}
-        >
-          <SharingSection />
-        </div>
-      </div>
+      <h3 className="settings-title">Доступ для врача</h3>
+      <SharingSection />
 
-      <div className="settings-group liquid-glass">
-        <div className="setting-row">
-          <div className="setting-info">
-            <span className="setting-label">Выйти из аккаунта</span>
-          </div>
-          <button className="btn-sm-danger" onClick={askLogout}>
+      <h3 className="settings-title">Аккаунт</h3>
+      <div className="settings-group">
+        <div className="set-row">
+          <span className="set-label">Выйти из аккаунта</span>
+          <button className="btn-plain btn-plain-danger" onClick={askLogout}>
             Выход
           </button>
         </div>

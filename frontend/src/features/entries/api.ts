@@ -23,8 +23,13 @@ import { decrypt, encrypt } from '../../shared/crypto/crypto'
 import type { ChartEntry } from '../chart/types'
 import type { DecryptedEntry, EntryDayGroup, EntryFormData } from './types'
 
-/** Относительные отрезки от текущего момента. */
-export type ChartPeriod = '6months' | '2weeks'
+/**
+ * Относительные отрезки от текущего момента (список из PERIOD_DAYS бэкенда).
+ * `month` и `year` нужны экрану графика для тренда: предыдущие две недели и
+ * предыдущие полгода отдельным запросом не получить, они вырезаются из
+ * ближайшего периода подлиннее.
+ */
+export type ChartPeriod = '2weeks' | 'month' | '6months' | 'year'
 
 /**
  * Что показываем на графике.
@@ -101,7 +106,7 @@ export function mergeFeedPages(pages: FeedPage[] | undefined): EntryDayGroup[] {
     .map(([day, entries]) => ({ day, entries }))
 }
 
-/** Данные графика: нужен только mood, поэтому заметки не расшифровываем. */
+/** Данные графиков: нужны mood и anxiety, поэтому заметки не расшифровываем. */
 export function useChartEntries(query: ChartQuery, enabled: boolean) {
   return useQuery<ChartEntry[]>({
     queryKey: entriesKeys.chart(query),
@@ -114,6 +119,8 @@ export function useChartEntries(query: ChartQuery, enabled: boolean) {
       const entries = await Promise.all(
         raw.map(async (item) => ({
           mood: parseInt(await decrypt(item.mood), 10) || 0,
+          // Тревога необязательна: пустая строка означает «оценку не ставили».
+          anxiety: item.anxiety ? parseInt(await decrypt(item.anxiety), 10) || 0 : 0,
           timestamp: item.timestamp,
         })),
       )

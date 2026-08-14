@@ -1,0 +1,227 @@
+/* share.css — страница врача: та же лента, что в приложении, только чтение.
+
+   Метрики строки повторяют ленту макета «Сводка»: бейдж 44, промежуток 12,
+   разделитель с отступом 56. Стекла здесь нет вовсе — на странице нет
+   навигации, а поверх содержимого стекло даёт грязь.
+
+   Строка записи называется `share-entry`, а не `share-row`: имя `share-row`
+   уже занято строкой «Доступ для врача» в настройках, и правила двух модулей
+   складывались бы на одном элементе. */
+
+.share-page {
+    min-height: 100dvh;
+    background: var(--canvas);
+}
+
+/* ============================================
+   ШАПКА
+   Плотная строка вместо стеклянной панели: страница прокручивается целиком,
+   уезжать под шапку нечему.
+   ============================================ */
+.share-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    /* Вырез телефона поднимает содержимое строки, но не сжимает её саму. */
+    height: calc(52px + var(--safe-t));
+    padding: var(--safe-t) 16px 0;
+    background: var(--card);
+    box-shadow: inset 0 -0.5px 0 var(--sep);
+}
+
+.share-header-title {
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--c-primary);
+}
+
+.share-readonly {
+    display: inline-flex;
+    align-items: center;
+    height: 20px;
+    padding: 0 8px;
+    margin-left: auto;
+    border-radius: 10px;
+    background: var(--field-bg);
+    color: var(--c-secondary);
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 600;
+}
+
+.share-content {
+    padding: 8px 16px calc(var(--safe-b) + 32px);
+}
+
+/* ============================================
+   СВОДКА ПЕРИОДА
+   ============================================ */
+.share-monthnav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 40px;
+    margin-top: 6px;
+}
+
+.share-arrow {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 16px;
+    color: var(--accent);
+}
+
+.share-arrow.off {
+    color: var(--c-tertiary);
+    opacity: 0.4;
+    pointer-events: none;
+}
+
+.share-month-label {
+    font-size: 17px;
+    line-height: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--c-primary);
+}
+
+/* ============================================
+   ЛЕНТА
+   ============================================ */
+.share-dayhead {
+    display: flex;
+    align-items: flex-end;
+    height: 34px;
+    margin: 18px 0 8px;
+    font-size: 20px;
+    line-height: 25px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    color: var(--c-primary);
+}
+
+.share-group {
+    padding: 8px;
+    border-radius: var(--r-lg);
+    background: var(--card);
+    box-shadow: var(--card-shadow);
+}
+
+.share-entry {
+    display: flex;
+    gap: 12px;
+    min-height: 64px;
+    padding: 8px;
+    /* Концентричность: 20 внешний минус 8 отступа. */
+    border-radius: var(--r-sm);
+}
+
+/* Разделитель начинается за бейджем: 44 ширины плюс 12 промежутка. */
+.share-sep {
+    height: 1px;
+    margin-left: 56px;
+    background: var(--sep);
+}
+
+.share-mood {
+    width: 44px;
+    height: 44px;
+    flex: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: var(--r-sm);
+    font-size: 19px;
+    line-height: 22px;
+    font-weight: 600;
+    letter-spacing: -0.02em;
+}
+
+/* Цвет цифры на самой тёмной ступени задан в base.css — её исключаем,
+   чтобы не перебить правило порядком каскада. */
+.share-mood:not(.m1) {
+    color: var(--chip-ink);
+}
+
+[data-theme="dark"] .share-mood {
+    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+}
+
+.share-entry-body {
+    flex: 1;
+    min-width: 0;
+}
+
+.share-entry-line {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: 20px;
+}
+
+.share-mood-label {
+    min-width: 0;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    font-size: 15px;
+    line-height: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--c-primary);
+}
+
+.share-anx {
+    flex: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 20px;
+    min-width: 20px;
+    padding: 0 8px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 18px;
+    font-weight: 600;
+}
+
+.share-time {
+    flex: none;
+    margin-left: auto;
+    font-size: 13px;
+    line-height: 18px;
+    color: var(--c-secondary);
+}
+
+/* Заметку не обрезаем: в приложении строку можно открыть и дочитать,
+   а на странице врача действий нет — текст должен быть виден целиком. */
+.share-note {
+    margin-top: 2px;
+    overflow-wrap: anywhere;
+    font-size: 17px;
+    line-height: 22px;
+    color: var(--c-primary);
+}
+
+/* ============================================
+   ЗАГРУЗКА И ОШИБКА
+   ============================================ */
+.share-loading {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+}
+
+.share-loading-text {
+    margin-top: 12px;
+    font-size: 15px;
+    line-height: 20px;
+    color: var(--c-secondary);
+}
