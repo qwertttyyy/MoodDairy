@@ -20,30 +20,20 @@ HEALTH_CACHE_KEY = "health:probe"
 
 @method_decorator(ensure_csrf_cookie, name="dispatch")
 class ConfigView(APIView):
-    """Публичная конфигурация фронтенда: флаг шифрования + CSRF-cookie.
-
-    SPA не рендерится Django-шаблоном, поэтому cookie `csrftoken` ставит
-    этот эндпоинт — фронтенд вызывает его при старте, до любых мутаций.
-    """
+    """Возвращает публичную конфигурацию и устанавливает CSRF-cookie."""
 
     permission_classes = (AllowAny,)
-    # Пустой список отключает SessionAuthentication из DEFAULT-настроек:
-    # эндпоинт публичный и не должен зависеть от сессии.
     authentication_classes = []
 
     def get(self, request: Request) -> Response:
+        """Возвращает состояние клиентского шифрования."""
         return Response({"encryption_enabled": settings.ENCRYPTION_ENABLED})
 
 
 class HealthView(APIView):
-    """Проверка живости для Docker и внешнего мониторинга.
+    """Проверяет доступность базы данных и кэша.
 
-    Отвечает 200 только если доступны обе зависимости. Без проверок «жив»
-    означало бы всего лишь «процесс отвечает», хотя приложение уже не может
-    обслуживать запросы.
-
-    Redis не критичен: кэш — ускоритель, а не источник данных, поэтому его
-    отказ отражается в теле ответа, но статус остаётся успешным.
+    Отказ кэша отражается в ответе, но не делает сервис недоступным.
     """
 
     permission_classes = (AllowAny,)
@@ -51,6 +41,7 @@ class HealthView(APIView):
     throttle_classes = ()
 
     def get(self, request: Request) -> Response:
+        """Возвращает состояние доступных зависимостей приложения."""
         database_ok = self._check_database()
         cache_ok = self._check_cache()
 
@@ -68,6 +59,7 @@ class HealthView(APIView):
 
     @staticmethod
     def _check_database() -> bool:
+        """Проверяет выполнение простого запроса к базе данных."""
         try:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
@@ -79,6 +71,7 @@ class HealthView(APIView):
 
     @staticmethod
     def _check_cache() -> bool:
+        """Проверяет запись и чтение значения из кэша."""
         try:
             cache.set(HEALTH_CACHE_KEY, "1", 10)
             return cache.get(HEALTH_CACHE_KEY) == "1"

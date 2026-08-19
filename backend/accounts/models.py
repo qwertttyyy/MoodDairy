@@ -5,7 +5,7 @@ from django.db import models
 
 
 class UserProfile(models.Model):
-    """Хранит encryption_salt для client-side шифрования."""
+    """Хранит соль, используемую клиентом для шифрования данных."""
 
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,
@@ -14,13 +14,16 @@ class UserProfile(models.Model):
     )
     encryption_salt = models.CharField(
         max_length=64,
-        blank=True,  # пусто, когда ENCRYPTION_ENABLED=0
+        blank=True,
         verbose_name="Salt (base64)",
     )
 
     class Meta:
+        """Настройки отображения профиля в Django."""
+
         verbose_name = "Профиль"
         verbose_name_plural = "Профили"
 
     def __str__(self) -> str:
+        """Возвращает профиль в виде для административного интерфейса."""
         return f"Profile: {self.user.username}"

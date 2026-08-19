@@ -12,7 +12,6 @@ logger = logging.getLogger("core.request")
 
 SKIP_PATHS = ("/favicon.ico",)
 
-# С этого кода ответ считается ошибкой и логируется уровнем WARNING.
 HTTP_ERROR_THRESHOLD = 400
 
 
@@ -20,9 +19,11 @@ class RequestLoggingMiddleware:
     """Генерирует request_id, логирует каждый запрос одной строкой."""
 
     def __init__(self, get_response):
+        """Сохраняет следующий обработчик Django."""
         self.get_response = get_response
 
     def __call__(self, request: HttpRequest) -> HttpResponse:
+        """Обрабатывает запрос в контексте журналирования."""
         if any(request.path.startswith(p) for p in SKIP_PATHS):
             return self.get_response(request)
 
@@ -49,7 +50,7 @@ class RequestLoggingMiddleware:
             response = self.get_response(request)
             duration_ms = round((time.monotonic() - start) * 1000, 1)
 
-            # Логин мог произойти внутри запроса — перечитываем пользователя.
+            # Пользователь мог аутентифицироваться в ходе запроса.
             user_id = (
                 request.user.id
                 if hasattr(request, "user") and request.user.is_authenticated
@@ -79,13 +80,12 @@ class RequestLoggingMiddleware:
             response["X-Request-ID"] = request_id
             return response
         finally:
-            # Контекст живёт в thread-local, а поток переиспользуется под
-            # следующий запрос. Без finally исключение оставило бы чужие
-            # request_id и user_id в логах соседнего запроса.
+            # Поток переиспользуется, поэтому контекст нужно очистить всегда.
             clear_request_context()
 
     @staticmethod
     def _get_client_ip(request: HttpRequest) -> str:
+        """Возвращает первый адрес клиента из прокси-заголовка или сокета."""
         forwarded = request.META.get("HTTP_X_FORWARDED_FOR")
         if forwarded:
             return forwarded.split(",")[0].strip()

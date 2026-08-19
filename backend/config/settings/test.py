@@ -1,19 +1,11 @@
-"""Настройки тестов.
-
-Запуск: python manage.py test --settings=config.settings.test
-"""
+"""Настройки запуска тестов Django."""
 
 from .base import *  # noqa: F403
 
-# Тесты идут в том же режиме, что и прод: DEBUG=True маскирует ошибки
-# конфигурации и меняет поведение обработчиков исключений.
 DEBUG = False
 
 ALLOWED_HOSTS = ["testserver", "localhost", "127.0.0.1"]
 
-# Кэш — настоящий Redis: версионная инвалидация опирается на то, что INCRBY
-# не сбрасывает TTL, а LocMemCache этого поведения не воспроизводит.
-# Отдельный префикс изолирует тестовые ключи от ключей рабочей базы.
 CACHES = {
     **CACHES,  # noqa: F405
     "default": {
@@ -22,12 +14,8 @@ CACHES = {
     },
 }
 
-# Тесты не должны зависеть от локального .env: базовый режим — шифрование
-# включено, выключенный режим проверяется точечно через @override_settings.
 ENCRYPTION_ENABLED = True
 
-# Лимиты частоты подняты, чтобы не мешать прогону. Сами лимиты проверяют
-# отдельные тесты — они возвращают боевые значения через override_settings.
 REST_FRAMEWORK = {
     **REST_FRAMEWORK,  # noqa: F405
     "DEFAULT_THROTTLE_RATES": {
@@ -56,7 +44,6 @@ LOGGING = {
     },
 }
 
-# Хеширование пароля — самая долгая операция в тестах с пользователями.
 PASSWORD_HASHERS = [
     "django.contrib.auth.hashers.MD5PasswordHasher",
 ]

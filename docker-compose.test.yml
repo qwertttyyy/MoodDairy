@@ -1,5 +1,3 @@
-# Отдельное имя проекта: иначе оно берётся от каталога и совпадает с основным compose,
-# а шаг очистки (`down -v --remove-orphans`) сносит запущенный dev-стек.
 name: mooddiary-test
 
 services:
@@ -17,8 +15,6 @@ services:
       timeout: 2s
       retries: 10
 
-  # Тесты идут на настоящем Redis: поведение incr и TTL, от которого зависит
-  # версионная инвалидация кэша, на LocMemCache не воспроизводится.
   redis:
     image: redis:7-alpine
     command: redis-server --requirepass test-redis-password --save ""

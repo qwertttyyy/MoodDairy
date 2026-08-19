@@ -16,17 +16,17 @@ from .models import MoodEntry, Tag
 
 
 class TagSerializer(serializers.ModelSerializer):
+    """Сериализует тег и проверяет его уникальность у владельца."""
+
     class Meta:
+        """Описывает поля тега, доступные в API."""
+
         model = Tag
         fields = ("id", "name")
         read_only_fields = ("id",)
 
     def validate_name(self, value: str) -> str:
-        """Имя уникально в пределах пользователя.
-
-        В БД это гарантирует UniqueConstraint, но проверка здесь даёт
-        понятное сообщение вместо ошибки о конфликте данных.
-        """
+        """Проверяет уникальность имени среди тегов текущего пользователя."""
         user = self.context["request"].user
         duplicates = Tag.objects.filter(user=user, name=value)
         if self.instance is not None:
@@ -39,13 +39,10 @@ class TagSerializer(serializers.ModelSerializer):
 
 
 class UserTagsRelatedField(serializers.PrimaryKeyRelatedField):
-    """Разрешает привязывать к записи только собственные теги.
-
-    Без ограничения queryset пользователь мог бы указать чужой id и прочитать
-    название чужого тега в ответе.
-    """
+    """Ограничивает выбираемые теги текущим пользователем."""
 
     def get_queryset(self):
+        """Возвращает теги пользователя из контекста сериализатора."""
         return Tag.objects.filter(user=self.context["request"].user)
 
 
@@ -53,6 +50,8 @@ class _MoodEntryBaseSerializer(serializers.ModelSerializer):
     """Базовый класс — единый набор полей для Read и Write."""
 
     class Meta:
+        """Описывает общие поля сериализаторов записи."""
+
         model = MoodEntry
         fields = (
             "id",
@@ -74,10 +73,7 @@ class MoodEntryReadSerializer(_MoodEntryBaseSerializer):
 
 
 class MoodEntryWriteSerializer(_MoodEntryBaseSerializer):
-    """Запись — зашифрованные поля строками, теги списком id.
-
-    Сохранение делает ModelSerializer: связь many-to-many он обрабатывает сам.
-    """
+    """Принимает запись с шифротекстом и идентификаторами тегов."""
 
     mood = EncryptedField(max_length=MOOD_MAX_LENGTH)
     note = EncryptedField(
@@ -89,42 +85,34 @@ class MoodEntryWriteSerializer(_MoodEntryBaseSerializer):
     tags = UserTagsRelatedField(many=True, required=False)
 
     def validate_timestamp(self, value):
+        """Не допускает дату записи в будущем."""
         if value > timezone.now():
             raise serializers.ValidationError("Дата не может быть в будущем.")
         return value
 
 
 class MoodEntryChartSerializer(serializers.ModelSerializer):
-    """Минимум полей для графиков: без заметок, тегов и служебных дат.
-
-    Заметки в графике не участвуют, а весят больше всего остального вместе
-    взятого — и в ответе, и в кэше. Идентификатор тоже не нужен: точку на
-    графике не открывают, а выборка за год — это больше тысячи строк.
-    """
+    """Сериализует поля записи, нужные для построения графика."""
 
     class Meta:
+        """Ограничивает ответ временной меткой и значениями шкал."""
+
         model = MoodEntry
         fields = ("timestamp", "mood", "anxiety")
 
 
 class MoodEntrySnapshotSerializer(serializers.ModelSerializer):
-    """Полная запись для снапшота врачу: без id, тегов и служебных дат.
-
-    Снапшот расшифровывается на клиенте и перешифровывается ключом ссылки,
-    поэтому в него входит ровно то, что увидит врач.
-    """
+    """Сериализует данные записи для передаваемого врачу снапшота."""
 
     class Meta:
+        """Ограничивает снапшот содержимым дневниковой записи."""
+
         model = MoodEntry
         fields = ("mood", "note", "anxiety", "timestamp")
 
 
 class ChartFilterSerializer(serializers.Serializer):
-    """Период выборки для графиков.
-
-    Период обязателен: без него запрос вернул бы всю историю пользователя
-    одним ответом, который потом ещё и осядет в кэше целиком.
-    """
+    """Проверяет параметры ограниченной выборки записей для графика."""
 
     period = serializers.ChoiceField(
         choices=sorted(PERIOD_DAYS), required=False
@@ -135,6 +123,7 @@ class ChartFilterSerializer(serializers.Serializer):
     month = serializers.IntegerField(min_value=1, max_value=12, required=False)
 
     def validate(self, attrs: dict) -> dict:
+        """Проверяет совместимость относительного и календарного периода."""
         period, year, month = (
             attrs.get("period"),
             attrs.get("year"),

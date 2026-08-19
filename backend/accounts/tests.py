@@ -29,12 +29,14 @@ class RegisterSerializerUsernameTest(TestCase):
     """validate_username — уникальность."""
 
     def setUp(self):
+        """Создаёт пользователя с уже занятым именем."""
         self.existing_user = User.objects.create_user(
             username="taken",
             password="Str0ng!Pass99",
         )
 
     def test_existing_username_rejected(self):
+        """Проверяет отказ при повторном имени пользователя."""
         serializer = RegisterSerializer(
             data={
                 "username": "taken",
@@ -50,6 +52,7 @@ class RegisterSerializerUsernameTest(TestCase):
         )
 
     def test_new_username_accepted(self):
+        """Проверяет принятие свободного имени пользователя."""
         serializer = RegisterSerializer(
             data={
                 "username": "fresh",
@@ -69,29 +72,35 @@ class RegisterSerializerSaltTest(TestCase):
     }
 
     def _make(self, salt: str) -> RegisterSerializer:
+        """Создаёт сериализатор регистрации с переданной солью."""
         return RegisterSerializer(
             data={**self.VALID_PAYLOAD, "encryption_salt": salt}
         )
 
     def test_valid_base64_salt_8_bytes(self):
+        """Проверяет минимально допустимую base64-соль."""
         s = self._make(base64.b64encode(b"12345678").decode())
         self.assertTrue(s.is_valid(), s.errors)
 
     def test_valid_base64_salt_longer(self):
+        """Проверяет соль длиннее минимального размера."""
         s = self._make(base64.b64encode(b"a" * 32).decode())
         self.assertTrue(s.is_valid(), s.errors)
 
     def test_invalid_base64_string(self):
+        """Проверяет отклонение строки вне base64-алфавита."""
         s = self._make("not_base64!!")
         self.assertFalse(s.is_valid())
         self.assertIn("encryption_salt", s.errors)
 
     def test_salt_too_short_7_bytes(self):
+        """Проверяет отклонение слишком короткой соли."""
         s = self._make(base64.b64encode(b"1234567").decode())
         self.assertFalse(s.is_valid())
         self.assertIn("encryption_salt", s.errors)
 
     def test_salt_exactly_8_bytes(self):
+        """Проверяет границу минимального размера соли."""
         s = self._make(base64.b64encode(b"12345678").decode())
         self.assertTrue(s.is_valid(), s.errors)
 
@@ -103,6 +112,7 @@ class RegisterSerializerBlankSaltTest(TestCase):
 
     @override_settings(ENCRYPTION_ENABLED=False)
     def test_blank_salt_accepted_when_encryption_off(self):
+        """Проверяет пустую соль при выключенном шифровании."""
         s = RegisterSerializer(data={**self.PAYLOAD, "encryption_salt": ""})
         self.assertTrue(s.is_valid(), s.errors)
         user = s.save()
@@ -110,17 +120,20 @@ class RegisterSerializerBlankSaltTest(TestCase):
 
     @override_settings(ENCRYPTION_ENABLED=False)
     def test_missing_salt_accepted_when_encryption_off(self):
+        """Проверяет пропущенную соль при выключенном шифровании."""
         s = RegisterSerializer(data=self.PAYLOAD)
         self.assertTrue(s.is_valid(), s.errors)
 
     @override_settings(ENCRYPTION_ENABLED=True)
     def test_blank_salt_rejected_when_encryption_on(self):
+        """Проверяет обязательность пустой соли при шифровании."""
         s = RegisterSerializer(data={**self.PAYLOAD, "encryption_salt": ""})
         self.assertFalse(s.is_valid())
         self.assertIn("encryption_salt", s.errors)
 
     @override_settings(ENCRYPTION_ENABLED=True)
     def test_missing_salt_rejected_when_encryption_on(self):
+        """Проверяет обязательность переданной соли при шифровании."""
         s = RegisterSerializer(data=self.PAYLOAD)
         self.assertFalse(s.is_valid())
         self.assertIn("encryption_salt", s.errors)
@@ -130,6 +143,7 @@ class RegisterSerializerCreateTest(TestCase):
     """create — атомарность: User + UserProfile."""
 
     def test_creates_user_and_profile(self):
+        """Проверяет создание пользователя вместе с профилем."""
         serializer = RegisterSerializer(
             data={
                 "username": "newguy",
@@ -159,25 +173,23 @@ class RegisterSerializerCreateTest(TestCase):
         serializer.is_valid(raise_exception=True)
         with self.assertRaises(DatabaseError):
             serializer.save()
-        # Оба откатились
         self.assertFalse(User.objects.filter(username="orphan").exists())
         self.assertFalse(
             UserProfile.objects.filter(user__username="orphan").exists(),
         )
 
 
-# ---------------------------------------------------------------------------
-#  LoginSerializer
-# ---------------------------------------------------------------------------
 class LoginSerializerTest(TestCase):
     """Сериализатор проверяет только форму запроса."""
 
     def test_both_fields_required(self):
+        """Проверяет обязательность имени и пароля."""
         s = LoginSerializer(data={"username": "alice"})
         self.assertFalse(s.is_valid())
         self.assertIn("password", s.errors)
 
     def test_valid_shape_passes(self):
+        """Проверяет принятие запроса с двумя обязательными полями."""
         s = LoginSerializer(data={"username": "alice", "password": "any"})
         self.assertTrue(s.is_valid(), s.errors)
 
@@ -186,42 +198,46 @@ class AuthenticateUserTest(TestCase):
     """authenticate_user — проверка учётных данных и статуса аккаунта."""
 
     def setUp(self):
+        """Создаёт активного пользователя для проверки входа."""
         self.user = User.objects.create_user(
             username="alice",
             password="Str0ng!Pass99",
         )
 
     def test_valid_credentials(self):
+        """Проверяет успешную аутентификацию по верным данным."""
         user = authenticate_user(username="alice", password="Str0ng!Pass99")
         self.assertEqual(user, self.user)
 
     def test_wrong_password(self):
+        """Проверяет ошибку при неверном пароле."""
         with self.assertRaises(InvalidCredentials):
             authenticate_user(username="alice", password="wrong")
 
     def test_nonexistent_user(self):
+        """Проверяет ошибку для отсутствующего пользователя."""
         with self.assertRaises(InvalidCredentials):
             authenticate_user(username="ghost", password="any")
 
     def test_inactive_user(self):
+        """Проверяет ошибку для деактивированного пользователя."""
         self.user.is_active = False
         self.user.save()
         with self.assertRaises(InvalidCredentials):
             authenticate_user(username="alice", password="Str0ng!Pass99")
 
 
-# ---------------------------------------------------------------------------
-#  Helper functions: generate_wrapping_key, store_wrapping_key
-# ---------------------------------------------------------------------------
 class GenerateWrappingKeyTest(TestCase):
     """generate_wrapping_key — формат, длина, уникальность."""
 
     def test_returns_valid_base64(self):
+        """Проверяет base64-представление ключа нужного размера."""
         key = generate_wrapping_key()
         raw = base64.b64decode(key)
         self.assertEqual(len(raw), WRAPPING_KEY_BYTES)
 
     def test_two_calls_produce_different_keys(self):
+        """Проверяет случайность двух сгенерированных ключей."""
         self.assertNotEqual(generate_wrapping_key(), generate_wrapping_key())
 
 
@@ -229,6 +245,7 @@ class StoreWrappingKeyTest(TestCase):
     """store_wrapping_key — сохранение в сессию."""
 
     def test_key_stored_in_session(self):
+        """Проверяет сохранение сгенерированного ключа в сессии."""
         factory = APIRequestFactory()
         request = factory.get("/fake/")
         request.session = SessionBase()
@@ -242,13 +259,11 @@ class StoreWrappingKeyTest(TestCase):
         self.assertEqual(len(raw), WRAPPING_KEY_BYTES)
 
 
-# ---------------------------------------------------------------------------
-#  UnwrapKeyView
-# ---------------------------------------------------------------------------
 class UnwrapKeyViewTest(APITestCase):
     """GET /api/auth/unwrap-key/ — ключ есть / нет в сессии."""
 
     def setUp(self):
+        """Создаёт и аутентифицирует пользователя."""
         self.user = User.objects.create_user(
             username="bob",
             password="Str0ng!Pass99",
@@ -256,6 +271,7 @@ class UnwrapKeyViewTest(APITestCase):
         self.client.force_login(self.user)
 
     def test_key_present_returns_200(self):
+        """Проверяет выдачу ключа из сессии."""
         session = self.client.session
         session[WRAPPING_KEY_SESSION_KEY] = "dGVzdGtleQ=="
         session.save()
@@ -265,34 +281,30 @@ class UnwrapKeyViewTest(APITestCase):
         self.assertEqual(resp.data["wrapping_key"], "dGVzdGtleQ==")
 
     def test_key_missing_returns_401(self):
+        """Проверяет ошибку при отсутствии ключа в сессии."""
         resp = self.client.get("/api/auth/unwrap-key/")
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
 
     def test_anonymous_returns_403(self):
+        """Проверяет запрет доступа анонимному клиенту."""
         self.client.logout()
         resp = self.client.get("/api/auth/unwrap-key/")
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
 
 
-# ---------------------------------------------------------------------------
-#  Троттлинг и CSRF на входе
-# ---------------------------------------------------------------------------
 @patch.dict(SimpleRateThrottle.THROTTLE_RATES, {"auth": "3/minute"})
 class AuthThrottleTest(APITestCase):
-    """Перебор паролей ограничен по частоте.
-
-    Ставки патчатся напрямую в классе: DRF читает DEFAULT_THROTTLE_RATES один
-    раз при импорте и кладёт в атрибут класса, поэтому override_settings
-    на них не влияет.
-    """
+    """Проверяет ограничение частоты регистрации и входа."""
 
     def setUp(self):
+        """Очищает кэш троттлинга и создаёт пользователя."""
         cache.clear()
         self.user = User.objects.create_user(
             username="throttled", password="Str0ng!Pass99"
         )
 
     def test_login_attempts_are_limited(self):
+        """Проверяет лимит неудачных попыток входа."""
         payload = {"username": "throttled", "password": "wrong"}
         for _ in range(3):
             resp = self.client.post("/api/auth/login/", payload, format="json")
@@ -316,13 +328,10 @@ class AuthThrottleTest(APITestCase):
 
 
 class CsrfProtectionTest(APITestCase):
-    """Вход и регистрация защищены от login CSRF.
-
-    SessionAuthentication проверяет токен только для уже аутентифицированных
-    запросов, поэтому на анонимных эндпоинтах он навешен явно.
-    """
+    """Проверяет CSRF-защиту публичных эндпоинтов аутентификации."""
 
     def setUp(self):
+        """Настраивает клиента с обязательной проверкой CSRF."""
         cache.clear()
         self.client = APIClient(enforce_csrf_checks=True)
         User.objects.create_user(
@@ -330,6 +339,7 @@ class CsrfProtectionTest(APITestCase):
         )
 
     def test_login_without_token_rejected(self):
+        """Проверяет отклонение входа без CSRF-токена."""
         resp = self.client.post(
             "/api/auth/login/",
             {"username": "csrf_user", "password": "Str0ng!Pass99"},
@@ -339,6 +349,7 @@ class CsrfProtectionTest(APITestCase):
         self.assertEqual(resp.data["error"]["code"], "csrf_failed")
 
     def test_register_without_token_rejected(self):
+        """Проверяет отклонение регистрации без CSRF-токена."""
         resp = self.client.post(
             "/api/auth/register/",
             {

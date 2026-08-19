@@ -21,12 +21,12 @@ User = get_user_model()
 
 
 def generate_wrapping_key() -> str:
-    """32 случайных байта → base64."""
+    """Генерирует случайный wrapping key в кодировке base64."""
     return base64.b64encode(os.urandom(WRAPPING_KEY_BYTES)).decode("ascii")
 
 
 def store_wrapping_key(request: Request) -> str:
-    """Генерирует wrapping_key, сохраняет в сессию, возвращает base64."""
+    """Генерирует ключ, сохраняет его в сессии и возвращает клиенту."""
     key = generate_wrapping_key()
     request.session[WRAPPING_KEY_SESSION_KEY] = key
     request.session.save()
@@ -34,23 +34,18 @@ def store_wrapping_key(request: Request) -> str:
 
 
 def get_wrapping_key(request: Request) -> str | None:
-    """Извлекает wrapping_key из сессии."""
+    """Возвращает wrapping key из сессии запроса."""
     return request.session.get(WRAPPING_KEY_SESSION_KEY)
 
 
 def clear_wrapping_key(request: Request) -> None:
-    """Удаляет wrapping_key из сессии."""
+    """Удаляет wrapping key из сессии запроса."""
     request.session.pop(WRAPPING_KEY_SESSION_KEY, None)
 
 
 @transaction.atomic
 def register_user(username: str, password: str, encryption_salt: str) -> User:
-    """Создаёт User, UserProfile и стартовые теги одной транзакцией.
-
-    IntegrityError перехватывается из-за гонки: между проверкой занятости
-    имени в сериализаторе и вставкой параллельный запрос может занять то же
-    имя, и пользователь получил бы 500 вместо понятной ошибки.
-    """
+    """Создаёт пользователя, профиль и начальные теги одной транзакцией."""
     try:
         user = User.objects.create_user(username=username, password=password)
     except IntegrityError as exc:
@@ -64,10 +59,9 @@ def register_user(username: str, password: str, encryption_salt: str) -> User:
 
 
 def authenticate_user(username: str, password: str) -> User:
-    """Проверяет учётные данные.
+    """Аутентифицирует активного пользователя по имени и паролю.
 
-    Ответ одинаков для неверного пароля, несуществующего пользователя и
-    отключённого аккаунта: иначе по коду ошибки можно перебирать логины.
+    Неверные данные и неактивный аккаунт дают одинаковую ошибку.
     """
     user = authenticate(username=username, password=password)
     if user is None or not user.is_active:

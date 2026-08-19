@@ -1,8 +1,4 @@
-"""Чтение переменных окружения с явной обязательностью и типами.
-
-Переменная без значения по умолчанию считается обязательной: приложение падает
-на старте, а не запускается молча с небезопасным значением.
-"""
+"""Читает и проверяет типизированные переменные окружения."""
 
 from __future__ import annotations
 
@@ -12,7 +8,7 @@ from django.core.exceptions import ImproperlyConfigured
 
 
 def env_str(name: str, default: str | None = None) -> str:
-    """Строка. Если default не задан — переменная обязательна."""
+    """Возвращает непустую строку или сообщает об обязательной переменной."""
     value = os.environ.get(name, default)
     if value is None or value == "":
         raise ImproperlyConfigured(
@@ -22,7 +18,7 @@ def env_str(name: str, default: str | None = None) -> str:
 
 
 def env_bool(name: str, default: bool = False) -> bool:
-    """Булево значение: 1/true/yes/on → True, остальное → False."""
+    """Возвращает булево значение из распространённых строковых форм."""
     raw = os.environ.get(name)
     if raw is None:
         return default
@@ -30,7 +26,7 @@ def env_bool(name: str, default: bool = False) -> bool:
 
 
 def env_int(name: str, default: int) -> int:
-    """Целое число с проверкой формата."""
+    """Возвращает целое значение переменной или значение по умолчанию."""
     raw = os.environ.get(name)
     if raw is None or raw.strip() == "":
         return default
@@ -43,7 +39,7 @@ def env_int(name: str, default: int) -> int:
 
 
 def env_list(name: str, default: list[str] | None = None) -> list[str]:
-    """Список через запятую. Если default не задан — переменная обязательна."""
+    """Возвращает непустые значения переменной, разделённые запятыми."""
     raw = os.environ.get(name)
     if raw is None or raw.strip() == "":
         if default is None:

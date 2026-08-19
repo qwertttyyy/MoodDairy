@@ -5,6 +5,8 @@ from .models import SharedAccess
 
 @admin.register(SharedAccess)
 class SharedAccessAdmin(admin.ModelAdmin):
+    """Настраивает просмотр ссылок без содержимого их блобов."""
+
     list_display = (
         "token_short",
         "user",
@@ -25,4 +27,5 @@ class SharedAccessAdmin(admin.ModelAdmin):
 
     @admin.display(description="Token")
     def token_short(self, obj: SharedAccess) -> str:
+        """Возвращает сокращённый токен для списка ссылок."""
         return f"{obj.token[:12]}…"

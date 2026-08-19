@@ -1,10 +1,4 @@
-"""Общие настройки для всех сред.
-
-Здесь не должно быть ни одного `if` по среде: различия живут в dev.py, prod.py
-и test.py. Значения по умолчанию рассчитаны на удобство локальной разработки —
-prod.py перечитывает всё критичное уже без умолчаний, чтобы боевой запуск падал
-при незаданной переменной, а не работал с небезопасным значением.
-"""
+"""Базовые настройки Django для всех окружений."""
 
 from pathlib import Path
 
@@ -36,8 +30,6 @@ INSTALLED_APPS = [
 
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
-    # Статику админки и DRF отдаёт сам gunicorn: nginx проксирует
-    # /static/ сюда, наружу из контейнера каталог не выставляется.
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -53,7 +45,6 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        # Своих шаблонов нет: HTML раздаёт фронтенд. Остаются шаблоны админки.
         "DIRS": [],
         "APP_DIRS": True,
         "OPTIONS": {
@@ -82,10 +73,7 @@ DATABASES = {
 
 CACHE_TTL = env_int("CACHE_TTL", 60 * 60 * 24)
 
-# Версия формата кэшируемых данных. Поднимать в том же коммите, где меняется
-# состав полей в ответах: старые ключи мгновенно становятся недостижимыми,
-# новые пишутся в своё пространство, мусор уходит по TTL. Без этого после
-# деплоя пользователи получали бы из кэша ответы в старом формате.
+# Меняется вместе с форматом кэшируемых API-ответов.
 CACHE_SCHEMA_VERSION = 2
 
 REDIS_HOST = env_str("REDIS_HOST", "127.0.0.1")
@@ -112,8 +100,6 @@ CACHES = {
     }
 }
 
-# Кэш — ускоритель, а не обязательная зависимость: при недоступном Redis
-# запросы обслуживаются из БД, а ошибки уходят в лог, а не пользователю.
 DJANGO_REDIS_IGNORE_EXCEPTIONS = True
 DJANGO_REDIS_LOG_IGNORED_EXCEPTIONS = True
 
@@ -125,8 +111,6 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticated",
     ],
     "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
-    # Общие лимиты частоты: без них любой авторизованный клиент может
-    # нагружать API без ограничений.
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
@@ -134,14 +118,10 @@ REST_FRAMEWORK = {
     "DEFAULT_THROTTLE_RATES": {
         "anon": "60/minute",
         "user": "300/minute",
-        # Вход и регистрация — защита от перебора паролей.
         "auth": "10/minute",
-        # Публичная страница врача: токен не перебирается, но блоб крупный.
         "share": "30/minute",
-        # Выгрузка всей истории при создании ссылки врачу — редко и дорого.
         "snapshot": "10/minute",
     },
-    # Единый конверт ошибок для всего API, см. docs/api-errors.md.
     "EXCEPTION_HANDLER": "core.exception_handlers.api_exception_handler",
 }
 
@@ -249,8 +229,6 @@ TIME_ZONE = "Europe/Moscow"
 USE_I18N = True
 USE_TZ = True
 
-# Статика только служебная (админка, DRF): collectstatic собирает её из
-# приложений, раздаёт WhiteNoise. Ассеты приложения живут в сборке фронтенда.
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
 
@@ -259,19 +237,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 SESSION_COOKIE_HTTPONLY = True
 SESSION_COOKIE_SAMESITE = "Lax"
 
-# Фронтенд читает CSRF-токен из cookie, поэтому HttpOnly здесь снят осознанно.
 CSRF_COOKIE_HTTPONLY = False
 CSRF_COOKIE_SAMESITE = "Lax"
 
-# HTTPS терминирует nginx и передаёт исходный протокол этим заголовком.
 SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 
-# Редирект HTTP → HTTPS делает nginx перед Django: дублирование не нужно
-# и рискует зациклиться при ошибке в настройке прокси.
 SECURE_SSL_REDIRECT = False
 
-# Запрет встраивания в iframe — защита от кликджекинга. В Django 6 это
-# значение по умолчанию, прописано явно, чтобы не зависеть от версии.
 X_FRAME_OPTIONS = "DENY"
 
 ENCRYPTION_ENABLED = env_bool("ENCRYPTION_ENABLED", True)

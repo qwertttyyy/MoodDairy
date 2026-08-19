@@ -7,11 +7,7 @@ from django.utils import timezone
 
 
 class Tag(models.Model):
-    """Тег настроения. У каждого пользователя свой набор.
-
-    При удалении тега записи сохраняются: каскад убирает только строки
-    промежуточной таблицы, и тег просто исчезает из списка тегов записи.
-    """
+    """Пользовательский тег для группировки записей настроения."""
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -22,6 +18,8 @@ class Tag(models.Model):
     name = models.CharField(max_length=50, verbose_name="Название")
 
     class Meta:
+        """Задаёт сортировку и уникальность тегов пользователя."""
+
         verbose_name = "Тег"
         verbose_name_plural = "Теги"
         ordering = ["name"]
@@ -32,14 +30,14 @@ class Tag(models.Model):
         ]
 
     def __str__(self) -> str:
+        """Возвращает тег и его владельца для административного интерфейса."""
         return f"{self.name} ({self.user})"
 
 
 class MoodEntry(models.Model):
-    """Запись настроения.
+    """Запись настроения пользователя с необязательными тегами.
 
-    Поля mood, note и anxiety шифруются на клиенте и хранятся в формате
-    iv:ciphertext — сервер их содержимое не читает.
+    При включённом шифровании текстовые поля хранят клиентский шифротекст.
     """
 
     user = models.ForeignKey(
@@ -68,14 +66,14 @@ class MoodEntry(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
+        """Задаёт порядок и индексы выборки записей."""
+
         verbose_name = "Запись"
         verbose_name_plural = "Записи"
         ordering = ["-timestamp"]
         indexes = [
             models.Index(fields=["user", "-timestamp"]),
-            # Лента группирует записи по календарным дням через TruncDate.
-            # Обычный индекс по timestamp для DISTINCT по выражению не
-            # применим, поэтому нужен функциональный.
+            # Лента получает уникальные дни через TruncDate.
             models.Index(
                 TruncDate("timestamp"),
                 "user",
@@ -84,6 +82,7 @@ class MoodEntry(models.Model):
         ]
 
     def __str__(self) -> str:
+        """Возвращает запись в виде для административного интерфейса."""
         return (
             f"Entry #{self.pk} — {self.user} — {self.timestamp:%d.%m.%Y %H:%M}"
         )

@@ -16,10 +16,10 @@ User = get_user_model()
 
 
 class RegisterSerializer(serializers.Serializer):
+    """Проверяет данные и создаёт пользователя при регистрации."""
+
     username = serializers.CharField(max_length=150)
     password = serializers.CharField(write_only=True)
-    # При ENCRYPTION_ENABLED=0 клиент не шифрует данные и соль ему не нужна,
-    # поэтому пустое значение допустимо (см. validate_encryption_salt).
     encryption_salt = serializers.CharField(
         max_length=64,
         allow_blank=True,
@@ -27,15 +27,18 @@ class RegisterSerializer(serializers.Serializer):
     )
 
     def validate_username(self, value: str) -> str:
+        """Проверяет, что имя пользователя ещё не занято."""
         if User.objects.filter(username=value).exists():
             raise serializers.ValidationError("Имя пользователя занято.")
         return value
 
     def validate_password(self, value: str) -> str:
+        """Проверяет пароль средствами Django."""
         validate_password(value)
         return value
 
     def validate_encryption_salt(self, value: str) -> str:
+        """Проверяет base64-соль и её минимальную длину."""
         if not value:
             if settings.ENCRYPTION_ENABLED:
                 raise serializers.ValidationError(
@@ -43,8 +46,7 @@ class RegisterSerializer(serializers.Serializer):
                 )
             return ""
 
-        # validate=True обязателен: без него b64decode молча отбрасывает
-        # символы вне алфавита и пропускает мусор вроде "abcd!!!!".
+        # validate=True не позволяет base64-декодеру пропустить лишние символы.
         try:
             decoded = base64.b64decode(value, validate=True)
         except (binascii.Error, ValueError) as exc:
@@ -59,6 +61,7 @@ class RegisterSerializer(serializers.Serializer):
         return value
 
     def create(self, validated_data: dict) -> User:
+        """Создаёт пользователя, профиль и начальные теги."""
         return register_user(
             username=validated_data["username"],
             password=validated_data["password"],
@@ -74,14 +77,22 @@ class LoginSerializer(serializers.Serializer):
 
 
 class UserSerializer(serializers.ModelSerializer):
+    """Сериализует публичные данные пользователя."""
+
     class Meta:
+        """Описывает поля пользователя, доступные в API."""
+
         model = User
         fields = ("id", "username")
         read_only_fields = ("id", "username")
 
 
 class ProfileSerializer(serializers.ModelSerializer):
+    """Сериализует данные профиля, нужные клиенту для шифрования."""
+
     class Meta:
+        """Описывает поля профиля, доступные только для чтения."""
+
         model = UserProfile
         fields = ("encryption_salt",)
         read_only_fields = ("encryption_salt",)

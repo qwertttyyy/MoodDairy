@@ -32,11 +32,7 @@ logger = logging.getLogger("accounts")
 
 
 class RegisterView(APIView):
-    """Регистрация: создаёт User + UserProfile(salt), отдаёт wrapping_key.
-
-    CSRF проверяется явным классом аутентификации: штатный
-    SessionAuthentication для анонимных запросов проверку пропускает.
-    """
+    """Регистрирует пользователя и возвращает ключ текущей сессии."""
 
     permission_classes = (AllowAny,)
     authentication_classes = (CsrfEnforcedSessionAuthentication,)
@@ -44,6 +40,7 @@ class RegisterView(APIView):
     throttle_scope = "auth"
 
     def post(self, request: Request) -> Response:
+        """Создаёт учётную запись и аутентифицирует нового пользователя."""
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         user = serializer.save()
@@ -60,11 +57,7 @@ class RegisterView(APIView):
 
 
 class LoginView(APIView):
-    """Вход: аутентификация, новый wrapping_key в сессию.
-
-    Без проверки CSRF возможна атака login CSRF: жертву незаметно логинят
-    в аккаунт атакующего, и она продолжает писать записи туда.
-    """
+    """Аутентифицирует пользователя и создаёт ключ текущей сессии."""
 
     permission_classes = (AllowAny,)
     authentication_classes = (CsrfEnforcedSessionAuthentication,)
@@ -72,6 +65,7 @@ class LoginView(APIView):
     throttle_scope = "auth"
 
     def post(self, request: Request) -> Response:
+        """Проверяет учётные данные и открывает сессию пользователя."""
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
@@ -93,6 +87,7 @@ class LogoutView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def post(self, request: Request) -> Response:
+        """Удаляет ключ сессии и завершает сеанс пользователя."""
         logger.info("User logged out: id=%d", request.user.id)
         clear_wrapping_key(request)
         logout(request)
@@ -105,6 +100,7 @@ class MeView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request: Request) -> Response:
+        """Возвращает публичные данные текущего пользователя."""
         return Response(UserSerializer(request.user).data)
 
 
@@ -114,9 +110,7 @@ class ProfileView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request: Request) -> Response:
-        # get_object_or_404 вместо request.user.profile: у пользователей,
-        # созданных через createsuperuser или админку, профиля нет, и
-        # обращение к связи давало бы 500 вместо понятного ответа.
+        """Возвращает соль шифрования текущего пользователя."""
         profile = get_object_or_404(UserProfile, user=request.user)
         return Response(ProfileSerializer(profile).data)
 
@@ -127,6 +121,7 @@ class UnwrapKeyView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request: Request) -> Response:
+        """Возвращает сохранённый в сессии wrapping key."""
         wrapping_key = get_wrapping_key(request)
         if not wrapping_key:
             logger.warning(

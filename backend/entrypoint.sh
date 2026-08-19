@@ -5,9 +5,7 @@ echo "Running migrations..."
 python manage.py migrate --noinput
 
 echo "Starting server..."
-# exec обязателен: без него PID 1 остаётся у sh, который не пересылает
-# сигналы. docker stop тогда не доходит до gunicorn, контейнер добивается
-# через SIGKILL, и текущие запросы обрываются при каждом деплое.
+# `exec` передаёт gunicorn роль PID 1 и обработку сигналов Docker.
 exec gunicorn config.wsgi:application \
     --bind 0.0.0.0:8000 \
     --workers "${GUNICORN_WORKERS:-2}" \

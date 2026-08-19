@@ -15,17 +15,12 @@ User = get_user_model()
 
 @transaction.atomic
 def create_or_update_share(user: User, data_blob: str) -> SharedAccess:
-    """Создаёт ссылку шаринга или заменяет существующую.
-
-    Токен генерируется заново при каждом вызове: старая ссылка перестаёт
-    работать сразу, даже если её кому-то успели передать.
-    """
+    """Создаёт или заменяет ссылку пользователя новым токеном."""
     expires_at = timezone.now() + timedelta(hours=SHARED_ACCESS_EXPIRE_HOURS)
     shared, _ = SharedAccess.objects.update_or_create(
         user=user,
         defaults={
             "data_blob": data_blob,
-            # Режим шифрования определяет сервер, а не клиент.
             "is_encrypted": settings.ENCRYPTION_ENABLED,
             "expires_at": expires_at,
             "is_active": True,

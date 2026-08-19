@@ -7,8 +7,6 @@ services:
       POSTGRES_USER: ${DB_USER:-moods}
       POSTGRES_PASSWORD: ${DB_PASSWORD:?DB_PASSWORD обязателен}
     volumes:
-      # Именованный том, а не каталог репозитория: bind-mount принадлежал бы
-      # root, ломал работу с git и не поддавался бэкапу средствами docker.
       - pg_data:/var/lib/postgresql/data
     ports:
       - "127.0.0.1:5432:5432"
@@ -31,7 +29,6 @@ services:
       --maxmemory 128mb
       --maxmemory-policy allkeys-lru
     environment:
-      # REDISCLI_AUTH вместо флага -a: пароль не светится в списке процессов.
       REDISCLI_AUTH: ${REDIS_PASSWORD}
     volumes:
       - redis_data:/data
@@ -50,9 +47,6 @@ services:
   backend:
     labels:
       project: "mooddiary"
-    # Образ собирается в CI и приезжает из registry. Переменная позволяет
-    # откатиться на предыдущий выпуск, не трогая код:
-    #   BACKEND_IMAGE=...:sha-<коммит> docker compose up -d backend
     image: ${BACKEND_IMAGE:-mooddiary-backend:latest}
     build: ./backend
     restart: unless-stopped
@@ -65,8 +59,6 @@ services:
       - "127.0.0.1:8000:8000"
     env_file:
       - .env
-    # Больше, чем --graceful-timeout у gunicorn (30s): иначе docker убьёт
-    # контейнер раньше, чем воркеры доработают текущие запросы.
     stop_grace_period: 40s
     healthcheck:
       test:

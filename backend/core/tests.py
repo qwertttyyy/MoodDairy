@@ -28,6 +28,7 @@ class ConfigViewTest(APITestCase):
 
     @override_settings(ENCRYPTION_ENABLED=True)
     def test_anonymous_gets_encryption_enabled_true(self):
+        """Проверяет включённый флаг шифрования для анонимного клиента."""
         response = self.client.get(self.URL)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -35,21 +36,20 @@ class ConfigViewTest(APITestCase):
 
     @override_settings(ENCRYPTION_ENABLED=False)
     def test_anonymous_gets_encryption_enabled_false(self):
+        """Проверяет выключенный флаг шифрования для анонимного клиента."""
         response = self.client.get(self.URL)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data, {"encryption_enabled": False})
 
     def test_response_sets_csrf_cookie(self):
+        """Проверяет установку CSRF-cookie в ответе конфигурации."""
         response = self.client.get(self.URL)
 
         self.assertIn("csrftoken", response.cookies)
         self.assertTrue(response.cookies["csrftoken"].value)
 
 
-# ===================================================================
-#  Контракт ошибок (docs/api-errors.md)
-# ===================================================================
 class ErrorContractTest(APITestCase):
     """Любая ошибка приходит в конверте {"error": {code, message, ...}}."""
 
@@ -70,6 +70,7 @@ class ErrorContractTest(APITestCase):
     }
 
     def setUp(self):
+        """Создаёт пользователя для авторизованных сценариев ошибок."""
         self.user = User.objects.create_user(
             username="err_user", password="Str0ng!Pass99"
         )
@@ -85,17 +86,20 @@ class ErrorContractTest(APITestCase):
         return error
 
     def test_not_found(self):
+        """Проверяет формат ответа для отсутствующей записи."""
         self.client.force_login(self.user)
         resp = self.client.get("/api/entries/999999/")
         self.assertEqual(resp.status_code, status.HTTP_404_NOT_FOUND)
         self._assert_envelope(resp, "not_found")
 
     def test_not_authenticated(self):
+        """Проверяет формат ответа для анонимного доступа."""
         resp = self.client.get("/api/entries/")
         self.assertEqual(resp.status_code, status.HTTP_403_FORBIDDEN)
         self._assert_envelope(resp, "not_authenticated")
 
     def test_validation_error_lists_fields(self):
+        """Проверяет поля в ответе ошибки валидации."""
         self.client.force_login(self.user)
         resp = self.client.post(
             "/api/entries/",
@@ -128,12 +132,14 @@ class ErrorContractTest(APITestCase):
         self.assertIn("password", error["fields"])
 
     def test_method_not_allowed(self):
+        """Проверяет формат ответа для неподдерживаемого метода."""
         self.client.force_login(self.user)
         resp = self.client.delete("/api/config/")
         self.assertEqual(resp.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
         self._assert_envelope(resp, "method_not_allowed")
 
     def test_gone_for_revoked_share(self):
+        """Проверяет статус отозванной ссылки."""
         share = SharedAccess.objects.create(
             user=self.user, data_blob="blob", is_active=False
         )
@@ -142,12 +148,14 @@ class ErrorContractTest(APITestCase):
         self._assert_envelope(resp, "gone")
 
     def test_wrapping_key_missing(self):
+        """Проверяет код ошибки при отсутствии ключа в сессии."""
         self.client.force_login(self.user)
         resp = self.client.get("/api/auth/unwrap-key/")
         self.assertEqual(resp.status_code, status.HTTP_401_UNAUTHORIZED)
         self._assert_envelope(resp, "wrapping_key_missing")
 
     def test_wrapping_key_present_is_not_an_error(self):
+        """Проверяет успешное получение ключа из сессии."""
         self.client.force_login(self.user)
         session = self.client.session
         session[WRAPPING_KEY_SESSION_KEY] = "dGVzdGtleQ=="
@@ -173,18 +181,17 @@ class ErrorContractTest(APITestCase):
         )
 
 
-# ===================================================================
-#  RequestLoggingMiddleware
-# ===================================================================
 class RequestLoggingMiddlewareTest(APITestCase):
     """Идентификатор запроса и очистка контекста."""
 
     def test_request_id_header_present(self):
+        """Проверяет добавление идентификатора запроса в заголовок."""
         resp = self.client.get("/api/config/")
         self.assertIn("X-Request-ID", resp.headers)
         self.assertTrue(resp.headers["X-Request-ID"])
 
     def test_request_id_is_unique_per_request(self):
+        """Проверяет уникальность идентификаторов двух запросов."""
         first = self.client.get("/api/config/").headers["X-Request-ID"]
         second = self.client.get("/api/config/").headers["X-Request-ID"]
         self.assertNotEqual(first, second)
@@ -198,6 +205,7 @@ class RequestLoggingMiddlewareTest(APITestCase):
         """Без finally чужой request_id утёк бы в логи соседнего запроса."""
 
         def boom(request):
+            """Имитирует ошибку обработчика запроса."""
             raise RuntimeError("boom")
 
         middleware = RequestLoggingMiddleware(boom)
@@ -210,17 +218,16 @@ class RequestLoggingMiddlewareTest(APITestCase):
         self.assertEqual(get_request_context(), {})
 
 
-# ===================================================================
-#  JSON-логи (формат читает EFK)
-# ===================================================================
 class JSONFormatterTest(TestCase):
     """Каждая запись лога — одна строка валидного JSON."""
 
     def setUp(self):
+        """Создаёт форматтер и очищает контекст запроса."""
         self.formatter = JSONFormatter()
         clear_request_context()
 
     def _record(self, **extra):
+        """Создаёт тестовую запись журнала с дополнительными полями."""
         record = logging.LogRecord(
             name="entries",
             level=logging.INFO,
@@ -235,16 +242,19 @@ class JSONFormatterTest(TestCase):
         return record
 
     def test_output_is_valid_json(self):
+        """Проверяет JSON-формат обязательных полей записи."""
         payload = json.loads(self.formatter.format(self._record()))
         self.assertEqual(payload["logger"], "entries")
         self.assertEqual(payload["level"], "INFO")
         self.assertEqual(payload["message"], "Entry created by user_id=42")
 
     def test_timestamp_is_iso_utc(self):
+        """Проверяет UTC-формат временной метки."""
         payload = json.loads(self.formatter.format(self._record()))
         self.assertTrue(payload["timestamp"].endswith("+00:00"))
 
     def test_request_context_included(self):
+        """Проверяет перенос контекста запроса в JSON-запись."""
         set_request_context(
             request_id="abc123",
             user_id=7,
@@ -263,17 +273,20 @@ class JSONFormatterTest(TestCase):
         self.assertEqual(payload["path"], "/api/entries/")
 
     def test_optional_fields_omitted_when_absent(self):
+        """Проверяет отсутствие необязательных полей без значений."""
         payload = json.loads(self.formatter.format(self._record()))
         self.assertNotIn("status_code", payload)
         self.assertNotIn("duration_ms", payload)
 
     def test_response_fields_included(self):
+        """Проверяет запись статуса и длительности ответа."""
         record = self._record(status_code=201, duration_ms=12.5)
         payload = json.loads(self.formatter.format(record))
         self.assertEqual(payload["status_code"], 201)
         self.assertEqual(payload["duration_ms"], 12.5)
 
     def test_exception_included(self):
+        """Проверяет добавление трассировки исключения в журнал."""
         try:
             raise ValueError("что-то пошло не так")
         except ValueError:
@@ -298,15 +311,13 @@ class JSONFormatterTest(TestCase):
         self.assertIn("Пользователь", self.formatter.format(record))
 
 
-# ===================================================================
-#  Health-эндпоинт
-# ===================================================================
 class HealthViewTest(APITestCase):
     """GET /api/health/ — состояние зависимостей."""
 
     URL = "/api/health/"
 
     def test_all_dependencies_available(self):
+        """Проверяет успешный ответ при доступных зависимостях."""
         resp = self.client.get(self.URL)
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
         self.assertEqual(resp.data["status"], "ok")
@@ -320,6 +331,7 @@ class HealthViewTest(APITestCase):
 
     @patch("core.views.connection")
     def test_database_failure_returns_503(self, mock_connection):
+        """Проверяет недоступность сервиса при отказе базы данных."""
         mock_connection.cursor.side_effect = OperationalError("нет связи")
 
         resp = self.client.get(self.URL)

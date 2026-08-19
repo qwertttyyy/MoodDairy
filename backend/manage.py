@@ -1,14 +1,12 @@
 #!/usr/bin/env python
-"""Django's command-line utility for administrative tasks."""
+"""Запускает административные команды Django."""
 
 import os
 import sys
 
 
 def main():
-    """Run administrative tasks."""
-    # По умолчанию — настройки разработки. В контейнере значение задаётся
-    # переменной DJANGO_SETTINGS_MODULE=config.settings.prod из Dockerfile.
+    """Передаёт аргументы командной строки стандартному обработчику Django."""
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings.dev")
     try:
         from django.core.management import execute_from_command_line

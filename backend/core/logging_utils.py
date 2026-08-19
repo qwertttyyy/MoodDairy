@@ -15,10 +15,12 @@ def get_request_context() -> dict:
 
 
 def set_request_context(**kwargs) -> None:
+    """Сохраняет контекст текущего запроса в локальном потоке."""
     _local.request_context = kwargs
 
 
 def clear_request_context() -> None:
+    """Очищает контекст текущего запроса в локальном потоке."""
     _local.request_context = {}
 
 
@@ -26,6 +28,7 @@ class RequestContextFilter(logging.Filter):
     """Добавляет request_id, user_id, ip в каждый LogRecord."""
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """Дополняет запись журнала полями текущего запроса."""
         ctx = get_request_context()
         record.request_id = ctx.get("request_id", "-")
         record.user_id = ctx.get("user_id")
@@ -39,6 +42,7 @@ class JSONFormatter(logging.Formatter):
     """Форматирует LogRecord в одну JSON-строку для stdout."""
 
     def format(self, record: logging.LogRecord) -> str:
+        """Сериализует запись журнала в одну JSON-строку."""
         log_entry = {
             "timestamp": datetime.fromtimestamp(
                 record.created, tz=UTC

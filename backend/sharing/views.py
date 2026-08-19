@@ -29,6 +29,7 @@ class ShareView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request: Request) -> Response:
+        """Возвращает метаданные активной ссылки текущего пользователя."""
         share = get_active_share(request.user)
         if not share:
             return Response({"active": False})
@@ -42,6 +43,7 @@ class ShareView(APIView):
         )
 
     def post(self, request: Request) -> Response:
+        """Создаёт или заменяет ссылку из переданного снапшота."""
         serializer = CreateShareSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         share = create_or_update_share(
@@ -56,7 +58,7 @@ class ShareView(APIView):
         return Response({"token": share.token}, status=status.HTTP_201_CREATED)
 
     def delete(self, request: Request) -> Response:
-        """Идемпотентно: повторный отзыв не считается ошибкой."""
+        """Отзывает ссылку текущего пользователя, если она существует."""
         if revoke_share(request.user):
             logger.info("Share revoked by user_id=%d", request.user.id)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -71,6 +73,7 @@ class ShareDataView(APIView):
     throttle_scope = "share"
 
     def get(self, request: Request, token: str) -> Response:
+        """Возвращает данные активной публичной ссылки по токену."""
         share = get_object_or_404(SharedAccess, token=token)
         if not share.is_valid:
             raise Gone()

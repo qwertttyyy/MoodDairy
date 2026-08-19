@@ -37,13 +37,13 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
     """CRUD записей настроения."""
 
     def get_serializer_class(self):
-        # Пишем — Write, всё остальное читаем Read. Условие именно в эту
-        # сторону: новое действие по умолчанию получает безопасный вариант.
+        """Выбирает сериализатор записи для чтения или изменения."""
         if self.action in WRITE_ACTIONS:
             return MoodEntryWriteSerializer
         return MoodEntryReadSerializer
 
     def get_queryset(self):
+        """Возвращает записи текущего пользователя с тегами."""
         return MoodEntry.objects.filter(
             user=self.request.user
         ).prefetch_related("tags")
@@ -59,6 +59,7 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
         )
 
     def update(self, request: Request, *args, **kwargs) -> Response:
+        """Обновляет запись и возвращает её в формате чтения."""
         partial = kwargs.pop("partial", False)
         instance = self.get_object()
         serializer = self.get_serializer(
@@ -70,13 +71,7 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
 
     @entries_cache.cache_response(key_params=("period", "year", "month"))
     def list(self, request: Request, *args, **kwargs) -> Response:
-        """Данные для графиков за период.
-
-        Период обязателен:
-          ?period=2weeks|month|6months|year — относительный отрезок
-          ?year=2026&month=3                — конкретный месяц
-          ?year=2025                        — конкретный год
-        """
+        """Возвращает хронологические данные графика за указанный период."""
         filters = ChartFilterSerializer(data=request.query_params)
         filters.is_valid(raise_exception=True)
         params = filters.validated_data
@@ -100,13 +95,7 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
         throttle_classes=[SnapshotRateThrottle],
     )
     def snapshot(self, request: Request) -> Response:
-        """Вся история со всеми полями — для сборки ссылки врачу.
-
-        Единственное место, где выдача не ограничена периодом: снапшот по
-        смыслу содержит весь дневник, иначе врач увидит обрывок. Поэтому у
-        эндпоинта отдельный лимит частоты, а результат не кэшируется —
-        ссылку создают редко, а держать в Redis полную историю дорого.
-        """
+        """Возвращает всю историю для создания ссылки врачу."""
         entries = (
             MoodEntry.objects.filter(user=request.user)
             .only("mood", "note", "anxiety", "timestamp")
@@ -148,11 +137,13 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
         )
 
     def perform_create(self, serializer: MoodEntryWriteSerializer) -> None:
+        """Сохраняет запись владельцу и инвалидирует его кэш."""
         serializer.save(user=self.request.user)
         entries_cache.invalidate_on_commit(self.request.user.id)
         logger.info("Entry created by user_id=%d", self.request.user.id)
 
     def perform_update(self, serializer: MoodEntryWriteSerializer) -> None:
+        """Сохраняет запись и инвалидирует кэш её владельца."""
         serializer.save()
         entries_cache.invalidate_on_commit(self.request.user.id)
         logger.info(
@@ -162,6 +153,7 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
         )
 
     def perform_destroy(self, instance: MoodEntry) -> None:
+        """Удаляет запись и инвалидирует кэш её владельца."""
         user_id = instance.user_id
         entry_id = instance.id
         instance.delete()
@@ -170,26 +162,26 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
 
 
 class TagViewSet(viewsets.ModelViewSet):
-    """CRUD тегов текущего пользователя.
-
-    Удаление тега не трогает записи: пропадает только связь с ними.
-    """
+    """Управляет тегами текущего пользователя."""
 
     serializer_class = TagSerializer
 
     def get_queryset(self):
+        """Возвращает теги текущего пользователя."""
         return Tag.objects.filter(user=self.request.user)
 
     def perform_create(self, serializer: TagSerializer) -> None:
+        """Создаёт тег владельцу и инвалидирует кэш записей."""
         serializer.save(user=self.request.user)
-        # Теги входят в ответ grouped, поэтому кэш записей тоже устарел.
         entries_cache.invalidate_on_commit(self.request.user.id)
 
     def perform_update(self, serializer: TagSerializer) -> None:
+        """Обновляет тег и инвалидирует кэш записей владельца."""
         serializer.save()
         entries_cache.invalidate_on_commit(self.request.user.id)
 
     def perform_destroy(self, instance: Tag) -> None:
+        """Удаляет тег и инвалидирует кэш записей владельца."""
         user_id = instance.user_id
         instance.delete()
         entries_cache.invalidate_on_commit(user_id)

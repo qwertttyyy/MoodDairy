@@ -3,7 +3,6 @@ name: Test & Deploy
 on:
   push:
     branches: [master]
-  # Проверки на PR: иначе о поломке узнаём, когда код уже в master.
   pull_request:
     branches: [master]
 
@@ -12,10 +11,6 @@ run-name: >-
       && format('Checks for PR #{0}', github.event.number)
       || format('Deploy master by @{0}', github.actor) }}
 
-# Устаревшие прогоны проверок отменяются, деплой — никогда: прерванный между
-# сборкой и перезапуском контейнера, он оставил бы сервер в промежуточном
-# состоянии. Раньше здесь было условие с github.job, но на уровне workflow
-# этот контекст пуст, и отменялся в том числе деплой.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -38,10 +33,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Имя образа в registry обязано быть в нижнем регистре, а
-      # github.repository сохраняет регистр владельца и репозитория.
-      # Выражения GitHub Actions переводить регистр не умеют, поэтому
-      # это делает bash: ${VAR,,}.
       - name: Build image name
         id: image
         run: echo "name=ghcr.io/${GITHUB_REPOSITORY,,}/backend" >> "$GITHUB_OUTPUT"
@@ -88,14 +79,11 @@ jobs:
       - name: Format check
         run: uv run ruff format --check .
 
-      # Ловит расхождение «модель изменили, миграцию забыли»: иначе оно
-      # обнаружится только на проде при первом запросе.
       - name: Migrations are up to date
         run: uv run python manage.py makemigrations --check --dry-run
         env:
           DJANGO_SETTINGS_MODULE: config.settings.dev
 
-      # Django сам проверяет HSTS, куки, DEBUG и SECRET_KEY боевых настроек.
       - name: Deployment checklist
         run: uv run python manage.py check --deploy --fail-level WARNING
         env:
@@ -157,8 +145,6 @@ jobs:
       - name: Production build
         run: npm run build
 
-      # Собранная статика едет на сервер артефактом: пересобирать её там
-      # значит тратить ресурсы прода и рисковать другим результатом.
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
@@ -192,8 +178,6 @@ jobs:
       - name: Set up Buildx
         uses: docker/setup-buildx-action@v3
 
-      # Два тега: sha-<коммит> для точного отката, latest — для ручных команд
-      # на сервере, где переменная BACKEND_IMAGE не задана.
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -254,7 +238,6 @@ jobs:
             set -e
             cd /opt/projects/MoodDairy
 
-            # Нужны только compose-файлы: код приезжает внутри образа.
             git fetch origin master
             git checkout --force ${{ github.sha }} -- \
               docker-compose.yml docker-compose.test.yml

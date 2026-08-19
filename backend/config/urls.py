@@ -1,8 +1,4 @@
-"""Корневые роуты бэкенда.
-
-SPA (включая страницу врача `/share/<token>/`) раздаёт nginx сервера из
-собранной статики фронтенда, поэтому Django обслуживает только API и админку.
-"""
+"""Корневые маршруты API и административного интерфейса Django."""
 
 from django.contrib import admin
 from django.urls import include, path

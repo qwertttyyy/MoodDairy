@@ -5,6 +5,8 @@ from .models import MoodEntry, Tag
 
 @admin.register(Tag)
 class TagAdmin(admin.ModelAdmin):
+    """Настраивает список тегов в административном интерфейсе."""
+
     list_display = ("id", "name", "user")
     search_fields = ("name", "user__username")
     list_select_related = ("user",)
@@ -22,7 +24,7 @@ class MoodEntryAdmin(admin.ModelAdmin):
     filter_horizontal = ("tags",)
 
     def get_queryset(self, request):
-        """Без этого каждая строка списка стоит двух лишних запросов."""
+        """Загружает пользователей и теги вместе со списком записей."""
         return (
             super()
             .get_queryset(request)
@@ -32,10 +34,13 @@ class MoodEntryAdmin(admin.ModelAdmin):
 
     @admin.display(description="Теги")
     def get_tags(self, obj: MoodEntry) -> str:
+        """Возвращает названия тегов записи одной строкой."""
         return ", ".join(t.name for t in obj.tags.all())
 
     def has_add_permission(self, request) -> bool:
+        """Запрещает создавать зашифрованные записи через админку."""
         return False
 
     def has_change_permission(self, request, obj=None) -> bool:
+        """Запрещает изменять зашифрованные записи через админку."""
         return False

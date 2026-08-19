@@ -10,6 +10,8 @@ from entries.models import MoodEntry
 
 
 class Command(BaseCommand):
+    """Создаёт тестовые записи с открытым текстом за указанный период."""
+
     help = (
         "Создаёт 3-5 записей настроения на каждый день за указанный период. "
         "Работает только при ENCRYPTION_ENABLED=0: записи пишутся открытым "
@@ -17,6 +19,7 @@ class Command(BaseCommand):
     )
 
     def add_arguments(self, parser):
+        """Добавляет параметры имени пользователя и глубины истории."""
         parser.add_argument(
             "--username",
             type=str,
@@ -31,8 +34,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        # Отказ вместо предупреждения: тихо засорить базу записями, которые
-        # фронтенд не расшифрует, хуже, чем понятная ошибка на старте.
+        """Создаёт несколько случайных записей для каждого календарного дня."""
         if settings.ENCRYPTION_ENABLED:
             raise CommandError(
                 "ENCRYPTION_ENABLED=1: команда создаст записи, которые "

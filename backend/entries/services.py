@@ -32,11 +32,7 @@ def day_end(day: date) -> datetime:
 def filter_by_calendar(
     qs: QuerySet[MoodEntry], year: int, month: int | None = None
 ) -> QuerySet[MoodEntry]:
-    """Ограничивает выборку календарным месяцем или годом целиком.
-
-    Сравнение идёт по границам диапазона, а не по извлечению части даты:
-    так работает индекс (user, -timestamp).
-    """
+    """Ограничивает выборку календарным месяцем или целым годом."""
     tz = timezone.get_current_timezone()
     if month is None:
         start = datetime(year, 1, 1, tzinfo=tz)
@@ -81,12 +77,7 @@ def fetch_date_page(
 def fetch_entries_for_days(
     user_id: int, days: list[date]
 ) -> QuerySet[MoodEntry]:
-    """Записи за перечисленные дни.
-
-    Дни на странице идут подряд, поэтому берём диапазон времени вместо
-    `timestamp__date__in`: фильтр по выражению от поля не может использовать
-    индекс, а сравнение с границами — может.
-    """
+    """Возвращает записи за перечисленные дни вместе с тегами."""
     return MoodEntry.objects.filter(
         user_id=user_id,
         timestamp__gte=day_start(days[-1]),
@@ -95,11 +86,7 @@ def fetch_entries_for_days(
 
 
 def group_entries_by_day(entries_data: list[dict]) -> dict[str, list[dict]]:
-    """Раскладывает сериализованные записи по календарным дням.
-
-    DRF отдаёт timestamp уже в часовом поясе проекта, поэтому дата в ключе
-    совпадает с той, по которой считалась страница в fetch_date_page.
-    """
+    """Группирует сериализованные записи по локальной календарной дате."""
     grouped: dict[str, list[dict]] = {}
     for item in entries_data:
         day = datetime.fromisoformat(item["timestamp"]).date().isoformat()

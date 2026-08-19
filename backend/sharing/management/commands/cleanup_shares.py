@@ -1,9 +1,4 @@
-"""Удаление отработавших ссылок шаринга.
-
-Просроченные и отозванные записи не нужны никому, но продолжают занимать
-место вместе со своими блобами — а блоб это снапшот всех записей врачу.
-Команда рассчитана на запуск по расписанию (cron, systemd timer).
-"""
+"""Удаляет старые отозванные и просроченные ссылки шаринга."""
 
 from datetime import timedelta
 
@@ -13,18 +8,19 @@ from django.utils import timezone
 
 from sharing.models import SharedAccess
 
-# Запас перед удалением: если пользователь пожалуется на пропавшую ссылку,
-# запись ещё можно посмотреть в базе.
 DEFAULT_RETENTION_DAYS = 7
 
 
 class Command(BaseCommand):
+    """Удаляет отработавшие ссылки после заданного срока хранения."""
+
     help = (
         "Удаляет просроченные и отозванные ссылки шаринга старше N дней "
         f"(по умолчанию {DEFAULT_RETENTION_DAYS})."
     )
 
     def add_arguments(self, parser):
+        """Добавляет срок хранения и режим предварительного просмотра."""
         parser.add_argument(
             "--days",
             type=int,
@@ -38,6 +34,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
+        """Находит отработавшие ссылки и при необходимости удаляет их."""
         cutoff = timezone.now() - timedelta(days=options["days"])
 
         stale = SharedAccess.objects.filter(

@@ -6,11 +6,6 @@ from .constants import SHARE_BLOB_MAX_LENGTH
 
 
 class CreateShareSerializer(serializers.Serializer):
-    """Снапшот записей для врача.
-
-    Флага is_encrypted здесь нет намеренно: это состояние сервера
-    (settings.ENCRYPTION_ENABLED), а не выбор клиента. Иначе укравший сессию
-    мог бы создать ссылку, помеченную как незашифрованная.
-    """
+    """Проверяет блоб снапшота для создания ссылки врачу."""
 
     data_blob = serializers.CharField(max_length=SHARE_BLOB_MAX_LENGTH)

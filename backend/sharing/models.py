@@ -8,6 +8,7 @@ from django.utils import timezone
 
 
 def generate_token() -> str:
+    """Генерирует URL-безопасный токен ссылки."""
     return secrets.token_urlsafe(24)
 
 
@@ -32,17 +33,22 @@ class SharedAccess(models.Model):
     expires_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
+        """Задаёт порядок и названия модели в административном интерфейсе."""
+
         verbose_name = "Общий доступ"
         verbose_name_plural = "Общие доступы"
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
+        """Возвращает сокращённый токен и владельца ссылки."""
         return f"Share {self.token[:8]}… — {self.user}"
 
     @property
     def is_expired(self) -> bool:
+        """Проверяет, истёк ли заданный срок действия ссылки."""
         return self.expires_at is not None and timezone.now() > self.expires_at
 
     @property
     def is_valid(self) -> bool:
+        """Проверяет, активна ли ссылка и не истёк ли её срок."""
         return self.is_active and not self.is_expired
