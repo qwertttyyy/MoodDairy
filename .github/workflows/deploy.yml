@@ -44,6 +44,7 @@ jobs:
           filters: |
             backend:
               - 'backend/**'
+              - 'docker-compose.yml'
               - 'docker-compose.test.yml'
             frontend:
               - 'frontend/**'
@@ -223,6 +224,7 @@ jobs:
           overwrite: true
 
       - name: Deploy backend
+        if: needs.build-image.result == 'success'
         uses: appleboy/ssh-action@v1
         env:
           IMAGE_NAME: ${{ needs.changes.outputs.image }}
