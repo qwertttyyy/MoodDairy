@@ -7,6 +7,11 @@ const BACKEND = 'http://localhost:8000'
 
 export default defineConfig({
   plugins: [react()],
+  build: {
+    // Lightning CSS заменяет стандартный backdrop-filter устаревшим WebKit-вариантом.
+    // В Chromium он игнорируется, поэтому стекло исчезает только в production-сборке.
+    cssMinify: false,
+  },
   server: {
     proxy: {
       '/api': BACKEND,
