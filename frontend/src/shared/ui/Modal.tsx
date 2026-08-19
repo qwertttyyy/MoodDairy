@@ -11,6 +11,8 @@ interface ModalProps {
   onClose: () => void
   /** Доп. класс на `.modal`: `modal-sm`, `modal-guide`, `entry-form`. */
   className?: string
+  /** Доп. класс на затемняющий слой вокруг окна. */
+  overlayClassName?: string
   /** Кнопка, из которой окно вырастает и в которую схлопывается. */
   morphFrom?: DOMRect | null
   children: ReactNode
@@ -23,7 +25,14 @@ interface ModalProps {
  * Если передан `morphFrom`, окно появляется ростом из этой кнопки. Размонтируем
  * его не сразу: пока идёт обратная анимация, содержимое должно оставаться в DOM.
  */
-export function Modal({ open, onClose, className, morphFrom, children }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  className,
+  overlayClassName,
+  morphFrom,
+  children,
+}: ModalProps) {
   const [mounted, setMounted] = useState(open)
   const overlayRef = useRef<HTMLDivElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
@@ -84,11 +93,12 @@ export function Modal({ open, onClose, className, morphFrom, children }: ModalPr
   const boxClass = ['modal', className, morphFrom ? 'modal-morph' : null]
     .filter(Boolean)
     .join(' ')
+  const overlayClass = ['modal-overlay', overlayClassName].filter(Boolean).join(' ')
 
   return (
     <div
       ref={overlayRef}
-      className="modal-overlay"
+      className={overlayClass}
       onClick={(event) => {
         if (event.target === event.currentTarget) onClose()
       }}

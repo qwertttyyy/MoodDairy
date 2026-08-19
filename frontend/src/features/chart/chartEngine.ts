@@ -6,7 +6,7 @@
  * Что здесь важно:
  *   • ось X календарная — точка стоит на своей дате;
  *   • подписи дат подбираются по измеренной ширине текста и не пересекаются;
- *   • дни без записей дают разрыв линии;
+ *   • известные значения соединяются через дни без записей;
  *   • длинные периоды сворачиваются по неделям и месяцам, как в «Здоровье»;
  *   • сглаживание ограничено интервалом соседних точек — кривая не выходит
  *     за пределы данных.
@@ -66,8 +66,6 @@ interface Point {
   x: number
   y: number
   value: number
-  /** Порядковый номер дня или интервала — по нему находятся разрывы. */
-  seq: number
 }
 
 const FALLBACK: Record<string, Rgba> = {
@@ -217,7 +215,6 @@ interface Bucket {
   count: number
   firstIndex: number
   lastIndex: number
-  seq: number
 }
 
 /**
@@ -235,7 +232,7 @@ function collectPoints(
   if (aggregation === 'none') {
     const points: Point[] = []
     values.forEach((value, index) => {
-      if (value !== null) points.push({ x: x(index), y: y(value), value, seq: index })
+      if (value !== null) points.push({ x: x(index), y: y(value), value })
     })
     return points
   }
@@ -248,7 +245,6 @@ function collectPoints(
       count: 0,
       firstIndex: index,
       lastIndex: index,
-      seq: buckets.size,
     }
     bucket.lastIndex = index
     const value = values[index]
@@ -264,19 +260,9 @@ function collectPoints(
     if (!bucket.count) continue
     const average = bucket.sum / bucket.count
     const center = (bucket.firstIndex + bucket.lastIndex) / 2
-    points.push({ x: x(center), y: y(average), value: average, seq: bucket.seq })
+    points.push({ x: x(center), y: y(average), value: average })
   }
   return points
-}
-
-/** Разрывы: подряд идущие точки объединяются в сегменты, пропуски их делят. */
-function splitSegments(points: Point[], gapLimit: number): Point[][] {
-  const segments: Point[][] = [[points[0]]]
-  for (let i = 1; i < points.length; i++) {
-    if (points[i].seq - points[i - 1].seq > gapLimit) segments.push([points[i]])
-    else segments[segments.length - 1].push(points[i])
-  }
-  return segments
 }
 
 /** Рисует график целиком: сетку, подписи осей и сами данные. */
@@ -363,9 +349,6 @@ export function drawChart(canvas: HTMLCanvasElement, options: ChartOptions): voi
   const points = collectPoints(rows, values, aggregation, x, y)
   if (!points.length) return
 
-  // День без записей ещё не разрыв: линия рвётся с двух пропусков подряд.
-  const segments = splitSegments(points, aggregation === 'none' ? 2 : 1)
-
   if (options.style === 'bars') {
     const slot =
       points.length > 1
@@ -396,12 +379,11 @@ export function drawChart(canvas: HTMLCanvasElement, options: ChartOptions): voi
   gradient.addColorStop(0, rgba(colorFillTop))
   gradient.addColorStop(1, rgba(colorFillBottom))
   ctx.fillStyle = gradient
-  for (const segment of segments) {
-    if (segment.length < 2) continue
+  if (points.length >= 2) {
     ctx.beginPath()
-    tracePath(ctx, segment, options.smooth)
-    ctx.lineTo(segment[segment.length - 1].x, baseY)
-    ctx.lineTo(segment[0].x, baseY)
+    tracePath(ctx, points, options.smooth)
+    ctx.lineTo(points[points.length - 1].x, baseY)
+    ctx.lineTo(points[0].x, baseY)
     ctx.closePath()
     ctx.fill()
   }
@@ -412,15 +394,13 @@ export function drawChart(canvas: HTMLCanvasElement, options: ChartOptions): voi
   ctx.lineWidth = lineWidth
   ctx.lineJoin = 'round'
   ctx.lineCap = 'round'
-  for (const segment of segments) {
-    ctx.beginPath()
-    if (segment.length < 2) {
-      // Одинокий день между разрывами: линии из него не выходит, рисуем точку.
-      ctx.arc(segment[0].x, segment[0].y, lineWidth * 0.8, 0, Math.PI * 2)
-      ctx.fill()
-      continue
-    }
-    tracePath(ctx, segment, options.smooth)
+  ctx.beginPath()
+  if (points.length < 2) {
+    ctx.arc(points[0].x, points[0].y, lineWidth * 0.8, 0, Math.PI * 2)
+    ctx.fill()
+  } else {
+    // Пропуски сохраняют расстояние по времени, но не разрывают линию.
+    tracePath(ctx, points, options.smooth)
     ctx.stroke()
   }
 

@@ -88,41 +88,13 @@
 /* ============================================
    ТЕГИ
    ============================================ */
-/* Обойма свайпа: строка ездит поверх кнопки удаления, лежащей у правого края. */
-.tag-swipe {
-    position: relative;
-    overflow: hidden;
-    border-radius: var(--r-sm);
-}
-
-.tag-swipe .set-row {
-    position: relative;
-    z-index: 1;
-    /* Скругление держит обойма: у своих скруглённых углов строка пропускала
-       красную кнопку наружу. */
-    border-radius: 0;
-    /* Вертикальную прокрутку отдаём странице, горизонтальный жест — строке. */
-    touch-action: pan-y;
-}
-
-.tag-delete {
-    position: absolute;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    width: 88px;
+.tag-actions {
     display: flex;
     align-items: center;
-    justify-content: center;
-    font-size: 17px;
-    line-height: 22px;
-    font-weight: 600;
-    color: #ffffff;
-    background: var(--danger);
+    gap: 2px;
 }
 
-/* Карандаш: акцентный контур без заливки — самая тихая кнопка в списке. */
-.tag-edit {
+.tag-action {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -130,18 +102,25 @@
     height: 32px;
     flex: none;
     border-radius: 16px;
-    color: var(--accent);
     transition: opacity var(--t-fast);
 }
 
-.tag-edit:active {
+.tag-action:active {
     opacity: 0.5;
 }
 
-.tag-edit svg {
+.tag-action svg {
     width: 19px;
     height: 19px;
     display: block;
+}
+
+.tag-edit {
+    color: var(--accent);
+}
+
+.tag-remove {
+    color: var(--danger);
 }
 
 /* Поле переименования и поле нового тега сидят прямо на строке: рамка здесь

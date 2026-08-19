@@ -4,6 +4,7 @@
  * Ось X у графика календарная: точка стоит на своей дате, а не на «номере
  * записи по порядку». Поэтому из записей строится ряд «по одному элементу на
  * каждый день периода»: значение — среднее за день, null — записей не было.
+ * Рендерер соединяет соседние известные значения, не подменяя пустые дни.
  */
 
 import { MAX_ANXIETY, MAX_MOOD } from '../../shared/constants'
@@ -43,7 +44,7 @@ function isValid(value: number | undefined, max: number): value is number {
 
 /**
  * Ряд из одного элемента на каждый день периода.
- * Дни без записей остаются с null — именно они дают разрыв линии.
+ * Дни без записей остаются с null и сохраняют календарный масштаб оси.
  */
 export function buildDailySeries(entries: ChartEntry[], range: DayRange): DayPoint[] {
   const from = startOfDay(range.from)

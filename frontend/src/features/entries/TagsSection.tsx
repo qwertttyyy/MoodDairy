@@ -1,13 +1,4 @@
-/**
- * Управление тегами внутри настроек.
- *
- * Теги принадлежат пользователю: раньше их набор был общим и правился только
- * через админку. Удаление тега записи не трогает — пропадает лишь его связь
- * с ними, поэтому подтверждение объясняет именно это.
- *
- * Оформление системное: в спокойном виде строка показывает только имя и
- * карандаш, удаление прячется за свайпом влево.
- */
+/** Управление пользовательскими тегами внутри настроек. */
 
 import { useState } from 'react'
 
@@ -16,12 +7,8 @@ import type { Tag } from '../../shared/api/types'
 import { useConfirm } from '../../shared/ui/ConfirmProvider'
 import { useToast } from '../../shared/ui/ToastProvider'
 import { useCreateTag, useDeleteTag, useRenameTag, useTags } from './api'
-import { useSwipeAction } from './useSwipeAction'
 
 const MAX_TAG_LENGTH = 50
-
-/** Ширина кнопки удаления и одновременно предел свайпа, px. */
-const SWIPE_WIDTH = 88
 
 /** Текст ошибки от сервера: у валидации он лежит в поле, иначе — общий. */
 function errorText(error: unknown, fallback: string): string {
@@ -45,14 +32,22 @@ function PencilIcon() {
   )
 }
 
-/**
- * Строка тега со свайпом влево — тем же жестом, что и в ленте записей.
- *
- * Кнопка удаления существует только на время сдвига. В покое её не рендерим
- * не ради экономии: сдвигаемая строка живёт в собственном слое композитора,
- * и обойма со скруглением не обрезает то, что лежит под этим слоем, — красный
- * прямоугольник проступал дугами по краям каждой строки.
- */
+function TrashIcon() {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.7"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    >
+      <path d="M4.5 7h15M9 3.8h6M7 7l.8 13.2h8.4L17 7M10 10.5v6M14 10.5v6" />
+    </svg>
+  )
+}
+
+/** Строка тега с явными действиями переименования и удаления. */
 function TagRow({
   tag,
   onEdit,
@@ -62,39 +57,23 @@ function TagRow({
   onEdit: () => void
   onDelete: () => void
 }) {
-  const swipe = useSwipeAction(SWIPE_WIDTH)
-
   return (
-    <div className="tag-swipe">
-      {swipe.shifted && (
+    <div className="set-row">
+      <span className="set-label">{tag.name}</span>
+      <div className="tag-actions">
         <button
-          className="tag-delete"
-          onClick={() => {
-            swipe.close()
-            onDelete()
-          }}
-        >
-          Удалить
-        </button>
-      )}
-      <div
-        className="set-row"
-        style={{
-          transform: `translateX(${swipe.offset}px)`,
-          transition: swipe.dragging ? 'none' : 'transform var(--t-spring)',
-        }}
-        {...swipe.handlers}
-      >
-        <span className="set-label">{tag.name}</span>
-        <button
-          className="tag-edit"
+          className="tag-action tag-edit"
           aria-label={`Переименовать тег «${tag.name}»`}
-          onClick={() => {
-            swipe.close()
-            onEdit()
-          }}
+          onClick={onEdit}
         >
           <PencilIcon />
+        </button>
+        <button
+          className="tag-action tag-remove"
+          aria-label={`Удалить тег «${tag.name}»`}
+          onClick={onDelete}
+        >
+          <TrashIcon />
         </button>
       </div>
     </div>

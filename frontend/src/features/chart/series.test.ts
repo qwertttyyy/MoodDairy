@@ -31,7 +31,7 @@ describe('buildDailySeries', () => {
     expect(rows.map((row) => row.date.getDate())).toEqual([1, 2, 3, 4, 5])
   })
 
-  it('день без записей остаётся пустым — это разрыв линии, а не соединение', () => {
+  it('день без записей остаётся пустым и не подменяется выдуманной оценкой', () => {
     const rows = buildDailySeries([entry(1, 4), entry(4, 8)], MARCH)
 
     expect(rows.map((row) => row.mood)).toEqual([4, null, null, 8, null])

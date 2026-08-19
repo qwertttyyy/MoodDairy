@@ -199,7 +199,13 @@ export function EntryModal() {
   }
 
   return (
-    <Modal open={isOpen} onClose={close} className="entry-form" morphFrom={origin}>
+    <Modal
+      open={isOpen}
+      onClose={close}
+      className="entry-form"
+      overlayClassName="entry-form-overlay"
+      morphFrom={origin}
+    >
       <div className="modal-handle" />
       <div className="modal-header">
         <h2>{isEditing ? 'Редактировать' : 'Новая запись'}</h2>

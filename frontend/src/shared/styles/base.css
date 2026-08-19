@@ -37,8 +37,10 @@
     --surface-border: 0.5px solid rgba(0, 0, 0, 0.06);
     --surface-shadow: 0 -14px 44px rgba(0, 0, 0, 0.28);
     --scrim: rgba(0, 0, 0, 0.4);
-    /* Поверхность окна формы: полупрозрачная, размытие задано в modal.css. */
+    /* Стеклянные поверхности модальных окон; размытие задано в modal.css. */
     --sheet-glass: rgba(252, 252, 254, 0.86);
+    --entry-sheet-glass: rgba(252, 252, 254, 0.72);
+    --entry-scrim: rgba(0, 0, 0, 0.28);
 
     /* ── Поля и чипы на плотной поверхности ── */
     --field-bg: #efeff2;
@@ -147,6 +149,8 @@
     --surface-shadow: 0 -14px 44px rgba(0, 0, 0, 0.7);
     --scrim: rgba(0, 0, 0, 0.56);
     --sheet-glass: rgba(42, 42, 47, 0.82);
+    --entry-sheet-glass: rgba(42, 42, 47, 0.66);
+    --entry-scrim: rgba(0, 0, 0, 0.38);
 
     --field-bg: #2c2c2e;
     --field-border: rgba(255, 255, 255, 0.1);
@@ -203,6 +207,7 @@
     --lg-blur: 0px !important;
     --surface: var(--surface-solid) !important;
     --sheet-glass: var(--surface-solid) !important;
+    --entry-sheet-glass: var(--surface-solid) !important;
     --scrim: rgba(0, 0, 0, 0.75) !important;
 }
 

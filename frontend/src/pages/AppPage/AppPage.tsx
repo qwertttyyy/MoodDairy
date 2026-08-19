@@ -50,41 +50,20 @@ function AppShell() {
 
   return (
     <div className="app-shell">
-      {/* Памятка объясняет шкалы оценок, поэтому висит там, где оценки видны.
-          На настройках её нет ещё и потому, что при прокрутке кнопка встала бы
-          ровно над переключателями в правом столбце. */}
-      <button
-        className={tab === 'settings' ? 'btn-icon-glass float-info hidden' : 'btn-icon-glass float-info'}
-        onClick={() => guide.open('mood')}
-        aria-label="Шкала настроения"
-      >
-        <svg
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.7"
-          strokeLinecap="round"
-        >
-          <circle cx="12" cy="12" r="9" />
-          <path d="M12 11v6" />
-          <circle cx="12" cy="7.5" r="1.05" fill="currentColor" stroke="none" />
-        </svg>
-      </button>
-
       {/* Табы остаются в DOM и скрываются классом — как в старом фронте:
           так лента не теряет прокрутку при переключении. */}
       <main className={tabClass(tab === 'home')} id="tab-home">
-        <h2 className="large-title">Записи</h2>
+        <PageHeader title="Записи" onOpenGuide={() => guide.open('mood')} />
         <EntriesTab />
       </main>
 
       <section className={tabClass(tab === 'chart')} id="tab-chart">
-        <h2 className="large-title">График</h2>
+        <PageHeader title="График" onOpenGuide={() => guide.open('mood')} />
         <ChartTab active={tab === 'chart'} />
       </section>
 
       <section className={tabClass(tab === 'settings')} id="tab-settings">
-        <h2 className="large-title">Настройки</h2>
+        <PageHeader title="Настройки" />
         <SettingsTab />
       </section>
 
@@ -109,6 +88,34 @@ function AppShell() {
         </button>
       </div>
     </div>
+  )
+}
+
+/** Заголовок экрана с памяткой, которая уезжает вместе с верхней панелью. */
+function PageHeader({ title, onOpenGuide }: { title: string; onOpenGuide?: () => void }) {
+  return (
+    <header className="page-header">
+      <h2 className="large-title">{title}</h2>
+      {onOpenGuide && (
+        <button
+          className="btn-icon-glass page-info"
+          onClick={onOpenGuide}
+          aria-label="Шкала настроения"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.7"
+            strokeLinecap="round"
+          >
+            <circle cx="12" cy="12" r="9" />
+            <path d="M12 11v6" />
+            <circle cx="12" cy="7.5" r="1.05" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
+      )}
+    </header>
   )
 }
 
