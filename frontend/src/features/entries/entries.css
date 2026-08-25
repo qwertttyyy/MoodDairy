@@ -136,6 +136,17 @@
   transition: transform var(--t-spring);
 }
 
+.corrupted-entry {
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  color: var(--danger-t);
+}
+
+.entry-corrupted {
+  background: var(--danger-t);
+}
+
 .feed-row.is-dragging {
   transition: none;
 }

@@ -14,6 +14,7 @@ import { api, REQUEST_TIMEOUTS } from '../../shared/api/client'
 import {
   createShareResponseSchema,
   sharingStatusResponseSchema,
+  shareEntrySchema,
   snapshotRawEntriesSchema,
   voidResponseSchema,
 } from '../../shared/api/types'
@@ -33,6 +34,13 @@ export const sharingKeys = {
 export interface CreatedShare {
   token: string
   shareKeyB64: string
+}
+
+export class IncompleteShareError extends Error {
+  constructor() {
+    super('Ссылку нельзя создать: часть записей не удалось расшифровать')
+    this.name = 'IncompleteShareError'
+  }
 }
 
 /** Метаданные активной ссылки. Ошибку не показываем — как и старый `Share.loadActive`. */
@@ -106,15 +114,21 @@ async function createShare(): Promise<CreatedShare> {
  * только поля для графика и требует период, тогда как врачу нужен дневник
  * целиком, вместе с заметками.
  */
-async function buildSnapshotJson(): Promise<string> {
+export async function buildSnapshotJson(): Promise<string> {
   const raw = await api.get('/api/entries/snapshot/', snapshotRawEntriesSchema)
-  const entries: ShareEntry[] = await Promise.all(
-    raw.map(async (item) => ({
-      mood: parseInt(await decrypt(item.mood), 10) || 0,
-      note: item.note ? await decrypt(item.note) : '',
-      anxiety: item.anxiety ? parseInt(await decrypt(item.anxiety), 10) || 0 : 0,
-      timestamp: item.timestamp,
-    })),
+  const settled = await Promise.allSettled(
+    raw.map(async (item) =>
+      shareEntrySchema.parse({
+        mood: Number.parseInt(await decrypt(item.mood), 10),
+        note: item.note ? await decrypt(item.note) : '',
+        anxiety: item.anxiety ? Number.parseInt(await decrypt(item.anxiety), 10) : 0,
+        timestamp: item.timestamp,
+      }),
+    ),
+  )
+  if (settled.some((result) => result.status === 'rejected')) throw new IncompleteShareError()
+  const entries: ShareEntry[] = settled.flatMap((result) =>
+    result.status === 'fulfilled' ? [result.value] : [],
   )
   return JSON.stringify(entries)
 }

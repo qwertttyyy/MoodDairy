@@ -139,8 +139,13 @@ export function hasWrapped(): boolean {
 }
 
 export function clearKeys(): void {
-  sessionStorage.removeItem(ENC_KEY_STORAGE)
+  clearSessionKey()
   localStorage.removeItem(WRAPPED_KEY_STORAGE)
+}
+
+/** При истечении сессии wrapped key сохраняется для следующего входа. */
+export function clearSessionKey(): void {
+  sessionStorage.removeItem(ENC_KEY_STORAGE)
   cachedKey = null
 }
 

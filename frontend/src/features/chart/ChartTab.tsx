@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react'
 
 import { useSettings } from '../../shared/settings/settings'
 import { ChartIcon } from '../../shared/ui/EmptyStateIcons'
+import { ErrorState, LoadingState } from '../../shared/ui/QueryState'
 import { useChartEntries, useDateRange } from '../entries/api'
 import { ChartStats } from './ChartStats'
 import { MoodChart } from './MoodChart'
@@ -33,18 +34,18 @@ export function ChartTab({ active }: { active: boolean }) {
   )
 
   // Запросы уходят только на открытом табе: скрытому графику данные не нужны.
-  const { data, isPending } = useChartEntries(period.query, active)
+  const { data, error, isPending, refetch } = useChartEntries(period.query, active)
   const { data: previousData } = useChartEntries(period.previous.query, active)
-  const { data: dateRange } = useDateRange(active)
+  const { data: dateRange, error: dateRangeError, refetch: refetchDateRange } = useDateRange(active)
 
-  const entries = useMemo(() => data ?? [], [data])
+  const entries = useMemo(() => data?.entries ?? [], [data])
   const hasEntries = entries.length > 0
   // Пока первая загрузка не закончилась, решать нечем — пустое состояние не показываем.
   const showEmpty = !isPending && !hasEntries
 
   const average = averageMood(entries)
   const trend = useMemo(
-    () => moodTrend(average, previousData ?? [], period.previous.range),
+    () => moodTrend(average, previousData?.entries ?? [], period.previous.range),
     [average, previousData, period.previous.range],
   )
 
@@ -56,6 +57,19 @@ export function ChartTab({ active }: { active: boolean }) {
     // а не с того, на котором остановились в прошлый раз.
     if (next === 'month') setSelectedMonth(currentYearMonth())
     if (next === 'year') setSelectedYear(clampYear(currentYear(), firstMonth?.year ?? null))
+  }
+
+  if (isPending) return <LoadingState label="Загружаем график…" />
+  if (error || dateRangeError) {
+    return (
+      <ErrorState
+        message="Не удалось загрузить данные графика"
+        onRetry={() => {
+          void refetch()
+          void refetchDateRange()
+        }}
+      />
+    )
   }
 
   return (
@@ -94,6 +108,11 @@ export function ChartTab({ active }: { active: boolean }) {
 
       {hasEntries && (
         <>
+          {data.corruptedCount > 0 ? (
+            <p className="chart-warning" role="status">
+              Не удалось расшифровать записей: {data.corruptedCount}. Они не показаны на графике.
+            </p>
+          ) : null}
           <div className="chart-summary">
             <div>
               <div className="chart-avg">{average === null ? '—' : average.toFixed(1)}</div>

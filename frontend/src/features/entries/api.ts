@@ -22,9 +22,14 @@ import {
   voidResponseSchema,
 } from '../../shared/api/types'
 import type { DateRangeResponse, RawEntry, Tag } from '../../shared/api/types'
-import { decrypt, encrypt } from '../../shared/crypto/crypto'
+import {
+  DecryptionError,
+  EncryptedDataFormatError,
+  decrypt,
+  encrypt,
+} from '../../shared/crypto/crypto'
 import type { ChartEntry } from '../chart/types'
-import type { DecryptedEntry, EntryDayGroup, EntryFormData } from './types'
+import type { EntryDayGroup, EntryFormData, EntryResult } from './types'
 
 /**
  * Относительные отрезки от текущего момента (список из PERIOD_DAYS бэкенда).
@@ -54,15 +59,39 @@ export const entriesKeys = {
   tags: ['tags'] as const,
 }
 
-export async function decryptEntry(raw: RawEntry): Promise<DecryptedEntry> {
-  return {
-    id: raw.id,
-    mood: parseInt(await decrypt(raw.mood), 10) || 0,
-    note: raw.note ? await decrypt(raw.note) : '',
-    anxiety: raw.anxiety ? parseInt(await decrypt(raw.anxiety), 10) || 0 : 0,
-    tags: raw.tags ?? [],
-    timestamp: raw.timestamp,
+export async function decryptEntry(raw: RawEntry): Promise<EntryResult> {
+  try {
+    const mood = Number.parseInt(await decrypt(raw.mood), 10)
+    const anxiety = raw.anxiety ? Number.parseInt(await decrypt(raw.anxiety), 10) : 0
+    if (!Number.isInteger(mood) || mood < 1 || mood > 9) throw new EncryptedDataFormatError()
+    if (!Number.isInteger(anxiety) || anxiety < 0 || anxiety > 5) {
+      throw new EncryptedDataFormatError()
+    }
+    return {
+      kind: 'ready',
+      id: raw.id,
+      mood,
+      note: raw.note ? await decrypt(raw.note) : '',
+      anxiety,
+      tags: raw.tags,
+      timestamp: raw.timestamp,
+    }
+  } catch (error) {
+    if (error instanceof EncryptedDataFormatError || error instanceof DecryptionError) {
+      return { kind: 'corrupted', id: raw.id, timestamp: raw.timestamp }
+    }
+    throw error
   }
+}
+
+export async function decryptEntries(items: RawEntry[]): Promise<EntryResult[]> {
+  const settled = await Promise.allSettled(items.map(decryptEntry))
+  return settled.map((result, index) => {
+    if (result.status === 'fulfilled') return result.value
+    const raw = items[index]
+    if (!raw) throw new Error('Результат расшифровки не соответствует записи')
+    return { kind: 'corrupted', id: raw.id, timestamp: raw.timestamp }
+  })
 }
 
 interface FeedPage {
@@ -85,7 +114,7 @@ export function useEntriesFeed() {
       const days = await Promise.all(
         Object.entries(data.results).map(async ([day, items]) => ({
           day,
-          entries: await Promise.all(items.map(decryptEntry)),
+          entries: await decryptEntries(items),
         })),
       )
       return { days, nextBefore: data.next_before }
@@ -96,7 +125,7 @@ export function useEntriesFeed() {
 
 /** Склеивает страницы ленты в дни, отсортированные от новых к старым. */
 export function mergeFeedPages(pages: FeedPage[] | undefined): EntryDayGroup[] {
-  const byDay = new Map<string, DecryptedEntry[]>()
+  const byDay = new Map<string, EntryResult[]>()
   for (const page of pages ?? []) {
     for (const group of page.days) {
       const existing = byDay.get(group.day)
@@ -110,8 +139,13 @@ export function mergeFeedPages(pages: FeedPage[] | undefined): EntryDayGroup[] {
 }
 
 /** Данные графиков: нужны mood и anxiety, поэтому заметки не расшифровываем. */
+export interface ChartData {
+  entries: ChartEntry[]
+  corruptedCount: number
+}
+
 export function useChartEntries(query: ChartQuery, enabled: boolean) {
-  return useQuery<ChartEntry[]>({
+  return useQuery<ChartData>({
     queryKey: entriesKeys.chart(query),
     enabled,
     // При смене периода на канвасе остаётся прежняя картинка до перерисовки —
@@ -119,17 +153,28 @@ export function useChartEntries(query: ChartQuery, enabled: boolean) {
     placeholderData: keepPreviousData,
     queryFn: async ({ signal }) => {
       const raw = await api.get(buildChartUrl(query), chartRawEntriesSchema, { signal })
-      const entries = await Promise.all(
-        raw.map(async (item) => ({
-          mood: parseInt(await decrypt(item.mood), 10) || 0,
-          // Тревога необязательна: пустая строка означает «оценку не ставили».
-          anxiety: item.anxiety ? parseInt(await decrypt(item.anxiety), 10) || 0 : 0,
-          timestamp: item.timestamp,
-        })),
+      const settled = await Promise.allSettled(
+        raw.map(async (item) => {
+          const mood = Number.parseInt(await decrypt(item.mood), 10)
+          const anxiety = item.anxiety ? Number.parseInt(await decrypt(item.anxiety), 10) : 0
+          if (
+            !Number.isInteger(mood) ||
+            mood < 1 ||
+            mood > 9 ||
+            !Number.isInteger(anxiety) ||
+            anxiety < 0 ||
+            anxiety > 5
+          ) {
+            throw new EncryptedDataFormatError()
+          }
+          return { mood, anxiety, timestamp: item.timestamp }
+        }),
       )
-      return entries
+      const entries = settled
+        .flatMap((result) => (result.status === 'fulfilled' ? [result.value] : []))
         .filter((entry) => entry.mood >= 1 && entry.mood <= 9)
         .sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime())
+      return { entries, corruptedCount: settled.length - entries.length }
     },
   })
 }

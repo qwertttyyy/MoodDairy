@@ -130,7 +130,7 @@ export function EntryModal() {
     useEntryModal()
   const { open: openGuide } = useGuide()
   const showToast = useToast()
-  const { data: tags } = useTags()
+  const { data: tags, error: tagsError, refetch: refetchTags } = useTags()
   const saveEntry = useSaveEntry()
 
   const [note, setNote] = useState('')
@@ -260,6 +260,14 @@ export function EntryModal() {
               </button>
             ))}
           </div>
+          {tagsError ? (
+            <div className="inline-error" role="alert">
+              <span>Не удалось загрузить теги</span>
+              <button type="button" className="btn-plain" onClick={() => void refetchTags()}>
+                Повторить
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="field-block">

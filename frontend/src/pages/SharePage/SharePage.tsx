@@ -8,6 +8,7 @@ import { useParams } from 'react-router'
 
 import { ChartStats } from '../../features/chart/ChartStats'
 import { MoodChart } from '../../features/chart/MoodChart'
+import { NetworkError, RequestTimeoutError } from '../../shared/api/client'
 import type { ShareEntry } from '../../shared/api/types'
 import { MONTH_NAMES, MOOD_LABELS } from '../../shared/constants'
 import { dayLabelPlain, formatTime } from '../../shared/lib/dates'
@@ -22,18 +23,24 @@ const MISSING_KEY_TITLE = 'Ключ отсутствует'
 /** Три состояния страницы — как три блока в share.html. */
 type PageState =
   | { status: 'loading' }
-  | { status: 'error'; title: string }
+  | { status: 'error'; title: string; text: string; retryable: boolean }
   | { status: 'ready'; entries: ShareEntry[] }
 
 export function SharePage() {
   const { token } = useParams<'token'>()
   const [state, setState] = useState<PageState>({ status: 'loading' })
+  const [attempt, setAttempt] = useState(0)
 
   useSystemTheme()
 
   useEffect(() => {
     if (!token) {
-      setState({ status: 'error', title: INVALID_LINK_TITLE })
+      setState({
+        status: 'error',
+        title: INVALID_LINK_TITLE,
+        text: 'Проверьте адрес или запросите новую ссылку у пациента',
+        retryable: false,
+      })
       return
     }
 
@@ -48,15 +55,31 @@ export function SharePage() {
       })
       .catch((error: unknown) => {
         if (cancelled) return
-        const title = error instanceof MissingKeyError ? MISSING_KEY_TITLE : INVALID_LINK_TITLE
-        setState({ status: 'error', title })
+        if (error instanceof NetworkError || error instanceof RequestTimeoutError) {
+          setState({
+            status: 'error',
+            title: navigator.onLine ? 'Сервер сейчас недоступен' : 'Нет подключения к интернету',
+            text: 'Для открытия общей ссылки нужен интернет.',
+            retryable: true,
+          })
+          return
+        }
+        setState({
+          status: 'error',
+          title: error instanceof MissingKeyError ? MISSING_KEY_TITLE : INVALID_LINK_TITLE,
+          text:
+            error instanceof MissingKeyError
+              ? 'Откройте полную ссылку с ключом после символа #'
+              : 'Запросите новую ссылку у пациента',
+          retryable: false,
+        })
       })
 
     return () => {
       cancelled = true
       controller.abort()
     }
-  }, [token])
+  }, [token, attempt])
 
   return (
     <div className="share-page">
@@ -66,7 +89,13 @@ export function SharePage() {
       </header>
 
       {state.status === 'loading' ? <ShareLoading /> : null}
-      {state.status === 'error' ? <ShareError title={state.title} /> : null}
+      {state.status === 'error' ? (
+        <ShareError
+          title={state.title}
+          text={state.text}
+          {...(state.retryable ? { onRetry: () => setAttempt((value) => value + 1) } : {})}
+        />
+      ) : null}
       {state.status === 'ready' ? <ShareContent entries={state.entries} /> : null}
     </div>
   )
@@ -93,7 +122,15 @@ function ShareLoading() {
   )
 }
 
-function ShareError({ title }: { title: string }) {
+function ShareError({
+  title,
+  text,
+  onRetry,
+}: {
+  title: string
+  text: string
+  onRetry?: () => void
+}) {
   return (
     <div className="share-error">
       <div className="empty-state">
@@ -101,7 +138,12 @@ function ShareError({ title }: { title: string }) {
           <LockIcon />
         </div>
         <p className="empty-title">{title}</p>
-        <p className="empty-sub">Запросите новую ссылку у пациента</p>
+        <p className="empty-sub">{text}</p>
+        {onRetry ? (
+          <button type="button" className="btn-secondary" onClick={onRetry}>
+            Повторить
+          </button>
+        ) : null}
       </div>
     </div>
   )

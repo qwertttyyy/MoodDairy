@@ -15,7 +15,7 @@ const MIN_PASSWORD_LENGTH = 8
  * Сетевая часть и ключ шифрования — в AuthProvider.
  */
 export function AuthScreen() {
-  const { login, register } = useAuth()
+  const { login, register, sessionMessage } = useAuth()
   const [mode, setMode] = useState<AuthMode>('login')
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -60,6 +60,11 @@ export function AuthScreen() {
       <div className="auth-card">
         <h1 className="auth-title">Moods</h1>
         <p className="auth-sub">Войди или создай аккаунт</p>
+        {sessionMessage ? (
+          <p className="auth-session-message" role="status">
+            {sessionMessage}
+          </p>
+        ) : null}
 
         <div className="auth-tabs">
           <button

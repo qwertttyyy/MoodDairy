@@ -109,6 +109,16 @@
   gap: 10px;
 }
 
+.chart-warning {
+  margin: 10px 16px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--danger-10);
+  color: var(--danger-t);
+  font-size: 14px;
+  line-height: 20px;
+}
+
 .chart-avg {
   font-size: 38px;
   line-height: 38px;

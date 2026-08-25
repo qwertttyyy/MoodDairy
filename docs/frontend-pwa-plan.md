@@ -193,7 +193,7 @@
 
 - [x] 1. Quality toolchain
 - [x] 2. API и crypto boundaries
-- [ ] 3. Startup и data failures
+- [x] 3. Startup и data failures
 - [ ] 4. CRUD, даты и sharing
 - [ ] 5. Accessibility
 - [ ] 6. Theme, settings, charts и layout

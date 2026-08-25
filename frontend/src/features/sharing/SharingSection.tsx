@@ -1,6 +1,7 @@
 import { useState } from 'react'
 
 import { useConfirm } from '../../shared/ui/confirm'
+import { ErrorState } from '../../shared/ui/QueryState'
 import { useToast } from '../../shared/ui/toast'
 import { buildShareUrl, useCreateShare, useRevokeShare, useSharingStatus } from './api'
 import type { CreatedShare } from './api'
@@ -48,7 +49,8 @@ export function SharingSection() {
         setCreated(share)
         toast('Ссылка создана')
       },
-      onError: () => toast('Ошибка при создании ссылки', true),
+      onError: (error) =>
+        toast(error instanceof Error ? error.message : 'Ошибка при создании ссылки', true),
     })
   }
 
@@ -76,13 +78,26 @@ export function SharingSection() {
     })
   }
 
+  if (status.error) {
+    return (
+      <ErrorState
+        message="Не удалось загрузить настройки общего доступа"
+        onRetry={() => void status.refetch()}
+      />
+    )
+  }
+
   return (
     <>
       <div className="settings-group">
         <div className="set-row">
           <span className="set-label">Ссылка на дневник</span>
-          <button className="btn-plain" onClick={handleCreate} disabled={createShare.isPending}>
-            {createShare.isPending ? 'Загрузка…' : 'Создать ссылку'}
+          <button
+            className="btn-plain"
+            onClick={handleCreate}
+            disabled={status.isPending || createShare.isPending}
+          >
+            {status.isPending || createShare.isPending ? 'Загрузка…' : 'Создать ссылку'}
           </button>
         </div>
 

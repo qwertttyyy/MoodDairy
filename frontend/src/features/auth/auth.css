@@ -35,6 +35,26 @@
   color: var(--c-secondary);
 }
 
+.auth-session-message {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--accent-10);
+  color: var(--c-primary);
+  font-size: 14px;
+  line-height: 20px;
+}
+
+.startup-card {
+  display: grid;
+  gap: 16px;
+  justify-items: start;
+}
+
+.startup-card .spinner {
+  margin-top: 8px;
+}
+
 /* ============================================
    СЕГМЕНТ-КОНТРОЛ «Вход / Регистрация»
    ============================================ */

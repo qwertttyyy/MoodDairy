@@ -5,6 +5,7 @@ import { useState } from 'react'
 import { isApiError } from '../../shared/api/client'
 import type { Tag } from '../../shared/api/types'
 import { useConfirm } from '../../shared/ui/confirm'
+import { ErrorState } from '../../shared/ui/QueryState'
 import { useToast } from '../../shared/ui/toast'
 import { useCreateTag, useDeleteTag, useRenameTag, useTags } from './api'
 
@@ -75,7 +76,7 @@ function TagRow({ tag, onEdit, onDelete }: { tag: Tag; onEdit: () => void; onDel
 export function TagsSection() {
   const toast = useToast()
   const confirm = useConfirm()
-  const { data: tags = [], isPending } = useTags()
+  const { data: tags = [], error, isPending, refetch } = useTags()
   const createTag = useCreateTag()
   const renameTag = useRenameTag()
   const deleteTag = useDeleteTag()
@@ -137,6 +138,14 @@ export function TagsSection() {
           onError: () => toast('Не удалось удалить тег', true),
         }),
     })
+  }
+
+  if (error) {
+    return (
+      <div className="settings-group">
+        <ErrorState message="Не удалось загрузить теги" onRetry={() => void refetch()} />
+      </div>
+    )
   }
 
   return (

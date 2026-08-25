@@ -4,6 +4,7 @@ import type { MouseEvent, ReactNode } from 'react'
 import { useAuth } from '../../features/auth/AuthContext'
 import { AuthProvider } from '../../features/auth/AuthProvider'
 import { AuthScreen } from '../../features/auth/AuthScreen'
+import { StartupScreen } from '../../features/auth/StartupScreen'
 import { ChartTab } from '../../features/chart/ChartTab'
 import { EntriesTab } from '../../features/entries/EntriesTab'
 import { EntryModal } from '../../features/entries/EntryModal'
@@ -32,8 +33,15 @@ export function AppPage() {
 }
 
 function AppRoot() {
-  const { status } = useAuth()
-  if (status === 'loading') return null
+  const { status, retryBootstrap } = useAuth()
+  if (
+    status === 'loading' ||
+    status === 'offline' ||
+    status === 'server-unavailable' ||
+    status === 'invalid-config'
+  ) {
+    return <StartupScreen status={status} onRetry={retryBootstrap} />
+  }
   if (status === 'anon') return <AuthScreen />
   return (
     <EntryModalProvider>

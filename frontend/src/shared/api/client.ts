@@ -99,6 +99,17 @@ export interface RequestOptions {
   timeoutMs?: number
 }
 
+type NotAuthenticatedHandler = () => void
+let notAuthenticatedHandler: NotAuthenticatedHandler | null = null
+
+/** AuthProvider регистрирует единый обработчик завершившейся серверной сессии. */
+export function setNotAuthenticatedHandler(handler: NotAuthenticatedHandler): () => void {
+  notAuthenticatedHandler = handler
+  return () => {
+    if (notAuthenticatedHandler === handler) notAuthenticatedHandler = null
+  }
+}
+
 function getCsrfToken(): string {
   const match = document.cookie.match(/csrftoken=([^;]+)/)
   return match?.[1] ?? ''
@@ -143,7 +154,11 @@ async function request<T>(
       }
     }
 
-    if (!response.ok) throw new ApiError(response.status, parseApiError(data))
+    if (!response.ok) {
+      const error = new ApiError(response.status, parseApiError(data))
+      if (error.code === ERROR_CODES.notAuthenticated) notAuthenticatedHandler?.()
+      throw error
+    }
 
     const parsed = schema.safeParse(data)
     if (!parsed.success) {

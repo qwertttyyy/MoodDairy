@@ -246,3 +246,13 @@
   color: var(--danger-t);
   text-align: center;
 }
+
+.inline-error {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  color: var(--danger-t);
+  font-size: 14px;
+}
