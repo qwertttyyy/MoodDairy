@@ -164,3 +164,9 @@ node_modules/
 frontend/dist/
 plans/
 docs/
+!docs/
+docs/*
+!docs/frontend-pwa-plan.md
+frontend/coverage/
+frontend/playwright-report/
+frontend/test-results/

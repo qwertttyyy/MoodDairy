@@ -1,9 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { useConfirm } from '../../shared/ui/ConfirmProvider'
+import { useConfirm } from '../../shared/ui/confirm'
 import { NotesIcon } from '../../shared/ui/EmptyStateIcons'
 import { Spinner } from '../../shared/ui/Spinner'
-import { useToast } from '../../shared/ui/ToastProvider'
+import { useToast } from '../../shared/ui/toast'
 import { mergeFeedPages, useDeleteEntry, useEntriesFeed } from './api'
 import { DayGroup } from './DayGroup'
 import { useEntryModal } from './EntryModalContext'
@@ -72,12 +72,7 @@ export function EntriesTab() {
       {days.length > 0 ? (
         <div className="feed">
           {days.map((group) => (
-            <DayGroup
-              key={group.day}
-              group={group}
-              onOpen={open}
-              onDelete={requestDelete}
-            />
+            <DayGroup key={group.day} group={group} onOpen={open} onDelete={requestDelete} />
           ))}
         </div>
       ) : null}

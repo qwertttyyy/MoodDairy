@@ -26,7 +26,7 @@ export const ERROR_CODES = {
   unknown: 'error',
 } as const
 
-export type ErrorCode = (typeof ERROR_CODES)[keyof typeof ERROR_CODES] | string
+export type ErrorCode = string
 
 /** Разобранное содержимое конверта ошибки. */
 export interface ApiErrorPayload {
@@ -183,5 +183,5 @@ function toText(value: unknown): string {
   // Вложенный объект показать нечем: строка вида "[object Object]" хуже,
   // чем общий текст ошибки.
   if (typeof value === 'object') return ''
-  return String(value)
+  return String(value as string | number | boolean | bigint | symbol)
 }

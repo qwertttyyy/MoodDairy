@@ -90,9 +90,7 @@ export function Modal({
 
   if (!mounted) return null
 
-  const boxClass = ['modal', className, morphFrom ? 'modal-morph' : null]
-    .filter(Boolean)
-    .join(' ')
+  const boxClass = ['modal', className, morphFrom ? 'modal-morph' : null].filter(Boolean).join(' ')
   const overlayClass = ['modal-overlay', overlayClassName].filter(Boolean).join(' ')
 
   return (

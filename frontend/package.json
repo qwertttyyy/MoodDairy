@@ -1,13 +1,20 @@
 {
   "name": "frontend",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.2.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "lint": "oxlint",
-    "test": "vitest",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc -b --pretty false",
+    "lint": "oxlint --type-aware --deny-warnings",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test --project=chromium --project=firefox --project=webkit",
+    "test:pwa": "playwright test --project=pwa",
+    "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -17,13 +24,21 @@
     "react-router": "^8.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.10.2",
+    "@playwright/test": "^1.55.0",
+    "@testing-library/jest-dom": "^6.8.0",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^24.13.2",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "happy-dom": "^20.11.1",
-    "oxlint": "^1.71.0",
-    "typescript": "~6.0.2",
+    "msw": "^2.11.1",
+    "oxlint": "^1.80.0",
+    "oxlint-tsgolint": "7.0.2001",
+    "prettier": "^3.6.2",
+    "typescript": "~7.0.2",
     "vite": "^8.1.1",
     "vitest": "^4.1.10"
   }

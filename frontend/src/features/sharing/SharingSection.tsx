@@ -1,7 +1,7 @@
 import { useState } from 'react'
 
-import { useConfirm } from '../../shared/ui/ConfirmProvider'
-import { useToast } from '../../shared/ui/ToastProvider'
+import { useConfirm } from '../../shared/ui/confirm'
+import { useToast } from '../../shared/ui/toast'
 import { buildShareUrl, useCreateShare, useRevokeShare, useSharingStatus } from './api'
 import type { CreatedShare } from './api'
 
@@ -112,8 +112,8 @@ export function SharingSection() {
       </div>
 
       <p className="settings-note">
-        Врач увидит записи только для чтения. Ключ ссылки хранится в её адресе —
-        покажите её целиком сразу после создания.
+        Врач увидит записи только для чтения. Ключ ссылки хранится в её адресе — покажите её целиком
+        сразу после создания.
       </p>
     </>
   )

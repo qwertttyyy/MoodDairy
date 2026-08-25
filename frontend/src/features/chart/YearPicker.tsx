@@ -7,24 +7,13 @@
  */
 
 import { ChartNavButton } from './ChartNav'
+import { clampYear, currentYear } from './pickerDates'
 
 interface YearPickerProps {
   year: number
   /** Год первой записи; null — нижней границы пока нет. */
   minYear: number | null
   onChange: (year: number) => void
-}
-
-export function currentYear(): number {
-  return new Date().getFullYear()
-}
-
-/** Зажимает год в диапазон [minYear, текущий год]. */
-export function clampYear(value: number, minYear: number | null): number {
-  const max = currentYear()
-  if (value > max) return max
-  if (minYear !== null && value < minYear) return minYear
-  return value
 }
 
 export function YearPicker({ year, minYear, onChange }: YearPickerProps) {
@@ -42,7 +31,12 @@ export function YearPicker({ year, minYear, onChange }: YearPickerProps) {
         onClick={() => step(-1)}
       />
       <span className="chart-nav-label">{year}</span>
-      <ChartNavButton direction={1} label="Следующий год" disabled={atMax} onClick={() => step(1)} />
+      <ChartNavButton
+        direction={1}
+        label="Следующий год"
+        disabled={atMax}
+        onClick={() => step(1)}
+      />
     </div>
   )
 }

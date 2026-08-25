@@ -1,27 +1,11 @@
-import { createContext, useCallback, useContext, useState } from 'react'
+import { useCallback, useState } from 'react'
 import type { ReactNode } from 'react'
 
+import { ConfirmContext } from './confirm'
+import type { Confirm, ConfirmRequest } from './confirm'
 import { Modal } from './Modal'
 
-export interface ConfirmRequest {
-  title: string
-  text: string
-  onConfirm: () => void
-  /** Подпись кнопки подтверждения. По умолчанию — «Удалить». */
-  confirmLabel?: string
-}
-
 const DEFAULT_CONFIRM_LABEL = 'Удалить'
-
-type Confirm = (request: ConfirmRequest) => void
-
-const ConfirmContext = createContext<Confirm | null>(null)
-
-export function useConfirm(): Confirm {
-  const confirm = useContext(ConfirmContext)
-  if (!confirm) throw new Error('useConfirm должен вызываться внутри ConfirmProvider')
-  return confirm
-}
 
 /** Диалог подтверждения: разметка из старого фронта, подпись действия задаёт вызывающий код. */
 export function ConfirmProvider({ children }: { children: ReactNode }) {

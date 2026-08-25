@@ -67,8 +67,7 @@ export interface DateRangeResponse {
 }
 
 export type SharingStatusResponse =
-  | { active: false }
-  | { active: true; token: string; created_at: string; is_encrypted: boolean }
+  { active: false } | { active: true; token: string; created_at: string; is_encrypted: boolean }
 
 export interface CreateShareResponse {
   token: string

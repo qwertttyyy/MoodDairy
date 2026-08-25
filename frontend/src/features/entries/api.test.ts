@@ -12,9 +12,7 @@ import { buildChartUrl } from './api'
 
 describe('buildChartUrl', () => {
   it('относительный период уходит параметром period', () => {
-    expect(buildChartUrl({ kind: 'period', period: '2weeks' })).toBe(
-      '/api/entries/?period=2weeks',
-    )
+    expect(buildChartUrl({ kind: 'period', period: '2weeks' })).toBe('/api/entries/?period=2weeks')
     expect(buildChartUrl({ kind: 'period', period: '6months' })).toBe(
       '/api/entries/?period=6months',
     )

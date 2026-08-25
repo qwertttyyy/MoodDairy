@@ -7,56 +7,56 @@
    Колонка контента остаётся прежней, но прокручиваемый бокс перестаёт
    срезать обводку выбранной крайней оценки: она выходит за колонку на 2px. */
 .entry-form .modal-body {
-    margin: 0 -20px;
-    padding: 0 20px;
+  margin: 0 -20px;
+  padding: 0 20px;
 }
 
 .field-block {
-    margin-top: 22px;
+  margin-top: 22px;
 }
 
 .field-label-row {
-    display: flex;
-    align-items: center;
-    height: 18px;
+  display: flex;
+  align-items: center;
+  height: 18px;
 }
 
 .field-label {
-    font-size: 13px;
-    line-height: 18px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    color: var(--c-secondary);
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--c-secondary);
 }
 
 .field-hint {
-    font-size: 13px;
-    line-height: 18px;
-    font-weight: 400;
-    color: var(--c-tertiary);
-    margin-left: 4px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 400;
+  color: var(--c-tertiary);
+  margin-left: 4px;
 }
 
 .field-guide-btn {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-left: auto;
-    font-size: 13px;
-    line-height: 18px;
-    font-weight: 500;
-    color: var(--accent);
-    transition: opacity var(--t-fast);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--accent);
+  transition: opacity var(--t-fast);
 }
 
 .field-guide-btn:active {
-    opacity: 0.5;
+  opacity: 0.5;
 }
 
 .field-guide-btn svg {
-    width: 14px;
-    height: 14px;
-    flex: none;
+  width: 14px;
+  height: 14px;
+  flex: none;
 }
 
 /* ============================================
@@ -67,180 +67,182 @@
    спорит с ним по весу селектора. */
 .mood-scale,
 .anxiety-scale {
-    margin-top: 8px;
-    color: var(--chip-ink);
+  margin-top: 8px;
+  color: var(--chip-ink);
 }
 
 .mood-scale {
-    display: grid;
-    grid-template-columns: repeat(9, 1fr);
-    gap: 1px;
-    height: 48px;
+  display: grid;
+  grid-template-columns: repeat(9, 1fr);
+  gap: 1px;
+  height: 48px;
 }
 
 .anxiety-scale {
-    display: flex;
-    gap: 12px;
+  display: flex;
+  gap: 12px;
 }
 
 .scale-cell {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 15px;
-    font-weight: 600;
-    /* Волосяная линия по краю плашки: без неё соседние цвета сливаются. */
-    box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
-    transition: transform var(--t-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  font-weight: 600;
+  /* Волосяная линия по краю плашки: без неё соседние цвета сливаются. */
+  box-shadow: inset 0 0 0 0.5px rgba(0, 0, 0, 0.06);
+  transition: transform var(--t-fast);
 }
 
-[data-theme="dark"] .scale-cell {
-    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.1);
+[data-theme='dark'] .scale-cell {
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.1);
 }
 
 .mood-scale .scale-cell {
-    border-radius: 10px;
+  border-radius: 10px;
 }
 
 .anxiety-scale .scale-cell {
-    width: 40px;
-    height: 40px;
-    border-radius: 20px;
-    flex: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 20px;
+  flex: none;
 }
 
 /* Выбранная оценка обводится основным цветом текста и выходит на слой выше,
    иначе обводку срежут соседние плашки. */
 .scale-cell.selected {
-    position: relative;
-    z-index: 2;
-    box-shadow: 0 0 0 2px var(--c-primary), 0 2px 6px rgba(0, 0, 0, 0.18);
+  position: relative;
+  z-index: 2;
+  box-shadow:
+    0 0 0 2px var(--c-primary),
+    0 2px 6px rgba(0, 0, 0, 0.18);
 }
 
 .mood-scale .scale-cell.selected {
-    transform: scale(1.06);
+  transform: scale(1.06);
 }
 
 .scale-result {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    height: 24px;
-    margin-top: 8px;
-    font-size: 17px;
-    color: var(--c-primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 24px;
+  margin-top: 8px;
+  font-size: 17px;
+  color: var(--c-primary);
 }
 
 .scale-result-empty {
-    color: var(--c-tertiary);
+  color: var(--c-tertiary);
 }
 
 /* ============================================
    ЗАМЕТКА
    ============================================ */
 .entry-note {
-    display: block;
-    height: 90px;
-    /* Тот же отступ от подписи, что у шкал и чипов. */
-    margin-top: 8px;
+  display: block;
+  height: 90px;
+  /* Тот же отступ от подписи, что у шкал и чипов. */
+  margin-top: 8px;
 }
 
 /* ============================================
    ТЕГИ
    ============================================ */
 .tag-chips {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 8px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .tag-chip {
-    display: inline-flex;
-    align-items: center;
-    height: 34px;
-    padding: 0 14px;
-    border-radius: 17px;
-    font-size: 15px;
-    color: var(--c-primary);
-    background: var(--field-bg);
-    transition: transform var(--t-fast);
+  display: inline-flex;
+  align-items: center;
+  height: 34px;
+  padding: 0 14px;
+  border-radius: 17px;
+  font-size: 15px;
+  color: var(--c-primary);
+  background: var(--field-bg);
+  transition: transform var(--t-fast);
 }
 
 .tag-chip:active {
-    transform: scale(0.96);
+  transform: scale(0.96);
 }
 
 .tag-chip.selected {
-    background: var(--accent-10);
-    color: var(--accent);
-    font-weight: 600;
-    box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--accent-10);
+  color: var(--accent);
+  font-weight: 600;
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 /* ============================================
    ДАТА И ВРЕМЯ
    ============================================ */
 .datetime-row {
-    display: flex;
-    gap: 8px;
-    margin-top: 8px;
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
 }
 
 .dt-field {
-    position: relative;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    flex: 1;
-    min-width: 0;
-    height: 44px;
-    padding: 0 12px;
-    border-radius: 12px;
-    background: var(--field-bg);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--field-bg);
 }
 
 .dt-field input {
-    flex: 1;
-    min-width: 0;
-    height: 100%;
-    padding: 0;
-    border: none;
-    outline: none;
-    background: none;
-    font-size: 17px;
-    color: var(--c-primary);
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: none;
+  font-size: 17px;
+  color: var(--c-primary);
 }
 
 .dt-field svg {
-    width: 16px;
-    height: 16px;
-    flex: none;
-    color: var(--c-tertiary);
-    pointer-events: none;
+  width: 16px;
+  height: 16px;
+  flex: none;
+  color: var(--c-tertiary);
+  pointer-events: none;
 }
 
 /* Родной значок вызова пикера растянут поверх нарисованного: клик по иконке
    по-прежнему открывает календарь, но виден только значок из макета. */
 .dt-field input::-webkit-calendar-picker-indicator {
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 40px;
-    height: 100%;
-    margin: 0;
-    padding: 0;
-    opacity: 0;
-    cursor: pointer;
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 40px;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  opacity: 0;
+  cursor: pointer;
 }
 
 /* ============================================
    ОШИБКА
    ============================================ */
 .form-error {
-    margin-top: 16px;
-    font-size: 15px;
-    line-height: 20px;
-    color: var(--danger-t);
-    text-align: center;
+  margin-top: 16px;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--danger-t);
+  text-align: center;
 }

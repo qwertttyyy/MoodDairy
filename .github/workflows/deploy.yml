@@ -137,14 +137,29 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Audit dependencies
+        run: npm audit --audit-level=high
+
+      - name: Format check
+        run: npm run format:check
+
       - name: Lint
         run: npm run lint
 
+      - name: Type check
+        run: npm run typecheck
+
       - name: Unit tests
-        run: npm run test -- --run
+        run: npm run test
 
       - name: Production build
         run: npm run build
+
+      - name: Install browser engines
+        run: npx playwright install --with-deps chromium firefox webkit
+
+      - name: End-to-end tests
+        run: npm run test:e2e
 
       - name: Upload build
         uses: actions/upload-artifact@v4

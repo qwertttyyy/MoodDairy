@@ -5,281 +5,285 @@
    TOKENS
    ============================================ */
 :root {
-    /* ── Холст и поверхности ──
+  /* ── Холст и поверхности ──
        Холст ахроматический: цвет в интерфейсе несут только оценки настроения
        и тревоги, всё остальное серое. Карточки — плотные группы поверх него. */
-    --bg: #f2f2f7;
-    --canvas: #f2f2f7;
-    --card: #ffffff;
-    --card-2: #f7f7fa;
-    --sep: #c6c6c8;
-    --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
-    /* Подложка липкого заголовка дня и модального шита. */
-    --pin: #f6f6fa;
-    --sheet: #ffffff;
+  --bg: #f2f2f7;
+  --canvas: #f2f2f7;
+  --card: #ffffff;
+  --card-2: #f7f7fa;
+  --sep: #c6c6c8;
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+  /* Подложка липкого заголовка дня и модального шита. */
+  --pin: #f6f6fa;
+  --sheet: #ffffff;
 
-    /* ── Матовое стекло ──
+  /* ── Матовое стекло ──
        Размытие, насыщение и полупрозрачная заливка — и больше ничего.
        Краевого преломления здесь нет намеренно: карта смещения растягивается
        под размер элемента и на широкой капсуле вырождается в полосы, а на
        чёрном холсте ей нечего преломлять. */
-    --lg-bg: rgba(255, 255, 255, 0.74);
-    --lg-blur: 22px;
-    --lg-sat: 1.8;
-    --lg-border: 0.5px solid rgba(255, 255, 255, 0.7);
-    --lg-shadow: 0 8px 28px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+  --lg-bg: rgba(255, 255, 255, 0.74);
+  --lg-blur: 22px;
+  --lg-sat: 1.8;
+  --lg-border: 0.5px solid rgba(255, 255, 255, 0.7);
+  --lg-shadow: 0 8px 28px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
 
-    /* ── Плотные поверхности ──
+  /* ── Плотные поверхности ──
        Модалка и карточка входа перекрывают ленту, поэтому читаемость у них
        держится на своём фоне, а не на backdrop-filter: он есть не везде. */
-    --surface: #ffffff;
-    --surface-solid: #ffffff;
-    --surface-border: 0.5px solid rgba(0, 0, 0, 0.06);
-    --surface-shadow: 0 -14px 44px rgba(0, 0, 0, 0.28);
-    --scrim: rgba(0, 0, 0, 0.4);
-    /* Стеклянные поверхности модальных окон; размытие задано в modal.css. */
-    --sheet-glass: rgba(252, 252, 254, 0.86);
-    --entry-sheet-glass: rgba(252, 252, 254, 0.72);
-    --entry-scrim: rgba(0, 0, 0, 0.28);
+  --surface: #ffffff;
+  --surface-solid: #ffffff;
+  --surface-border: 0.5px solid rgba(0, 0, 0, 0.06);
+  --surface-shadow: 0 -14px 44px rgba(0, 0, 0, 0.28);
+  --scrim: rgba(0, 0, 0, 0.4);
+  /* Стеклянные поверхности модальных окон; размытие задано в modal.css. */
+  --sheet-glass: rgba(252, 252, 254, 0.86);
+  --entry-sheet-glass: rgba(252, 252, 254, 0.72);
+  --entry-scrim: rgba(0, 0, 0, 0.28);
 
-    /* ── Поля и чипы на плотной поверхности ── */
-    --field-bg: #efeff2;
-    --field-border: rgba(0, 0, 0, 0.06);
-    --field-raised: #ffffff;
-    /* Выключенный тумблер не следует за --c-tertiary: у текста и у дорожки
+  /* ── Поля и чипы на плотной поверхности ── */
+  --field-bg: #efeff2;
+  --field-border: rgba(0, 0, 0, 0.06);
+  --field-raised: #ffffff;
+  /* Выключенный тумблер не следует за --c-tertiary: у текста и у дорожки
        переключателя разные требования, связывать их одним токеном нельзя. */
-    --toggle-off: rgba(120, 120, 128, 0.28);
+  --toggle-off: rgba(120, 120, 128, 0.28);
 
-    /* ── Text ── */
-    --c-primary: #1c1c1e;
-    --c-secondary: #6e6e73;
-    --c-tertiary: #72727a;
+  /* ── Text ── */
+  --c-primary: #1c1c1e;
+  --c-secondary: #6e6e73;
+  --c-tertiary: #72727a;
 
-    /* ── Accent ── */
-    --accent: #0a7c8c;
-    --accent-ink: #ffffff;
-    --accent-10: rgba(10, 124, 140, 0.12);
-    --accent-20: rgba(10, 124, 140, 0.2);
-    /* Подсветка строки после тапа. */
-    --hl: rgba(10, 124, 140, 0.08);
-    --danger: #ff3b30;
-    --danger-10: rgba(255, 59, 48, 0.1);
-    /* Отдельный тон для красного ТЕКСТА: системный #FF3B30 на светлой подложке
+  /* ── Accent ── */
+  --accent: #0a7c8c;
+  --accent-ink: #ffffff;
+  --accent-10: rgba(10, 124, 140, 0.12);
+  --accent-20: rgba(10, 124, 140, 0.2);
+  /* Подсветка строки после тапа. */
+  --hl: rgba(10, 124, 140, 0.08);
+  --danger: #ff3b30;
+  --danger-10: rgba(255, 59, 48, 0.1);
+  /* Отдельный тон для красного ТЕКСТА: системный #FF3B30 на светлой подложке
        даёт контраст 3.0 при норме 4.5, поэтому надписи берут приглушённый. */
-    --danger-t: #d93025;
+  --danger-t: #d93025;
 
-    /* ── Mood 1..9 ── */
-    --m1: #e03127;
-    --m2: #e5642f;
-    --m3: #ef8f00;
-    --m4: #f5c500;
-    --m5: #d6d42b;
-    --m6: #a9d84e;
-    --m7: #1e9e48;
-    --m8: #189fbe;
-    --m9: #34aee8;
-    /* Текст поверх цветной плашки настроения. */
-    --chip-ink: #1c1c1e;
+  /* ── Mood 1..9 ── */
+  --m1: #e03127;
+  --m2: #e5642f;
+  --m3: #ef8f00;
+  --m4: #f5c500;
+  --m5: #d6d42b;
+  --m6: #a9d84e;
+  --m7: #1e9e48;
+  --m8: #189fbe;
+  --m9: #34aee8;
+  /* Текст поверх цветной плашки настроения. */
+  --chip-ink: #1c1c1e;
 
-    /* ── Anxiety 1..5 ──
+  /* ── Anxiety 1..5 ──
        Три набора: f — заливка капсулы в ленте, t — тон текста на ней,
        p — чистый цвет кружка в форме. Разделены потому, что насыщенный тон
        на 18-процентной заливке даёт контраст ниже нормы. */
-    --a1f: #daefdf;
-    --a2f: #eaf3dc;
-    --a3f: #f9efd1;
-    --a4f: #fae6d6;
-    --a5f: #f8dad8;
-    --a1t: #1b7a38;
-    --a2t: #4e6e12;
-    --a3t: #8a6200;
-    --a4t: #a54d0e;
-    --a5t: #b02318;
-    --a1p: #2fa84f;
-    --a2p: #8cbe3f;
-    --a3p: #e0a400;
-    --a4p: #e5761a;
-    --a5p: #d93025;
+  --a1f: #daefdf;
+  --a2f: #eaf3dc;
+  --a3f: #f9efd1;
+  --a4f: #fae6d6;
+  --a5f: #f8dad8;
+  --a1t: #1b7a38;
+  --a2t: #4e6e12;
+  --a3t: #8a6200;
+  --a4t: #a54d0e;
+  --a5t: #b02318;
+  --a1p: #2fa84f;
+  --a2p: #8cbe3f;
+  --a3p: #e0a400;
+  --a4p: #e5761a;
+  --a5p: #d93025;
 
-    /* ── Layout ──
+  /* ── Layout ──
        Радиусы концентричны: внутренний = внешний − отступ. Строка 12 в
        группе 20 при паддинге 8 — это правило, а не подбор на глаз. */
-    --r-sm: 12px;
-    --r-md: 14px;
-    --r-lg: 20px;
-    --r-pill: 999px;
-    --safe-t: env(safe-area-inset-top, 0px);
-    --safe-b: env(safe-area-inset-bottom, 0px);
-    --tabbar-h: 58px;
-    --tabbar-bottom: 21px;
-    /* Верхней панели нет: липкие заголовки дня цепляются прямо за вырез. */
-    --sticky-top: var(--safe-t);
-    /* Отбивка ленты сверху — под ней проходит плавающая кнопка «i». */
-    --content-top: calc(var(--safe-t) + 20px);
+  --r-sm: 12px;
+  --r-md: 14px;
+  --r-lg: 20px;
+  --r-pill: 999px;
+  --safe-t: env(safe-area-inset-top, 0px);
+  --safe-b: env(safe-area-inset-bottom, 0px);
+  --tabbar-h: 58px;
+  --tabbar-bottom: 21px;
+  /* Верхней панели нет: липкие заголовки дня цепляются прямо за вырез. */
+  --sticky-top: var(--safe-t);
+  /* Отбивка ленты сверху — под ней проходит плавающая кнопка «i». */
+  --content-top: calc(var(--safe-t) + 20px);
 
-    --t-fast: 0.15s ease;
-    --t-spring: 0.4s cubic-bezier(0.32, 0.72, 0, 1);
-    /* Рост окна из кнопки: быстро, но с торможением в конце. */
-    --t-morph: 0.34s;
-    --e-morph: cubic-bezier(0.32, 0.72, 0, 1);
+  --t-fast: 0.15s ease;
+  --t-spring: 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+  /* Рост окна из кнопки: быстро, но с торможением в конце. */
+  --t-morph: 0.34s;
+  --e-morph: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
 /* ── Dark ──
    Холст истинно чёрный: на OLED это выключенные пиксели, и серая карточка
    поверх него читается как выступающая поверхность. */
-[data-theme="dark"] {
-    --bg: #000000;
-    --canvas: #000000;
-    --card: #1c1c1e;
-    --card-2: #2c2c2e;
-    --sep: #38383a;
-    --card-shadow: none;
-    --pin: #09090b;
-    --sheet: #1c1c1e;
+[data-theme='dark'] {
+  --bg: #000000;
+  --canvas: #000000;
+  --card: #1c1c1e;
+  --card-2: #2c2c2e;
+  --sep: #38383a;
+  --card-shadow: none;
+  --pin: #09090b;
+  --sheet: #1c1c1e;
 
-    /* Тёмная тонировка на чёрном холсте невидима: плотность стекла держит
+  /* Тёмная тонировка на чёрном холсте невидима: плотность стекла держит
        светлая заливка малой прозрачности. */
-    --lg-bg: rgba(58, 58, 64, 0.62);
-    --lg-border: 0.5px solid rgba(255, 255, 255, 0.12);
-    --lg-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
+  --lg-bg: rgba(58, 58, 64, 0.62);
+  --lg-border: 0.5px solid rgba(255, 255, 255, 0.12);
+  --lg-shadow: 0 8px 28px rgba(0, 0, 0, 0.55);
 
-    --surface: #1c1c1e;
-    --surface-solid: #1c1c1e;
-    --surface-border: 0.5px solid rgba(255, 255, 255, 0.1);
-    --surface-shadow: 0 -14px 44px rgba(0, 0, 0, 0.7);
-    --scrim: rgba(0, 0, 0, 0.56);
-    --sheet-glass: rgba(42, 42, 47, 0.82);
-    --entry-sheet-glass: rgba(42, 42, 47, 0.66);
-    --entry-scrim: rgba(0, 0, 0, 0.38);
+  --surface: #1c1c1e;
+  --surface-solid: #1c1c1e;
+  --surface-border: 0.5px solid rgba(255, 255, 255, 0.1);
+  --surface-shadow: 0 -14px 44px rgba(0, 0, 0, 0.7);
+  --scrim: rgba(0, 0, 0, 0.56);
+  --sheet-glass: rgba(42, 42, 47, 0.82);
+  --entry-sheet-glass: rgba(42, 42, 47, 0.66);
+  --entry-scrim: rgba(0, 0, 0, 0.38);
 
-    --field-bg: #2c2c2e;
-    --field-border: rgba(255, 255, 255, 0.1);
-    --field-raised: #48484a;
-    --toggle-off: rgba(120, 120, 128, 0.5);
+  --field-bg: #2c2c2e;
+  --field-border: rgba(255, 255, 255, 0.1);
+  --field-raised: #48484a;
+  --toggle-off: rgba(120, 120, 128, 0.5);
 
-    --c-primary: #ffffff;
-    --c-secondary: #98989e;
-    --c-tertiary: #8e8e93;
+  --c-primary: #ffffff;
+  --c-secondary: #98989e;
+  --c-tertiary: #8e8e93;
 
-    --accent: #64d2ff;
-    --accent-ink: #002e3a;
-    --accent-10: rgba(100, 210, 255, 0.16);
-    --accent-20: rgba(100, 210, 255, 0.28);
-    --hl: rgba(100, 210, 255, 0.1);
-    --danger: #ff453a;
-    --danger-10: rgba(255, 69, 58, 0.18);
-    /* На чёрном приглушать нечего: контраст даёт сама светлота тона. */
-    --danger-t: #ff453a;
+  --accent: #64d2ff;
+  --accent-ink: #002e3a;
+  --accent-10: rgba(100, 210, 255, 0.16);
+  --accent-20: rgba(100, 210, 255, 0.28);
+  --hl: rgba(100, 210, 255, 0.1);
+  --danger: #ff453a;
+  --danger-10: rgba(255, 69, 58, 0.18);
+  /* На чёрном приглушать нечего: контраст даёт сама светлота тона. */
+  --danger-t: #ff453a;
 
-    --m1: #ff453a;
-    --m2: #ff7a45;
-    --m3: #ff9f0a;
-    --m4: #ffd60a;
-    --m5: #dcdc3a;
-    --m6: #b8e45c;
-    --m7: #30d158;
-    --m8: #40c8e0;
-    --m9: #64d2ff;
-    --chip-ink: #0b0b0c;
+  --m1: #ff453a;
+  --m2: #ff7a45;
+  --m3: #ff9f0a;
+  --m4: #ffd60a;
+  --m5: #dcdc3a;
+  --m6: #b8e45c;
+  --m7: #30d158;
+  --m8: #40c8e0;
+  --m9: #64d2ff;
+  --chip-ink: #0b0b0c;
 
-    --a1f: rgba(48, 209, 88, 0.22);
-    --a2f: rgba(168, 219, 85, 0.22);
-    --a3f: rgba(255, 214, 10, 0.22);
-    --a4f: rgba(255, 159, 10, 0.22);
-    --a5f: rgba(255, 111, 99, 0.22);
-    --a1t: #30d158;
-    --a2t: #a8db55;
-    --a3t: #ffd60a;
-    --a4t: #ff9f0a;
-    --a5t: #ff6f63;
-    --a1p: #30d158;
-    --a2p: #a8db55;
-    --a3p: #ffd60a;
-    --a4p: #ff9f0a;
-    --a5p: #ff6f63;
+  --a1f: rgba(48, 209, 88, 0.22);
+  --a2f: rgba(168, 219, 85, 0.22);
+  --a3f: rgba(255, 214, 10, 0.22);
+  --a4f: rgba(255, 159, 10, 0.22);
+  --a5f: rgba(255, 111, 99, 0.22);
+  --a1t: #30d158;
+  --a2t: #a8db55;
+  --a3t: #ffd60a;
+  --a4t: #ff9f0a;
+  --a5t: #ff6f63;
+  --a1p: #30d158;
+  --a2p: #a8db55;
+  --a3p: #ffd60a;
+  --a4p: #ff9f0a;
+  --a5p: #ff6f63;
 }
 
 /* ── Reduce transparency ──
    Стекло становится плотной поверхностью: размытие выключается, иначе от
    прозрачности остаётся только нечитаемая муть. */
 .reduce-transparency {
-    --lg-bg: var(--card) !important;
-    --lg-blur: 0px !important;
-    --surface: var(--surface-solid) !important;
-    --sheet-glass: var(--surface-solid) !important;
-    --entry-sheet-glass: var(--surface-solid) !important;
-    --scrim: rgba(0, 0, 0, 0.75) !important;
+  --lg-bg: var(--card) !important;
+  --lg-blur: 0px !important;
+  --surface: var(--surface-solid) !important;
+  --sheet-glass: var(--surface-solid) !important;
+  --entry-sheet-glass: var(--surface-solid) !important;
+  --scrim: rgba(0, 0, 0, 0.75) !important;
 }
 
 .reduce-transparency .liquid-glass,
 .reduce-transparency .btn-icon-glass,
 .reduce-transparency .modal {
-    backdrop-filter: none !important;
-    -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
 }
 
 .reduce-transparency .app-backdrop {
-    display: none !important;
+  display: none !important;
 }
 
 /* ============================================
    RESET
    ============================================ */
-*, *::before, *::after {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
 html {
-    font-size: 16px;
-    -webkit-text-size-adjust: 100%;
-    -webkit-tap-highlight-color: transparent;
+  font-size: 16px;
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Системная гарнитура вместо загружаемой: на iOS это SF Pro, ради которого
    и задуманы кегли макета. Заодно исчезает запрос к стороннему шрифтовому
    сервису на каждой загрузке — для дневника с шифрованием это лишний след. */
 body {
-    font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI',
-    system-ui, 'Helvetica Neue', Arial, sans-serif;
-    font-weight: 400;
-    /* Цифры одинаковой ширины: в ленте и статистике колонки не «дышат». */
-    font-variant-numeric: tabular-nums;
-    letter-spacing: -0.01em;
-    color: var(--c-primary);
-    background: var(--canvas);
-    min-height: 100dvh;
-    overflow-x: hidden;
-    -webkit-font-smoothing: antialiased;
+  font-family:
+    -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', system-ui, 'Helvetica Neue',
+    Arial, sans-serif;
+  font-weight: 400;
+  /* Цифры одинаковой ширины: в ленте и статистике колонки не «дышат». */
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
+  color: var(--c-primary);
+  background: var(--canvas);
+  min-height: 100dvh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
 }
 
 button {
-    font-family: inherit;
-    cursor: pointer;
-    border: none;
-    background: none;
-    color: inherit;
-    font-size: inherit;
-    letter-spacing: inherit;
-    -webkit-user-select: none;
-    user-select: none;
+  font-family: inherit;
+  cursor: pointer;
+  border: none;
+  background: none;
+  color: inherit;
+  font-size: inherit;
+  letter-spacing: inherit;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
-textarea, input {
-    font-family: inherit;
-    font-size: inherit;
-    color: inherit;
-    letter-spacing: inherit;
+textarea,
+input {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  letter-spacing: inherit;
 }
 
 .hidden {
-    display: none !important;
+  display: none !important;
 }
 
 ::-webkit-scrollbar {
-    width: 0;
-    height: 0;
+  width: 0;
+  height: 0;
 }
 
 /* ============================================
@@ -289,19 +293,19 @@ textarea, input {
    а на OLED-чёрном оно ещё и подсвечивало выключенные пиксели.
    ============================================ */
 .app-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: -1;
-    pointer-events: none;
-    background: radial-gradient(
-            120% 70% at 50% -10%,
-            rgba(255, 255, 255, 0.92) 0%,
-            rgba(255, 255, 255, 0) 62%
-    );
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: radial-gradient(
+    120% 70% at 50% -10%,
+    rgba(255, 255, 255, 0.92) 0%,
+    rgba(255, 255, 255, 0) 62%
+  );
 }
 
-[data-theme="dark"] .app-backdrop {
-    background: radial-gradient(120% 60% at 50% -10%, #141417 0%, rgba(0, 0, 0, 0) 55%);
+[data-theme='dark'] .app-backdrop {
+  background: radial-gradient(120% 60% at 50% -10%, #141417 0%, rgba(0, 0, 0, 0) 55%);
 }
 
 /* ============================================
@@ -314,21 +318,21 @@ textarea, input {
    стекло даёт грязь: под ним оказывается не холст, а другое стекло.
    ============================================ */
 .liquid-glass {
-    position: relative;
-    background-color: var(--lg-bg);
-    backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
-    -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
-    border: var(--lg-border);
-    box-shadow: var(--lg-shadow);
-    border-radius: var(--r-lg);
+  position: relative;
+  background-color: var(--lg-bg);
+  backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+  -webkit-backdrop-filter: blur(var(--lg-blur)) saturate(var(--lg-sat));
+  border: var(--lg-border);
+  box-shadow: var(--lg-shadow);
+  border-radius: var(--r-lg);
 }
 
 /* Без backdrop-filter (старые WebView, Firefox без флага) прозрачность нечем
    компенсировать: гасим её фоном. */
 @supports not (backdrop-filter: blur(1px)) {
-    .liquid-glass {
-        background-color: var(--surface-solid);
-    }
+  .liquid-glass {
+    background-color: var(--surface-solid);
+  }
 }
 
 /* ============================================
@@ -336,423 +340,479 @@ textarea, input {
    Цвета оценок различаются между темами, поэтому задаются классом и берутся
    из переменных — инлайновый style этого бы не смог.
    ============================================ */
-.m1 { background: var(--m1); }
-.m2 { background: var(--m2); }
-.m3 { background: var(--m3); }
-.m4 { background: var(--m4); }
-.m5 { background: var(--m5); }
-.m6 { background: var(--m6); }
-.m7 { background: var(--m7); }
-.m8 { background: var(--m8); }
-.m9 { background: var(--m9); }
+.m1 {
+  background: var(--m1);
+}
+.m2 {
+  background: var(--m2);
+}
+.m3 {
+  background: var(--m3);
+}
+.m4 {
+  background: var(--m4);
+}
+.m5 {
+  background: var(--m5);
+}
+.m6 {
+  background: var(--m6);
+}
+.m7 {
+  background: var(--m7);
+}
+.m8 {
+  background: var(--m8);
+}
+.m9 {
+  background: var(--m9);
+}
 
 /* Единственная ступень, на которой тёмная цифра не читается. */
-.m1 { color: #ffffff; }
+.m1 {
+  color: #ffffff;
+}
 
-[data-theme="dark"] .m1 { color: var(--chip-ink); }
+[data-theme='dark'] .m1 {
+  color: var(--chip-ink);
+}
 
-.a1 { background: var(--a1f); color: var(--a1t); }
-.a2 { background: var(--a2f); color: var(--a2t); }
-.a3 { background: var(--a3f); color: var(--a3t); }
-.a4 { background: var(--a4f); color: var(--a4t); }
-.a5 { background: var(--a5f); color: var(--a5t); }
+.a1 {
+  background: var(--a1f);
+  color: var(--a1t);
+}
+.a2 {
+  background: var(--a2f);
+  color: var(--a2t);
+}
+.a3 {
+  background: var(--a3f);
+  color: var(--a3t);
+}
+.a4 {
+  background: var(--a4f);
+  color: var(--a4t);
+}
+.a5 {
+  background: var(--a5f);
+  color: var(--a5t);
+}
 
-.p1 { background: var(--a1p); }
-.p2 { background: var(--a2p); }
-.p3 { background: var(--a3p); }
-.p4 { background: var(--a4p); }
-.p5 { background: var(--a5p); color: #ffffff; }
+.p1 {
+  background: var(--a1p);
+}
+.p2 {
+  background: var(--a2p);
+}
+.p3 {
+  background: var(--a3p);
+}
+.p4 {
+  background: var(--a4p);
+}
+.p5 {
+  background: var(--a5p);
+  color: #ffffff;
+}
 
-[data-theme="dark"] .p5 { color: var(--chip-ink); }
+[data-theme='dark'] .p5 {
+  color: var(--chip-ink);
+}
 
 /* ============================================
    ПОЛЯ И КНОПКИ
    ============================================ */
 .glass-input {
-    width: 100%;
-    padding: 12px;
-    border: none;
-    outline: none;
-    border-radius: var(--r-md);
-    background: var(--field-bg);
-    font-size: 17px;
-    line-height: 22px;
-    resize: none;
-    transition: box-shadow var(--t-fast);
+  width: 100%;
+  padding: 12px;
+  border: none;
+  outline: none;
+  border-radius: var(--r-md);
+  background: var(--field-bg);
+  font-size: 17px;
+  line-height: 22px;
+  resize: none;
+  transition: box-shadow var(--t-fast);
 }
 
 .glass-input::placeholder {
-    color: var(--c-tertiary);
+  color: var(--c-tertiary);
 }
 
 .glass-input:focus {
-    box-shadow: 0 0 0 2px var(--accent);
+  box-shadow: 0 0 0 2px var(--accent);
 }
 
 .btn-primary {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 50px;
-    border-radius: var(--r-md);
-    background: var(--accent);
-    color: var(--accent-ink);
-    font-size: 17px;
-    font-weight: 600;
-    box-shadow: 0 6px 18px -8px rgba(10, 124, 140, 0.7);
-    transition: transform var(--t-fast), opacity var(--t-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 50px;
+  border-radius: var(--r-md);
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-size: 17px;
+  font-weight: 600;
+  box-shadow: 0 6px 18px -8px rgba(10, 124, 140, 0.7);
+  transition:
+    transform var(--t-fast),
+    opacity var(--t-fast);
 }
 
-[data-theme="dark"] .btn-primary {
-    box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.9);
+[data-theme='dark'] .btn-primary {
+  box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.9);
 }
 
 .btn-primary:active {
-    transform: scale(0.98);
-    opacity: 0.9;
+  transform: scale(0.98);
+  opacity: 0.9;
 }
 
 .btn-primary:disabled {
-    opacity: 0.35;
-    pointer-events: none;
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 /* Круглая кнопка поверх содержимого: своё размытие она несёт сама, поэтому
    строки ленты под ней не мешают иконке. */
 .btn-icon-glass {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 36px;
-    height: 36px;
-    border-radius: 18px;
-    flex: none;
-    color: var(--c-primary);
-    background-color: rgba(255, 255, 255, 0.66);
-    backdrop-filter: blur(14px) saturate(1.8);
-    -webkit-backdrop-filter: blur(14px) saturate(1.8);
-    border: 0.5px solid rgba(0, 0, 0, 0.05);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
-    transition: transform var(--t-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 18px;
+  flex: none;
+  color: var(--c-primary);
+  background-color: rgba(255, 255, 255, 0.66);
+  backdrop-filter: blur(14px) saturate(1.8);
+  -webkit-backdrop-filter: blur(14px) saturate(1.8);
+  border: 0.5px solid rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
+  transition: transform var(--t-fast);
 }
 
-[data-theme="dark"] .btn-icon-glass {
-    background-color: rgba(120, 120, 128, 0.34);
-    border-color: rgba(255, 255, 255, 0.12);
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
+[data-theme='dark'] .btn-icon-glass {
+  background-color: rgba(120, 120, 128, 0.34);
+  border-color: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.6);
 }
 
 .btn-icon-glass:active {
-    transform: scale(0.92);
+  transform: scale(0.92);
 }
 
 .btn-icon-glass svg {
-    width: 19px;
-    height: 19px;
-    display: block;
+  width: 19px;
+  height: 19px;
+  display: block;
 }
 
 /* Кнопка добавления — единственная тонированная акцентом поверхность. */
 .btn-icon-accent {
-    background-color: var(--accent);
-    color: var(--accent-ink);
-    border-color: transparent;
-    box-shadow: 0 4px 14px rgba(10, 124, 140, 0.4);
+  background-color: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  box-shadow: 0 4px 14px rgba(10, 124, 140, 0.4);
 }
 
 /* Заливку приходится повторять: правило [data-theme="dark"] .btn-icon-glass
    специфичнее одноклассового .btn-icon-accent и иначе перекрашивает кнопку
    обратно в серую. */
-[data-theme="dark"] .btn-icon-accent {
-    background-color: var(--accent);
-    color: var(--accent-ink);
-    border-color: transparent;
-    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
+[data-theme='dark'] .btn-icon-accent {
+  background-color: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.65);
 }
 
 .btn-icon-accent svg {
-    width: 20px;
-    height: 20px;
+  width: 20px;
+  height: 20px;
 }
 
 /* Плоская кнопка внутри списка: без заливки, только акцентный текст —
    так это выглядит в системных «Настройках». */
 .btn-plain {
-    font-size: 17px;
-    line-height: 22px;
-    color: var(--accent);
-    transition: opacity var(--t-fast);
+  font-size: 17px;
+  line-height: 22px;
+  color: var(--accent);
+  transition: opacity var(--t-fast);
 }
 
 .btn-plain:active {
-    opacity: 0.5;
+  opacity: 0.5;
 }
 
 .btn-plain:disabled {
-    opacity: 0.35;
-    pointer-events: none;
+  opacity: 0.35;
+  pointer-events: none;
 }
 
 .btn-plain-danger {
-    color: var(--danger);
+  color: var(--danger);
 }
 
 /* Компактная кнопка на плотной поверхности. */
 .btn-sm {
-    height: 32px;
-    padding: 0 14px;
-    font-size: 15px;
-    font-weight: 500;
-    border-radius: var(--r-pill);
-    background: var(--field-bg);
-    color: var(--c-primary);
-    transition: transform var(--t-fast);
+  height: 32px;
+  padding: 0 14px;
+  font-size: 15px;
+  font-weight: 500;
+  border-radius: var(--r-pill);
+  background: var(--field-bg);
+  color: var(--c-primary);
+  transition: transform var(--t-fast);
 }
 
 .btn-sm:active {
-    transform: scale(0.96);
+  transform: scale(0.96);
 }
 
 .btn-sm-accent {
-    height: 32px;
-    padding: 0 14px;
-    font-size: 15px;
-    font-weight: 600;
-    border-radius: var(--r-pill);
-    background: var(--accent-10);
-    color: var(--accent);
-    transition: transform var(--t-fast);
+  height: 32px;
+  padding: 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--r-pill);
+  background: var(--accent-10);
+  color: var(--accent);
+  transition: transform var(--t-fast);
 }
 
 .btn-sm-accent:active {
-    transform: scale(0.96);
+  transform: scale(0.96);
 }
 
 .btn-sm-accent:disabled {
-    opacity: 0.4;
-    pointer-events: none;
+  opacity: 0.4;
+  pointer-events: none;
 }
 
 .btn-sm-danger {
-    height: 32px;
-    padding: 0 14px;
-    font-size: 15px;
-    font-weight: 600;
-    border-radius: var(--r-pill);
-    background: var(--danger-10);
-    color: var(--danger);
-    transition: transform var(--t-fast);
+  height: 32px;
+  padding: 0 14px;
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: var(--r-pill);
+  background: var(--danger-10);
+  color: var(--danger);
+  transition: transform var(--t-fast);
 }
 
 .btn-sm-danger:active {
-    transform: scale(0.96);
+  transform: scale(0.96);
 }
 
 .btn-secondary {
-    height: 44px;
-    padding: 0 20px;
-    font-size: 17px;
-    font-weight: 500;
-    border-radius: var(--r-md);
-    background: var(--field-bg);
-    color: var(--c-primary);
-    transition: transform var(--t-fast);
+  height: 44px;
+  padding: 0 20px;
+  font-size: 17px;
+  font-weight: 500;
+  border-radius: var(--r-md);
+  background: var(--field-bg);
+  color: var(--c-primary);
+  transition: transform var(--t-fast);
 }
 
 .btn-secondary:active {
-    transform: scale(0.98);
+  transform: scale(0.98);
 }
 
 .btn-danger {
-    height: 44px;
-    padding: 0 20px;
-    font-size: 17px;
-    font-weight: 600;
-    border-radius: var(--r-md);
-    background: var(--danger-10);
-    color: var(--danger);
-    transition: transform var(--t-fast);
+  height: 44px;
+  padding: 0 20px;
+  font-size: 17px;
+  font-weight: 600;
+  border-radius: var(--r-md);
+  background: var(--danger-10);
+  color: var(--danger);
+  transition: transform var(--t-fast);
 }
 
 .btn-danger:active {
-    transform: scale(0.98);
+  transform: scale(0.98);
 }
 
 /* ============================================
    TOGGLE
    ============================================ */
 .toggle {
-    position: relative;
-    display: inline-block;
-    flex-shrink: 0;
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
 }
 
 .toggle input {
-    opacity: 0;
-    width: 0;
-    height: 0;
-    position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+  position: absolute;
 }
 
 .toggle-track {
-    display: block;
-    width: 51px;
-    height: 31px;
-    background: var(--toggle-off);
-    border-radius: 16px;
-    position: relative;
-    transition: background var(--t-spring);
-    cursor: pointer;
+  display: block;
+  width: 51px;
+  height: 31px;
+  background: var(--toggle-off);
+  border-radius: 16px;
+  position: relative;
+  transition: background var(--t-spring);
+  cursor: pointer;
 }
 
 .toggle-track::after {
-    content: '';
-    position: absolute;
-    top: 2px;
-    left: 2px;
-    width: 27px;
-    height: 27px;
-    background: #fff;
-    border-radius: 50%;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
-    transition: transform var(--t-spring);
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 27px;
+  height: 27px;
+  background: #fff;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.15);
+  transition: transform var(--t-spring);
 }
 
 .toggle input:checked + .toggle-track {
-    background: var(--accent);
+  background: var(--accent);
 }
 
 .toggle input:checked + .toggle-track::after {
-    transform: translateX(20px);
+  transform: translateX(20px);
 }
 
 .toggle input:focus-visible + .toggle-track {
-    box-shadow: 0 0 0 3px var(--accent-10);
+  box-shadow: 0 0 0 3px var(--accent-10);
 }
 
 /* ============================================
    ПУСТОЕ СОСТОЯНИЕ
    ============================================ */
 .empty-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    text-align: center;
-    padding: 60px 20px;
-    min-height: 45vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 60px 20px;
+  min-height: 45vh;
 }
 
 /* Иконка пустого состояния — контурный знак, не эмодзи. */
 .empty-icon {
-    width: 42px;
-    height: 42px;
-    margin-bottom: 12px;
-    color: var(--c-tertiary);
+  width: 42px;
+  height: 42px;
+  margin-bottom: 12px;
+  color: var(--c-tertiary);
 }
 
 .empty-icon svg {
-    width: 100%;
-    height: 100%;
-    display: block;
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .empty-title {
-    font-size: 17px;
-    line-height: 22px;
-    font-weight: 600;
-    margin-bottom: 4px;
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 600;
+  margin-bottom: 4px;
 }
 
 .empty-sub {
-    font-size: 15px;
-    line-height: 20px;
-    color: var(--c-secondary);
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--c-secondary);
 }
 
 /* ============================================
    TOAST
    ============================================ */
 .toast {
-    position: fixed;
-    top: calc(var(--safe-t) + 12px);
-    left: 50%;
-    transform: translateX(-50%) translateY(-20px);
-    padding: 10px 20px;
-    border-radius: var(--r-pill);
-    font-size: 15px;
-    font-weight: 600;
-    color: #fff;
-    background: rgba(0, 0, 0, 0.78);
-    backdrop-filter: blur(10px);
-    -webkit-backdrop-filter: blur(10px);
-    z-index: 1000;
-    opacity: 0;
-    transition: opacity 0.3s, transform 0.3s;
-    pointer-events: none;
+  position: fixed;
+  top: calc(var(--safe-t) + 12px);
+  left: 50%;
+  transform: translateX(-50%) translateY(-20px);
+  padding: 10px 20px;
+  border-radius: var(--r-pill);
+  font-size: 15px;
+  font-weight: 600;
+  color: #fff;
+  background: rgba(0, 0, 0, 0.78);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  z-index: 1000;
+  opacity: 0;
+  transition:
+    opacity 0.3s,
+    transform 0.3s;
+  pointer-events: none;
 }
 
 .toast.show {
-    opacity: 1;
-    transform: translateX(-50%) translateY(0);
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
 }
 
 .toast.error {
-    background: rgba(255, 59, 48, 0.9);
+  background: rgba(255, 59, 48, 0.9);
 }
 
 /* ============================================
    SPINNER
    ============================================ */
 .scroll-loader {
-    display: flex;
-    justify-content: center;
-    padding: 20px 0;
+  display: flex;
+  justify-content: center;
+  padding: 20px 0;
 }
 
 .spinner {
-    width: 24px;
-    height: 24px;
-    border: 2.5px solid var(--sep);
-    border-top-color: var(--accent);
-    border-radius: 50%;
-    animation: spin 0.7s linear infinite;
+  width: 24px;
+  height: 24px;
+  border: 2.5px solid var(--sep);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
 @keyframes spin {
-    to {
-        transform: rotate(360deg);
-    }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ============================================
    REDUCED MOTION / TRANSPARENCY
    ============================================ */
 @media (prefers-reduced-motion: reduce) {
-    *, *::before, *::after {
-        animation-duration: 0.01ms !important;
-        transition-duration: 0.01ms !important;
-    }
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media (prefers-reduced-transparency: reduce) {
-    :root {
-        --lg-bg: var(--card);
-        --lg-blur: 0px;
-        --surface: var(--surface-solid);
-        --sheet-glass: var(--surface-solid);
-        --scrim: rgba(0, 0, 0, 0.75);
-    }
+  :root {
+    --lg-bg: var(--card);
+    --lg-blur: 0px;
+    --surface: var(--surface-solid);
+    --sheet-glass: var(--surface-solid);
+    --scrim: rgba(0, 0, 0, 0.75);
+  }
 
-    .liquid-glass,
-    .btn-icon-glass,
-    .modal {
-        backdrop-filter: none;
-        -webkit-backdrop-filter: none;
-    }
+  .liquid-glass,
+  .btn-icon-glass,
+  .modal {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
 
-    .app-backdrop {
-        display: none;
-    }
+  .app-backdrop {
+    display: none;
+  }
 }

@@ -1,7 +1,7 @@
-import { useSettings } from '../../shared/settings/SettingsProvider'
-import { useConfirm } from '../../shared/ui/ConfirmProvider'
+import { useSettings } from '../../shared/settings/settings'
+import { useConfirm } from '../../shared/ui/confirm'
 import { Toggle } from '../../shared/ui/Toggle'
-import { useAuth } from '../auth/AuthProvider'
+import { useAuth } from '../auth/AuthContext'
 import { TagsSection } from '../entries/TagsSection'
 import { SharingSection } from '../sharing/SharingSection'
 

@@ -4,111 +4,113 @@
    запрещено, под ним нет содержимого, которое стоило бы преломлять. */
 
 .auth-screen {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100dvh;
-    padding: calc(var(--safe-t) + 24px) 16px calc(var(--safe-b) + 24px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: calc(var(--safe-t) + 24px) 16px calc(var(--safe-b) + 24px);
 }
 
 .auth-card {
-    width: 100%;
-    max-width: 380px;
-    padding: 24px;
-    border-radius: var(--r-lg);
-    background: var(--card);
-    box-shadow: var(--card-shadow);
+  width: 100%;
+  max-width: 380px;
+  padding: 24px;
+  border-radius: var(--r-lg);
+  background: var(--card);
+  box-shadow: var(--card-shadow);
 }
 
 .auth-title {
-    font-size: 34px;
-    line-height: 41px;
-    font-weight: 700;
-    letter-spacing: -0.4px;
-    color: var(--c-primary);
+  font-size: 34px;
+  line-height: 41px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--c-primary);
 }
 
 .auth-sub {
-    margin-top: 2px;
-    font-size: 15px;
-    line-height: 20px;
-    color: var(--c-secondary);
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--c-secondary);
 }
 
 /* ============================================
    СЕГМЕНТ-КОНТРОЛ «Вход / Регистрация»
    ============================================ */
 .auth-tabs {
-    display: flex;
-    height: 36px;
-    margin-top: 20px;
-    padding: 2px;
-    border-radius: 18px;
-    background: rgba(120, 120, 128, 0.12);
+  display: flex;
+  height: 36px;
+  margin-top: 20px;
+  padding: 2px;
+  border-radius: 18px;
+  background: rgba(120, 120, 128, 0.12);
 }
 
-[data-theme="dark"] .auth-tabs {
-    background: rgba(120, 120, 128, 0.24);
+[data-theme='dark'] .auth-tabs {
+  background: rgba(120, 120, 128, 0.24);
 }
 
 .auth-tab {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* Концентричность: 18 внешний минус 2 отступа. */
-    border-radius: 16px;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--c-secondary);
-    transition: color var(--t-fast);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Концентричность: 18 внешний минус 2 отступа. */
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--c-secondary);
+  transition: color var(--t-fast);
 }
 
 .auth-tab.active {
-    background: #ffffff;
-    color: var(--c-primary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  background: #ffffff;
+  color: var(--c-primary);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.14),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04);
 }
 
-[data-theme="dark"] .auth-tab.active {
-    background: #48484a;
-    color: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+[data-theme='dark'] .auth-tab.active {
+  background: #48484a;
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 /* ============================================
    ФОРМА
    ============================================ */
 .auth-form {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
-    margin-top: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  margin-top: 20px;
 }
 
 .auth-label {
-    display: block;
-    margin-bottom: 6px;
-    font-size: 13px;
-    line-height: 18px;
-    font-weight: 600;
-    letter-spacing: 0.01em;
-    color: var(--c-secondary);
+  display: block;
+  margin-bottom: 6px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  color: var(--c-secondary);
 }
 
 .auth-input {
-    height: 44px;
-    padding: 0 12px;
-    border-radius: var(--r-sm);
-    line-height: 44px;
+  height: 44px;
+  padding: 0 12px;
+  border-radius: var(--r-sm);
+  line-height: 44px;
 }
 
 .auth-error {
-    padding: 10px 12px;
-    border-radius: var(--r-sm);
-    background: var(--danger-10);
-    color: var(--danger-t);
-    font-size: 15px;
-    line-height: 20px;
+  padding: 10px 12px;
+  border-radius: var(--r-sm);
+  background: var(--danger-10);
+  color: var(--danger-t);
+  font-size: 15px;
+  line-height: 20px;
 }

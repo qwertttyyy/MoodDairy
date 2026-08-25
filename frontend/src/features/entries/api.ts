@@ -166,9 +166,7 @@ export function useTags() {
  * интерфейса. После любой правки сбрасываем и список тегов, и записи: теги
  * входят в ленту, а на сервере их изменение обнуляет кэш записей.
  */
-function useTagMutation<TVariables>(
-  mutationFn: (variables: TVariables) => Promise<unknown>,
-) {
+function useTagMutation<TVariables>(mutationFn: (variables: TVariables) => Promise<unknown>) {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn,

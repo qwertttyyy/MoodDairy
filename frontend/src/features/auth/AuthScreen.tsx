@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import type { FormEvent } from 'react'
 
-import { useAuth } from './AuthProvider'
+import { useAuth } from './AuthContext'
 
 /** Режим экрана: вход в существующий аккаунт или регистрация нового. */
 type AuthMode = 'login' | 'register'

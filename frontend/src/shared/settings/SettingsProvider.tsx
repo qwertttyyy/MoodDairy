@@ -1,31 +1,13 @@
-import { createContext, useCallback, useContext, useLayoutEffect, useState } from 'react'
+import { useCallback, useLayoutEffect, useState } from 'react'
 import type { ReactNode } from 'react'
+
+import { SETTINGS_KEY, SettingsContext } from './settings'
+import type { AppSettings } from './settings'
 
 /**
  * Настройки интерфейса. Ключ localStorage и имена полей менять нельзя:
  * у действующих пользователей уже сохранены темы и режим графика.
  */
-export const SETTINGS_KEY = 'moods_settings'
-
-export interface AppSettings {
-  darkMode: boolean
-  reduceTransparency: boolean
-  chartSmooth: boolean
-}
-
-interface SettingsContextValue {
-  settings: AppSettings
-  update: (patch: Partial<AppSettings>) => void
-}
-
-const SettingsContext = createContext<SettingsContextValue | null>(null)
-
-export function useSettings(): SettingsContextValue {
-  const value = useContext(SettingsContext)
-  if (!value) throw new Error('useSettings должен вызываться внутри SettingsProvider')
-  return value
-}
-
 function readStored(): Record<string, unknown> {
   try {
     const raw = localStorage.getItem(SETTINGS_KEY)

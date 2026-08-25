@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react'
 import { ANXIETY_LABELS, MAX_ANXIETY, MAX_MOOD, MOOD_LABELS } from '../../shared/constants'
 import { isoDateStr, isoTimeStr } from '../../shared/lib/dates'
 import { Modal, ModalCloseButton } from '../../shared/ui/Modal'
-import { useToast } from '../../shared/ui/ToastProvider'
+import { useToast } from '../../shared/ui/toast'
 import { useGuide } from '../guide/GuideContext'
 import { useSaveEntry, useTags } from './api'
 import { useEntryModal } from './EntryModalContext'
@@ -53,7 +53,13 @@ function clampTime(date: string, time: string): string {
 /** Иконка-кружок рядом с надписью «Памятка». */
 function InfoIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+    >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 11v6" />
       <circle cx="12" cy="7.4" r="1.1" fill="currentColor" stroke="none" />
@@ -107,11 +113,7 @@ function ScaleField({ scale, value, onSelect, onOpenGuide }: ScaleFieldProps) {
       </div>
 
       <div className="scale-result">
-        {value ? (
-          meta.labels[value]
-        ) : (
-          <span className="scale-result-empty">{meta.emptyText}</span>
-        )}
+        {value ? meta.labels[value] : <span className="scale-result-empty">{meta.emptyText}</span>}
       </div>
     </div>
   )

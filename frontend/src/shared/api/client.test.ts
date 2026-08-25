@@ -132,9 +132,7 @@ describe('parseApiError', () => {
   })
 
   it('приводит нестроковые значения полей к массиву строк', () => {
-    const payload = parseApiError(
-      envelope('validation_error', 'Ошибка', { fields: { year: 42 } }),
-    )
+    const payload = parseApiError(envelope('validation_error', 'Ошибка', { fields: { year: 42 } }))
 
     expect(payload.fields).toEqual({ year: ['42'] })
   })

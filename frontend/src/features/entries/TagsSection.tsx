@@ -4,8 +4,8 @@ import { useState } from 'react'
 
 import { isApiError } from '../../shared/api/client'
 import type { Tag } from '../../shared/api/types'
-import { useConfirm } from '../../shared/ui/ConfirmProvider'
-import { useToast } from '../../shared/ui/ToastProvider'
+import { useConfirm } from '../../shared/ui/confirm'
+import { useToast } from '../../shared/ui/toast'
 import { useCreateTag, useDeleteTag, useRenameTag, useTags } from './api'
 
 const MAX_TAG_LENGTH = 50
@@ -48,15 +48,7 @@ function TrashIcon() {
 }
 
 /** Строка тега с явными действиями переименования и удаления. */
-function TagRow({
-  tag,
-  onEdit,
-  onDelete,
-}: {
-  tag: Tag
-  onEdit: () => void
-  onDelete: () => void
-}) {
+function TagRow({ tag, onEdit, onDelete }: { tag: Tag; onEdit: () => void; onDelete: () => void }) {
   return (
     <div className="set-row">
       <span className="set-label">{tag.name}</span>
@@ -189,11 +181,7 @@ export function TagsSection() {
               </button>
             </div>
           ) : (
-            <TagRow
-              tag={tag}
-              onEdit={() => startEditing(tag)}
-              onDelete={() => handleDelete(tag)}
-            />
+            <TagRow tag={tag} onEdit={() => startEditing(tag)} onDelete={() => handleDelete(tag)} />
           )}
           <div className="set-sep" />
         </div>

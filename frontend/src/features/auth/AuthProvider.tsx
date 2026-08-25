@@ -1,5 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query'
-import { createContext, useCallback, useContext, useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { api } from '../../shared/api/client'
@@ -22,24 +22,8 @@ import {
   unwrapKey,
   wrapKey,
 } from '../../shared/crypto/crypto'
-
-export type AuthStatus = 'loading' | 'anon' | 'authed'
-
-interface AuthContextValue {
-  status: AuthStatus
-  user: AuthUser | null
-  login: (username: string, password: string) => Promise<void>
-  register: (username: string, password: string) => Promise<void>
-  logout: () => Promise<void>
-}
-
-const AuthContext = createContext<AuthContextValue | null>(null)
-
-export function useAuth(): AuthContextValue {
-  const value = useContext(AuthContext)
-  if (!value) throw new Error('useAuth должен вызываться внутри AuthProvider')
-  return value
-}
+import { AuthContext } from './AuthContext'
+import type { AuthStatus } from './AuthContext'
 
 /**
  * Сессия и ключ шифрования.

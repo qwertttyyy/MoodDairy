@@ -5,18 +5,19 @@
 
 import { useMemo, useState } from 'react'
 
-import { useSettings } from '../../shared/settings/SettingsProvider'
+import { useSettings } from '../../shared/settings/settings'
 import { ChartIcon } from '../../shared/ui/EmptyStateIcons'
 import { useChartEntries, useDateRange } from '../entries/api'
 import { ChartStats } from './ChartStats'
 import { MoodChart } from './MoodChart'
-import { MonthPicker, currentYearMonth } from './MonthPicker'
-import type { YearMonth } from './MonthPicker'
+import { MonthPicker } from './MonthPicker'
 import { CHART_MODES, parseFirstMonth, periodView } from './period'
 import type { ChartMode } from './period'
+import { clampYear, currentYear, currentYearMonth } from './pickerDates'
+import type { YearMonth } from './pickerDates'
 import { averageMood, filterByRange } from './series'
 import type { ChartEntry, DayRange } from './types'
-import { YearPicker, clampYear, currentYear } from './YearPicker'
+import { YearPicker } from './YearPicker'
 
 export function ChartTab({ active }: { active: boolean }) {
   const { settings } = useSettings()
