@@ -1,39 +1,42 @@
 /* shell.css — оболочка приложения. */
 
 .app-shell {
-    min-height: 100dvh;
+  min-height: 100dvh;
 }
 
 /* ============================================
    СОДЕРЖИМОЕ ТАБА
    ============================================ */
 .tab-content {
-    padding-top: var(--content-top);
-    padding-bottom: calc(var(--tabbar-h) + var(--tabbar-bottom) + var(--safe-b) + 28px);
-    padding-left: 16px;
-    padding-right: 16px;
-    min-height: 100dvh;
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
+  padding-top: var(--content-top);
+  padding-bottom: calc(var(--tabbar-h) + var(--tabbar-bottom) + var(--safe-b) + 28px);
+  padding-left: 16px;
+  padding-right: 16px;
+  min-height: 100dvh;
 }
 
 .page-header {
-    display: flex;
-    align-items: center;
-    min-height: 41px;
-    margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  min-height: 41px;
+  margin-bottom: 16px;
 }
 
 .large-title {
-    flex: 1;
-    min-width: 0;
-    font-size: 34px;
-    line-height: 41px;
-    font-weight: 700;
-    letter-spacing: -0.4px;
-    color: var(--c-primary);
+  flex: 1;
+  min-width: 0;
+  font-size: 34px;
+  line-height: 41px;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  color: var(--c-primary);
 }
 
 .page-info {
-    margin-left: 12px;
+  margin-left: 12px;
 }
 
 /* ============================================
@@ -42,111 +45,112 @@
    приложениях iOS 26, и она не перекрывает последнюю строку ленты.
    ============================================ */
 .tab-dock {
-    position: fixed;
-    left: 16px;
-    right: 16px;
-    bottom: calc(var(--tabbar-bottom) + var(--safe-b));
-    z-index: 50;
-    display: flex;
-    align-items: center;
-    gap: 10px;
+  position: fixed;
+  left: 50%;
+  width: min(calc(100% - 32px), 688px);
+  transform: translateX(-50%);
+  bottom: calc(var(--tabbar-bottom) + var(--safe-b));
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  gap: 10px;
 }
 
 .tab-bar {
-    --lg-bg: rgba(255, 255, 255, 0.68);
-    --lg-blur: 18px;
-    --lg-sat: 1.55;
-    --lg-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55),
-        0 8px 28px rgba(0, 0, 0, 0.14);
-    flex: 1 1 auto;
-    min-width: 0;
-    display: flex;
-    align-items: stretch;
-    height: var(--tabbar-h);
-    padding: 7px;
-    border-radius: 29px;
+  --lg-bg: rgba(255, 255, 255, 0.68);
+  --lg-blur: 18px;
+  --lg-sat: 1.55;
+  --lg-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 8px 28px rgba(0, 0, 0, 0.14);
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: stretch;
+  height: var(--tabbar-h);
+  padding: 7px;
+  border-radius: 29px;
 }
 
 .tab-btn {
-    flex: 1;
-    min-width: 0;
-    /* Концентричность: 29 внешний минус 7 отступа. */
-    border-radius: 22px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    gap: 2px;
-    color: var(--c-secondary);
-    transition: color var(--t-fast), background var(--t-fast);
+  flex: 1;
+  min-width: 0;
+  /* Концентричность: 29 внешний минус 7 отступа. */
+  border-radius: 22px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  color: var(--c-secondary);
+  transition:
+    color var(--t-fast),
+    background var(--t-fast);
 }
 
 .tab-btn svg {
-    width: 24px;
-    height: 24px;
-    display: block;
+  width: 24px;
+  height: 24px;
+  display: block;
 }
 
 .tab-btn span {
-    font-size: 11px;
-    line-height: 13px;
-    font-weight: 500;
-    letter-spacing: 0;
+  font-size: 11px;
+  line-height: 13px;
+  font-weight: 500;
+  letter-spacing: 0;
 }
 
 .tab-btn.active {
-    color: var(--accent);
-    background: rgba(255, 255, 255, 0.75);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  color: var(--accent);
+  background: rgba(255, 255, 255, 0.75);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
 
-[data-theme="dark"] .tab-bar {
-    --lg-bg: rgba(48, 48, 54, 0.58);
-    --lg-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13),
-        0 8px 28px rgba(0, 0, 0, 0.55);
+[data-theme='dark'] .tab-bar {
+  --lg-bg: rgba(48, 48, 54, 0.58);
+  --lg-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.13), 0 8px 28px rgba(0, 0, 0, 0.55);
 }
 
-[data-theme="dark"] .tab-btn.active {
-    background: rgba(255, 255, 255, 0.12);
-    box-shadow: none;
+[data-theme='dark'] .tab-btn.active {
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: none;
 }
 
 .tab-btn:active {
-    opacity: 0.7;
+  opacity: 0.7;
 }
 
 /* Кнопка добавления: круг ростом с капсулу. */
 .fab-add {
-    width: var(--tabbar-h);
-    height: var(--tabbar-h);
-    border-radius: 50%;
-    flex: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: var(--accent);
-    color: var(--accent-ink);
-    box-shadow: 0 6px 20px rgba(10, 124, 140, 0.42);
-    transition: transform var(--t-fast);
+  width: var(--tabbar-h);
+  height: var(--tabbar-h);
+  border-radius: 50%;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent);
+  color: var(--accent-ink);
+  box-shadow: 0 6px 20px rgba(10, 124, 140, 0.42);
+  transition: transform var(--t-fast);
 }
 
-[data-theme="dark"] .fab-add {
-    box-shadow: 0 6px 22px rgba(0, 0, 0, 0.7);
+[data-theme='dark'] .fab-add {
+  box-shadow: 0 6px 22px rgba(0, 0, 0, 0.7);
 }
 
 .fab-add:active {
-    transform: scale(0.9);
+  transform: scale(0.9);
 }
 
 .fab-add svg {
-    width: 26px;
-    height: 26px;
-    display: block;
+  width: 26px;
+  height: 26px;
+  display: block;
 }
 
 /* Пока открыта форма, кнопка прячется: окно выросло из неё и стоит на её
    месте — видеть под ним исходный круг незачем. */
 .fab-add.is-hidden {
-    opacity: 0;
-    pointer-events: none;
+  opacity: 0;
+  pointer-events: none;
 }

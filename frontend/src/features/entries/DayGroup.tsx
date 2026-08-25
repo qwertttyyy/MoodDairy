@@ -1,10 +1,10 @@
 import { Fragment, useEffect, useState } from 'react'
 import type { CSSProperties } from 'react'
 
-import { dayLabel } from '../../shared/lib/dates'
+import { dayLabel, formatTime } from '../../shared/lib/dates'
 import { EntryCard } from './EntryCard'
 import { moodClass } from './scale'
-import type { DecryptedEntry, EntryDayGroup } from './types'
+import type { DecryptedEntry, EntryDayGroup, EntryResult } from './types'
 
 /** Запасная высота верхней панели, если computed-значение прочитать не удалось. */
 const FALLBACK_TOP = 52
@@ -27,6 +27,7 @@ function useStickyPinned(target: HTMLElement | null): boolean {
 
     const observer = new IntersectionObserver(
       ([record]) => {
+        if (!record) return
         const box = record.boundingClientRect
         // У скрытого таба (display:none) прямоугольник нулевой, а верх равен
         // нулю — без проверки высоты все заголовки скрытой ленты считались бы
@@ -48,7 +49,7 @@ function useStickyPinned(target: HTMLElement | null): boolean {
 interface DayGroupProps {
   group: EntryDayGroup
   onOpen: (entry: DecryptedEntry) => void
-  onDelete: (entry: DecryptedEntry) => void
+  onDelete: (entry: EntryResult) => void
 }
 
 /** Записи одного дня: липкий заголовок и одна общая группа строк под ним. */
@@ -58,7 +59,7 @@ export function DayGroup({ group, onOpen, onDelete }: DayGroupProps) {
 
   return (
     <section className="feed-day">
-      <h3 className={pinned ? 'feed-dayhead is-pinned' : 'feed-dayhead'} ref={setHead}>
+      <h2 className={pinned ? 'feed-dayhead is-pinned' : 'feed-dayhead'} ref={setHead}>
         <span className="feed-dayhead-text">{dayLabel(group.day)}</span>
         {/* Сводка дня: по сегменту на запись, цвет — оценка настроения.
             Видна только в прилипшем состоянии. Число записей отдаём в CSS
@@ -69,19 +70,48 @@ export function DayGroup({ group, onOpen, onDelete }: DayGroupProps) {
           aria-hidden="true"
         >
           {group.entries.map((entry) => (
-            <i key={entry.id} className={moodClass(entry.mood)} />
+            <i
+              key={entry.id}
+              className={entry.kind === 'ready' ? moodClass(entry.mood) : 'entry-corrupted'}
+            />
           ))}
         </span>
-      </h3>
+      </h2>
 
       <div className="feed-group">
         {group.entries.map((entry, index) => (
           <Fragment key={entry.id}>
             {index > 0 ? <div className="feed-sep" /> : null}
-            <EntryCard entry={entry} onOpen={onOpen} onDelete={onDelete} />
+            {entry.kind === 'ready' ? (
+              <EntryCard entry={entry} onOpen={onOpen} onDelete={onDelete} />
+            ) : (
+              <CorruptedEntryCard entry={entry} onDelete={onDelete} />
+            )}
           </Fragment>
         ))}
       </div>
     </section>
+  )
+}
+
+function CorruptedEntryCard({
+  entry,
+  onDelete,
+}: {
+  entry: Extract<EntryResult, { kind: 'corrupted' }>
+  onDelete: (entry: EntryResult) => void
+}) {
+  return (
+    <div className="feed-row corrupted-entry" role="alert">
+      <span className="feed-body">
+        <strong className="feed-mood">Запись не удалось расшифровать</strong>
+        <span className="feed-note">
+          {formatTime(entry.timestamp)} · Содержимое скрыто для безопасности.
+        </span>
+      </span>
+      <button type="button" className="btn-plain btn-plain-danger" onClick={() => onDelete(entry)}>
+        Удалить
+      </button>
+    </div>
   )
 }

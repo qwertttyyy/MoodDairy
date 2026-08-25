@@ -1,9 +1,12 @@
-import { useSettings } from '../../shared/settings/SettingsProvider'
-import { useConfirm } from '../../shared/ui/ConfirmProvider'
+import { useSettings } from '../../shared/settings/settings'
+import { useConfirm } from '../../shared/ui/confirm'
 import { Toggle } from '../../shared/ui/Toggle'
-import { useAuth } from '../auth/AuthProvider'
+import { useAuth } from '../auth/AuthContext'
 import { TagsSection } from '../entries/TagsSection'
 import { SharingSection } from '../sharing/SharingSection'
+import { InstallSection } from './InstallSection'
+
+import './settings.css'
 
 /** Ряд настройки: подпись слева, тумблер справа. */
 function ToggleRow({
@@ -16,15 +19,15 @@ function ToggleRow({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <div className="set-row">
+    <label className="set-row set-row-toggle">
       <span className="set-label">{label}</span>
-      <Toggle checked={checked} onChange={onChange} />
-    </div>
+      <Toggle label={label} checked={checked} onChange={onChange} />
+    </label>
   )
 }
 
 /** Таб настроек: вид, теги, доступ для врача, выход. */
-export function SettingsTab() {
+export function SettingsTab({ active = true }: { active?: boolean }) {
   const { settings, update } = useSettings()
   const confirm = useConfirm()
   const { logout } = useAuth()
@@ -34,15 +37,13 @@ export function SettingsTab() {
       title: 'Выйти из аккаунта?',
       text: 'Зашифрованные ключи будут удалены.',
       confirmLabel: 'Выйти',
-      onConfirm: () => {
-        void logout()
-      },
+      onConfirm: logout,
     })
   }
 
   return (
     <>
-      <h3 className="settings-title">Вид</h3>
+      <h2 className="settings-title">Вид</h2>
       <div className="settings-group">
         <ToggleRow
           label="Тёмная тема"
@@ -63,23 +64,29 @@ export function SettingsTab() {
         />
       </div>
 
-      <h3 className="settings-title">Теги</h3>
-      <TagsSection />
+      <h2 className="settings-title">Теги</h2>
+      <TagsSection active={active} />
 
-      <h3 className="settings-title">Доступ для врача</h3>
-      <SharingSection />
+      <h2 className="settings-title">Доступ для врача</h2>
+      <SharingSection active={active} />
 
-      <h3 className="settings-title">Аккаунт</h3>
+      <InstallSection />
+
+      <h2 className="settings-title">Аккаунт</h2>
       <div className="settings-group">
         <div className="set-row">
           <span className="set-label">Выйти из аккаунта</span>
-          <button className="btn-plain btn-plain-danger" onClick={askLogout}>
+          <button type="button" className="btn-plain btn-plain-danger" onClick={askLogout}>
             Выход
           </button>
         </div>
       </div>
 
-      <p className="settings-footer">Moods v1.2</p>
+      <p className="settings-footer">
+        Moods v{__APP_VERSION__} · сборка {__BUILD_SHA__}
+      </p>
     </>
   )
 }
+
+export default SettingsTab

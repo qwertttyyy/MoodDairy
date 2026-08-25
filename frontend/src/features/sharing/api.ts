@@ -10,13 +10,15 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
-import { api } from '../../shared/api/client'
-import type {
-  CreateShareResponse,
-  ShareEntry,
-  SharingStatusResponse,
-  SnapshotRawEntry,
+import { api, REQUEST_TIMEOUTS } from '../../shared/api/client'
+import {
+  createShareResponseSchema,
+  sharingStatusResponseSchema,
+  shareEntrySchema,
+  snapshotRawEntriesSchema,
+  voidResponseSchema,
 } from '../../shared/api/types'
+import type { ShareEntry, SharingStatusResponse } from '../../shared/api/types'
 import {
   decrypt,
   encryptWithKey,
@@ -34,11 +36,19 @@ export interface CreatedShare {
   shareKeyB64: string
 }
 
+export class IncompleteShareError extends Error {
+  constructor() {
+    super('Ссылку нельзя создать: часть записей не удалось расшифровать')
+    this.name = 'IncompleteShareError'
+  }
+}
+
 /** Метаданные активной ссылки. Ошибку не показываем — как и старый `Share.loadActive`. */
-export function useSharingStatus() {
+export function useSharingStatus(enabled = true) {
   return useQuery<SharingStatusResponse>({
     queryKey: sharingKeys.status,
-    queryFn: () => api.get<SharingStatusResponse>('/api/sharing/'),
+    enabled,
+    queryFn: ({ signal }) => api.get('/api/sharing/', sharingStatusResponseSchema, { signal }),
   })
 }
 
@@ -55,7 +65,7 @@ export function useRevokeShare() {
   return useMutation<void, Error, void>({
     // Отзыв идемпотентен: сервер отвечает 204 и когда ссылка была,
     // и когда её не существовало.
-    mutationFn: () => api.del<void>('/api/sharing/'),
+    mutationFn: () => api.del('/api/sharing/', voidResponseSchema),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: sharingKeys.status }),
   })
 }
@@ -77,17 +87,23 @@ async function createShare(): Promise<CreatedShare> {
   // бэкенда, а не выбор клиента, иначе укравший сессию мог бы создать ссылку,
   // помеченную как незашифрованная.
   if (!isEncryptionEnabled()) {
-    const { token } = await api.post<CreateShareResponse>('/api/sharing/', {
-      data_blob: plainJson,
-    })
+    const { token } = await api.post(
+      '/api/sharing/',
+      { data_blob: plainJson },
+      createShareResponseSchema,
+      { timeoutMs: REQUEST_TIMEOUTS.createShare },
+    )
     return { token, shareKeyB64: '' }
   }
 
   const shareKey = generateShareKey()
   const dataBlob = await encryptWithKey(shareKey.raw, plainJson)
-  const { token } = await api.post<CreateShareResponse>('/api/sharing/', {
-    data_blob: dataBlob,
-  })
+  const { token } = await api.post(
+    '/api/sharing/',
+    { data_blob: dataBlob },
+    createShareResponseSchema,
+    { timeoutMs: REQUEST_TIMEOUTS.createShare },
+  )
   // В запросе только шифротекст: `shareKey.b64` остаётся в памяти вкладки.
   return { token, shareKeyB64: shareKey.b64 }
 }
@@ -99,15 +115,21 @@ async function createShare(): Promise<CreatedShare> {
  * только поля для графика и требует период, тогда как врачу нужен дневник
  * целиком, вместе с заметками.
  */
-async function buildSnapshotJson(): Promise<string> {
-  const raw = await api.get<SnapshotRawEntry[]>('/api/entries/snapshot/')
-  const entries: ShareEntry[] = await Promise.all(
-    raw.map(async (item) => ({
-      mood: parseInt(await decrypt(item.mood), 10) || 0,
-      note: item.note ? await decrypt(item.note) : '',
-      anxiety: item.anxiety ? parseInt(await decrypt(item.anxiety), 10) || 0 : 0,
-      timestamp: item.timestamp,
-    })),
+export async function buildSnapshotJson(): Promise<string> {
+  const raw = await api.get('/api/entries/snapshot/', snapshotRawEntriesSchema)
+  const settled = await Promise.allSettled(
+    raw.map(async (item) =>
+      shareEntrySchema.parse({
+        mood: Number.parseInt(await decrypt(item.mood), 10),
+        note: item.note ? await decrypt(item.note) : '',
+        anxiety: item.anxiety ? Number.parseInt(await decrypt(item.anxiety), 10) : 0,
+        timestamp: item.timestamp,
+      }),
+    ),
+  )
+  if (settled.some((result) => result.status === 'rejected')) throw new IncompleteShareError()
+  const entries: ShareEntry[] = settled.flatMap((result) =>
+    result.status === 'fulfilled' ? [result.value] : [],
   )
   return JSON.stringify(entries)
 }

@@ -1,41 +1,50 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import type { ReactNode } from 'react'
+import type { ReactNode, RefObject } from 'react'
 
 import { useScrollLock } from '../lib/useScrollLock'
 
-/** Длительность роста и схлопывания окна. Совпадает с --t-morph в modal.css. */
+import './modal.css'
+
 const MORPH_MS = 340
+const FOCUSABLE_SELECTOR = [
+  'a[href]',
+  'button:not([disabled])',
+  'input:not([disabled])',
+  'select:not([disabled])',
+  'textarea:not([disabled])',
+  '[tabindex]:not([tabindex="-1"])',
+].join(',')
 
 interface ModalProps {
   open: boolean
   onClose: () => void
-  /** Доп. класс на `.modal`: `modal-sm`, `modal-guide`, `entry-form`. */
+  titleId: string
+  initialFocusRef?: RefObject<HTMLElement | null>
+  closeDisabled?: boolean
+  closeOnBackdrop?: boolean
   className?: string
-  /** Доп. класс на затемняющий слой вокруг окна. */
   overlayClassName?: string
-  /** Кнопка, из которой окно вырастает и в которую схлопывается. */
   morphFrom?: DOMRect | null
   children: ReactNode
 }
 
-/**
- * Модальное окно: скруглённый прямоугольник с полями по краям экрана.
- * Клик по фону закрывает.
- *
- * Если передан `morphFrom`, окно появляется ростом из этой кнопки. Размонтируем
- * его не сразу: пока идёт обратная анимация, содержимое должно оставаться в DOM.
- */
+/** Нативный modal dialog с возвратом фокуса и управляемым закрытием. */
 export function Modal({
   open,
   onClose,
+  titleId,
+  initialFocusRef,
+  closeDisabled = false,
+  closeOnBackdrop = true,
   className,
   overlayClassName,
   morphFrom,
   children,
 }: ModalProps) {
   const [mounted, setMounted] = useState(open)
-  const overlayRef = useRef<HTMLDivElement>(null)
+  const dialogRef = useRef<HTMLDialogElement>(null)
   const boxRef = useRef<HTMLDivElement>(null)
+  const returnFocusRef = useRef<HTMLElement | null>(null)
 
   useScrollLock(mounted)
 
@@ -44,82 +53,129 @@ export function Modal({
       setMounted(true)
       return
     }
-    const timer = window.setTimeout(() => setMounted(false), MORPH_MS)
-    return () => window.clearTimeout(timer)
-  }, [open])
+    if (!mounted) return
 
-  useEffect(() => {
-    if (!open) return
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose()
+    const finish = () => {
+      if (dialogRef.current?.open) {
+        if (typeof dialogRef.current.close === 'function') dialogRef.current.close()
+        else dialogRef.current.removeAttribute('open')
+      }
+      setMounted(false)
+      const target = returnFocusRef.current
+      returnFocusRef.current = null
+      if (target?.isConnected) target.focus()
     }
-    window.addEventListener('keydown', onKeyDown)
-    return () => window.removeEventListener('keydown', onKeyDown)
-  }, [open, onClose])
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      finish()
+      return
+    }
+    const timer = window.setTimeout(finish, MORPH_MS)
+    return () => window.clearTimeout(timer)
+  }, [mounted, open])
 
-  /*
-   * Сдвиг и масштаб считаем до первой отрисовки. Измеряем только на открытии:
-   * при закрытии окно уже под анимацией, и getBoundingClientRect вернул бы
-   * преобразованную рамку вместо исходной. Переменные ставим на оверлей —
-   * пользовательские свойства наследуются, и окно их подхватит само.
-   */
   useLayoutEffect(() => {
-    const overlay = overlayRef.current
+    const dialog = dialogRef.current
     const box = boxRef.current
-    if (!overlay || !box) return
+    if (!dialog || !box || !mounted) return
+
+    if (open && !dialog.open) {
+      returnFocusRef.current = document.activeElement as HTMLElement | null
+      if (typeof dialog.showModal === 'function') dialog.showModal()
+      else dialog.setAttribute('open', '')
+      requestAnimationFrame(() => {
+        const initial = initialFocusRef?.current ?? document.getElementById(titleId)
+        initial?.focus()
+      })
+    }
 
     if (open && morphFrom) {
       const rect = box.getBoundingClientRect()
       const scale = morphFrom.width / rect.width
-      overlay.style.setProperty(
+      dialog.style.setProperty(
         '--morph-x',
         `${morphFrom.left + morphFrom.width / 2 - rect.left - rect.width / 2}px`,
       )
-      overlay.style.setProperty(
+      dialog.style.setProperty(
         '--morph-y',
         `${morphFrom.top + morphFrom.height / 2 - rect.top - rect.height / 2}px`,
       )
-      overlay.style.setProperty('--morph-k', `${scale}`)
-      // Скругление гасится тем же масштабом, поэтому радиус берём делением:
-      // на экране стартовая кромка совпадёт с круглой кнопкой.
-      overlay.style.setProperty('--morph-r', `${morphFrom.width / 2 / scale}px`)
+      dialog.style.setProperty('--morph-k', `${scale}`)
+      dialog.style.setProperty('--morph-r', `${morphFrom.width / 2 / scale}px`)
     }
-
-    overlay.dataset.morph = open ? 'in' : 'out'
-  }, [mounted, open, morphFrom])
+    dialog.dataset.morph = open ? 'in' : 'out'
+  }, [initialFocusRef, mounted, morphFrom, open, titleId])
 
   if (!mounted) return null
 
-  const boxClass = ['modal', className, morphFrom ? 'modal-morph' : null]
-    .filter(Boolean)
-    .join(' ')
+  const boxClass = ['modal', className, morphFrom ? 'modal-morph' : null].filter(Boolean).join(' ')
   const overlayClass = ['modal-overlay', overlayClassName].filter(Boolean).join(' ')
 
   return (
-    <div
-      ref={overlayRef}
+    <dialog
+      ref={dialogRef}
       className={overlayClass}
+      aria-labelledby={titleId}
+      aria-busy={closeDisabled}
+      tabIndex={-1}
+      onCancel={(event) => {
+        event.preventDefault()
+        if (!closeDisabled) onClose()
+      }}
       onClick={(event) => {
-        if (event.target === event.currentTarget) onClose()
+        if (event.target === event.currentTarget && closeOnBackdrop && !closeDisabled) onClose()
+      }}
+      onKeyDown={(event) => {
+        if (event.key !== 'Tab') return
+        const dialog = event.currentTarget
+        const focusable = [...dialog.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)].filter(
+          (element) => !element.hidden && element.getAttribute('aria-hidden') !== 'true',
+        )
+        if (!focusable.length) {
+          event.preventDefault()
+          dialog.focus()
+          return
+        }
+        const first = focusable[0]
+        const last = focusable.at(-1)
+        const currentIndex = focusable.indexOf(document.activeElement as HTMLElement)
+        if (event.shiftKey && (currentIndex <= 0 || document.activeElement === first)) {
+          event.preventDefault()
+          last?.focus()
+        } else if (!event.shiftKey && (currentIndex === -1 || document.activeElement === last)) {
+          event.preventDefault()
+          first?.focus()
+        }
       }}
     >
       <div ref={boxRef} className={boxClass}>
         {children}
       </div>
-    </div>
+    </dialog>
   )
 }
 
-/** Кнопка-крестик в шапке окна: плоский кружок на поле. */
-export function ModalCloseButton({ onClick }: { onClick: () => void }) {
+export function ModalCloseButton({
+  onClick,
+  disabled = false,
+}: {
+  onClick: () => void
+  disabled?: boolean
+}) {
   return (
-    <button className="btn-close" onClick={onClick} aria-label="Закрыть">
+    <button
+      type="button"
+      className="btn-close"
+      onClick={onClick}
+      aria-label="Закрыть"
+      disabled={disabled}
+    >
       <svg
         viewBox="0 0 24 24"
         fill="none"
         stroke="currentColor"
         strokeWidth="2.2"
         strokeLinecap="round"
+        aria-hidden="true"
       >
         <path d="M6.4 6.4 17.6 17.6M17.6 6.4 6.4 17.6" />
       </svg>

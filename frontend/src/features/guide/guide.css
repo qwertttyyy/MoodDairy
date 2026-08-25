@@ -11,49 +11,51 @@
    с 40 % в 64 % и читался как грязь. Оставляем один скрим — нижний.
    ============================================ */
 .modal-overlay ~ .modal-overlay:has(.modal-guide)::before {
-    background: transparent;
+  background: transparent;
 }
 
 /* ============================================
    СЕГМЕНТ-КОНТРОЛ «Настроение / Тревога»
    ============================================ */
 .guide-tabs {
-    display: flex;
-    height: 36px;
-    flex: none;
-    padding: 2px;
-    border-radius: 18px;
-    background: rgba(120, 120, 128, 0.12);
+  display: flex;
+  height: 44px;
+  flex: none;
+  padding: 2px;
+  border-radius: 18px;
+  background: rgba(120, 120, 128, 0.12);
 }
 
-[data-theme="dark"] .guide-tabs {
-    background: rgba(120, 120, 128, 0.24);
+[data-theme='dark'] .guide-tabs {
+  background: rgba(120, 120, 128, 0.24);
 }
 
 .guide-tab-btn {
-    flex: 1;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    /* Концентричность: 18 внешний минус 2 отступа. */
-    border-radius: 16px;
-    font-size: 13px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--c-secondary);
-    transition: color var(--t-fast);
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Концентричность: 18 внешний минус 2 отступа. */
+  border-radius: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--c-secondary);
+  transition: color var(--t-fast);
 }
 
 .guide-tab-btn.active {
-    background: #ffffff;
-    color: var(--c-primary);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.14), 0 0 0 0.5px rgba(0, 0, 0, 0.04);
+  background: #ffffff;
+  color: var(--c-primary);
+  box-shadow:
+    0 1px 3px rgba(0, 0, 0, 0.14),
+    0 0 0 0.5px rgba(0, 0, 0, 0.04);
 }
 
-[data-theme="dark"] .guide-tab-btn.active {
-    background: var(--field-raised);
-    color: #ffffff;
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
+[data-theme='dark'] .guide-tab-btn.active {
+  background: var(--field-raised);
+  color: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.5);
 }
 
 /* ============================================
@@ -68,88 +70,90 @@
    Снизу 34 px — полоса домой на iPhone, как у кнопки в форме записи.
    ============================================ */
 .mood-guide-list {
-    padding-top: 12px;
-    padding-bottom: calc(var(--safe-b) + 34px);
+  padding-top: 12px;
+  padding-bottom: calc(var(--safe-b) + 34px);
 }
 
 .guide-select-hint {
-    padding: 4px 0 8px;
-    font-size: 13px;
-    line-height: 18px;
-    font-weight: 500;
-    color: var(--accent);
+  padding: 4px 0 8px;
+  font-size: 13px;
+  line-height: 18px;
+  font-weight: 500;
+  color: var(--accent);
 }
 
 .guide-item {
-    position: relative;
-    display: flex;
-    gap: 12px;
-    padding: 10px 0;
+  position: relative;
+  display: flex;
+  gap: 12px;
+  padding: 10px 0;
 }
 
 /* Разделитель начинается за бейджем: 44 ширины плюс 12 промежутка. */
 .guide-item + .guide-item::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 56px;
-    right: 0;
-    height: 1px;
-    background: var(--sep);
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 56px;
+  right: 0;
+  height: 1px;
+  background: var(--sep);
 }
 
 .guide-item-clickable {
-    cursor: pointer;
-    border-radius: var(--r-sm);
-    transition: background var(--t-fast);
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+  border-radius: var(--r-sm);
+  transition: background var(--t-fast);
 }
 
 .guide-item-clickable:active {
-    background: var(--hl);
+  background: var(--hl);
 }
 
 .guide-badge {
-    width: 44px;
-    height: 44px;
-    flex: none;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: var(--r-sm);
-    font-size: 19px;
-    line-height: 22px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-sm);
+  font-size: 19px;
+  line-height: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 /* Цвет цифры на самой тёмной ступени шкалы задан в base.css — её исключаем,
    чтобы не перебить то правило порядком каскада. */
 .guide-badge:not(.m1):not(.p5) {
-    color: var(--chip-ink);
+  color: var(--chip-ink);
 }
 
-[data-theme="dark"] .guide-badge {
-    box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
+[data-theme='dark'] .guide-badge {
+  box-shadow: inset 0 0 0 0.5px rgba(255, 255, 255, 0.12);
 }
 
 .guide-text {
-    flex: 1;
-    min-width: 0;
-    padding-top: 1px;
+  flex: 1;
+  min-width: 0;
+  padding-top: 1px;
 }
 
 .guide-text strong {
-    display: block;
-    font-size: 15px;
-    line-height: 20px;
-    font-weight: 600;
-    letter-spacing: -0.01em;
-    color: var(--c-primary);
+  display: block;
+  font-size: 15px;
+  line-height: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--c-primary);
 }
 
 .guide-text p {
-    margin-top: 2px;
-    font-size: 15px;
-    line-height: 20px;
-    color: var(--c-secondary);
+  margin-top: 2px;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--c-secondary);
 }

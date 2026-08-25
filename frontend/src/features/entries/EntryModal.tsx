@@ -3,10 +3,13 @@ import { useEffect, useState } from 'react'
 import { ANXIETY_LABELS, MAX_ANXIETY, MAX_MOOD, MOOD_LABELS } from '../../shared/constants'
 import { isoDateStr, isoTimeStr } from '../../shared/lib/dates'
 import { Modal, ModalCloseButton } from '../../shared/ui/Modal'
-import { useToast } from '../../shared/ui/ToastProvider'
+import { useConfirm } from '../../shared/ui/confirm'
+import { useToast } from '../../shared/ui/toast'
 import { useGuide } from '../guide/GuideContext'
-import { useSaveEntry, useTags } from './api'
+import { useDeleteEntry, useSaveEntry, useTags } from './api'
 import { useEntryModal } from './EntryModalContext'
+
+import './entry-form.css'
 
 /**
  * Различия двух шкал: классы, подписи и палитры.
@@ -53,7 +56,14 @@ function clampTime(date: string, time: string): string {
 /** Иконка-кружок рядом с надписью «Памятка». */
 function InfoIcon() {
   return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      aria-hidden="true"
+    >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 11v6" />
       <circle cx="12" cy="7.4" r="1.1" fill="currentColor" stroke="none" />
@@ -88,7 +98,7 @@ function ScaleField({ scale, value, onSelect, onOpenGuide }: ScaleFieldProps) {
         </button>
       </div>
 
-      <div className={meta.scaleClass}>
+      <div className={meta.scaleClass} role="group" aria-label={meta.title}>
         {grades.map((grade) => {
           const classes = ['scale-cell', `${meta.colorClass}${grade}`]
           if (grade === value) classes.push('selected')
@@ -107,11 +117,7 @@ function ScaleField({ scale, value, onSelect, onOpenGuide }: ScaleFieldProps) {
       </div>
 
       <div className="scale-result">
-        {value ? (
-          meta.labels[value]
-        ) : (
-          <span className="scale-result-empty">{meta.emptyText}</span>
-        )}
+        {value ? meta.labels[value] : <span className="scale-result-empty">{meta.emptyText}</span>}
       </div>
     </div>
   )
@@ -128,8 +134,10 @@ export function EntryModal() {
     useEntryModal()
   const { open: openGuide } = useGuide()
   const showToast = useToast()
-  const { data: tags } = useTags()
+  const confirm = useConfirm()
+  const { data: tags, error: tagsError, refetch: refetchTags } = useTags(isOpen)
   const saveEntry = useSaveEntry()
+  const deleteEntry = useDeleteEntry()
 
   const [note, setNote] = useState('')
   const [date, setDate] = useState('')
@@ -198,18 +206,36 @@ export function EntryModal() {
     }
   }
 
+  const handleDelete = () => {
+    if (!editing) return
+    confirm({
+      title: 'Удалить запись?',
+      text: 'Это действие нельзя отменить.',
+      confirmLabel: 'Удалить',
+      onConfirm: async () => {
+        await deleteEntry.mutateAsync(editing.id)
+        close()
+        showToast('Запись удалена')
+      },
+    })
+  }
+
   return (
     <Modal
       open={isOpen}
       onClose={close}
+      titleId="entry-modal-title"
+      closeDisabled={saveEntry.isPending || deleteEntry.isPending}
       className="entry-form"
       overlayClassName="entry-form-overlay"
       morphFrom={origin}
     >
       <div className="modal-handle" />
       <div className="modal-header">
-        <h2>{isEditing ? 'Редактировать' : 'Новая запись'}</h2>
-        <ModalCloseButton onClick={close} />
+        <h2 id="entry-modal-title" tabIndex={-1}>
+          {isEditing ? 'Редактировать' : 'Новая запись'}
+        </h2>
+        <ModalCloseButton onClick={close} disabled={saveEntry.isPending || deleteEntry.isPending} />
       </div>
 
       <div className="modal-body">
@@ -252,12 +278,21 @@ export function EntryModal() {
                 key={tag.id}
                 type="button"
                 className={selectedTagIds.includes(tag.id) ? 'tag-chip selected' : 'tag-chip'}
+                aria-pressed={selectedTagIds.includes(tag.id)}
                 onClick={() => toggleTag(tag.id)}
               >
                 {tag.name}
               </button>
             ))}
           </div>
+          {tagsError ? (
+            <div className="inline-error" role="alert">
+              <span>Не удалось загрузить теги</span>
+              <button type="button" className="btn-plain" onClick={() => void refetchTags()}>
+                Повторить
+              </button>
+            </div>
+          ) : null}
         </div>
 
         <div className="field-block">
@@ -271,6 +306,8 @@ export function EntryModal() {
                 value={date}
                 max={today}
                 aria-label="Дата записи"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'entry-form-error' : undefined}
                 onChange={(event) => handleDateChange(event.target.value)}
               />
               <svg
@@ -291,6 +328,8 @@ export function EntryModal() {
                 value={time}
                 max={timeMax}
                 aria-label="Время записи"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'entry-form-error' : undefined}
                 onChange={(event) => setTime(clampTime(date, event.target.value))}
               />
               <svg
@@ -308,17 +347,33 @@ export function EntryModal() {
           </div>
         </div>
 
-        {error && <div className="form-error">{error}</div>}
+        {error && (
+          <div className="form-error" id="entry-form-error" role="alert">
+            {error}
+          </div>
+        )}
       </div>
 
       <div className="modal-footer">
+        {isEditing ? (
+          <button
+            type="button"
+            className="btn-secondary btn-delete-entry"
+            onClick={handleDelete}
+            disabled={deleteEntry.isPending || saveEntry.isPending}
+            aria-busy={deleteEntry.isPending}
+          >
+            Удалить
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn-primary"
           onClick={handleSave}
           disabled={!mood || saveEntry.isPending}
+          aria-busy={saveEntry.isPending}
         >
-          {isEditing ? 'Сохранить' : 'Добавить'}
+          {saveEntry.isPending ? 'Сохраняем…' : isEditing ? 'Сохранить' : 'Добавить'}
         </button>
       </div>
     </Modal>

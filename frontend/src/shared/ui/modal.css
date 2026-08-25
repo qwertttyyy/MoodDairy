@@ -9,15 +9,32 @@
    ОВЕРЛЕЙ
    ============================================ */
 .modal-overlay {
-    position: fixed;
-    inset: 0;
-    z-index: 900;
-    display: flex;
-    align-items: flex-end;
-    justify-content: center;
-    padding: 16px;
-    padding-top: calc(16px + var(--safe-t));
-    padding-bottom: calc(16px + var(--safe-b));
+  position: fixed;
+  inset: 0;
+  z-index: 900;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  padding-top: calc(16px + var(--safe-t));
+  padding-bottom: calc(16px + var(--safe-b));
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  overflow: hidden;
+  background: transparent;
+  color: inherit;
+}
+
+.modal-overlay:not([open]) {
+  display: none;
+}
+
+.modal-overlay::backdrop {
+  background: transparent;
 }
 
 /*
@@ -27,148 +44,149 @@
  * Псевдоэлемент окну не предок, а сосед, — и всё работает.
  */
 .modal-overlay::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: var(--scrim);
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--scrim);
 }
 
 .entry-form-overlay::before {
-    background: var(--entry-scrim);
+  background: var(--entry-scrim);
 }
 
-.modal-overlay[data-morph="in"]::before {
-    animation: modal-fade var(--t-morph) ease both;
+.modal-overlay[data-morph='in']::before {
+  animation: modal-fade var(--t-morph) ease both;
 }
 
-.modal-overlay[data-morph="out"]::before {
-    animation: modal-fade var(--t-morph) ease reverse both;
+.modal-overlay[data-morph='out']::before {
+  animation: modal-fade var(--t-morph) ease reverse both;
 }
 
 /* ============================================
    ОКНО
    ============================================ */
 .modal {
-    /* Над слоем затемнения: оно абсолютное и иначе легло бы поверх окна. */
-    position: relative;
-    z-index: 1;
-    display: flex;
-    flex-direction: column;
-    width: 100%;
-    /* На узком экране окно во всю ширину минус поля, на широком — остаётся
+  /* Над слоем затемнения: оно абсолютное и иначе легло бы поверх окна. */
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  width: 100%;
+  /* На узком экране окно во всю ширину минус поля, на широком — остаётся
        телефонной колонкой и не растягивается на весь монитор. */
-    max-width: 430px;
-    max-height: 100%;
-    padding: 0 20px;
-    border-radius: 32px;
-    /* Прокручиваемый список внутри должен обрезаться по скруглению окна,
+  max-width: 430px;
+  max-height: 100%;
+  padding: 0 20px;
+  border-radius: 32px;
+  /* Прокручиваемый список внутри должен обрезаться по скруглению окна,
        иначе строки выезжают в углы. */
-    overflow: hidden;
-    background: var(--sheet-glass);
-    backdrop-filter: blur(30px) saturate(1.7);
-    -webkit-backdrop-filter: blur(30px) saturate(1.7);
-    border: var(--surface-border);
-    box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
+  overflow: hidden;
+  background: var(--sheet-glass);
+  backdrop-filter: blur(30px) saturate(1.7);
+  -webkit-backdrop-filter: blur(30px) saturate(1.7);
+  border: var(--surface-border);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.4);
 }
 
 .entry-form {
-    background: var(--entry-sheet-glass);
-    backdrop-filter: blur(24px) saturate(1.6);
-    -webkit-backdrop-filter: blur(24px) saturate(1.6);
-    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12),
-        0 24px 60px rgba(0, 0, 0, 0.4);
+  background: var(--entry-sheet-glass);
+  backdrop-filter: blur(24px) saturate(1.6);
+  -webkit-backdrop-filter: blur(24px) saturate(1.6);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 24px 60px rgba(0, 0, 0, 0.4);
 }
 
 /* Без backdrop-filter прозрачность нечем компенсировать: гасим её фоном. */
 @supports not (backdrop-filter: blur(1px)) {
-    .modal {
-        background: var(--surface-solid);
-    }
+  .modal {
+    background: var(--surface-solid);
+  }
 }
 
 .reduce-transparency .modal {
-    background: var(--surface-solid);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
+  background: var(--surface-solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .modal-handle {
-    width: 36px;
-    height: 5px;
-    flex: none;
-    margin: 8px auto 0;
-    border-radius: 2.5px;
-    background: var(--sep);
+  width: 36px;
+  height: 5px;
+  flex: none;
+  margin: 8px auto 0;
+  border-radius: 2.5px;
+  background: var(--sep);
 }
 
 /* На чёрном фоне разделитель почти не виден: ручке нужен приподнятый тон. */
-[data-theme="dark"] .modal-handle {
-    background: var(--field-raised);
+[data-theme='dark'] .modal-handle {
+  background: var(--field-raised);
 }
 
 .modal-header {
-    display: flex;
-    align-items: center;
-    height: 52px;
-    flex: none;
+  display: flex;
+  align-items: center;
+  height: 52px;
+  flex: none;
 }
 
 .modal-header h2 {
-    font-size: 20px;
-    line-height: 25px;
-    font-weight: 600;
-    letter-spacing: -0.02em;
+  font-size: 20px;
+  line-height: 25px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
 }
 
 .btn-close {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
-    flex: none;
-    margin-left: auto;
-    border-radius: 15px;
-    background: var(--field-bg);
-    color: var(--c-secondary);
-    transition: transform var(--t-fast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex: none;
+  margin-left: auto;
+  border-radius: 22px;
+  background: var(--field-bg);
+  color: var(--c-secondary);
+  transition: transform var(--t-fast);
 }
 
 .btn-close:active {
-    transform: scale(0.92);
+  transform: scale(0.92);
 }
 
 .btn-close svg {
-    width: 15px;
-    height: 15px;
-    display: block;
+  width: 15px;
+  height: 15px;
+  display: block;
 }
 
 /* Прокручивается только тело: шапка и кнопка действия остаются на месте. */
 .modal-body {
-    flex: 1 1 auto;
-    overflow-y: auto;
-    overscroll-behavior: contain;
-    -webkit-overflow-scrolling: touch;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* Отбивки кнопки из макета: 27px до содержимого и 22px до нижней кромки окна
    (у окна свои поля от края экрана, поэтому здесь меньше, чем было у шита). */
 .modal-footer {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    flex: none;
-    padding: 27px 0 22px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: none;
+  padding: 27px 0 22px;
 }
 
 .modal-footer-split {
-    flex-direction: row;
-    gap: 10px;
+  flex-direction: row;
+  gap: 10px;
 }
 
 .modal-footer-split > * {
-    flex: 1;
+  flex: 1;
 }
 
 /* ============================================
@@ -176,35 +194,40 @@
    Автоматические поля перебивают align-items оверлея и центрируют окно.
    ============================================ */
 .modal-sm {
-    margin: auto;
-    width: min(320px, 100%);
-    border-radius: var(--r-lg);
-    background: var(--surface);
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-    box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
+  margin: auto;
+  width: min(320px, 100%);
+  border-radius: var(--r-lg);
+  background: var(--surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.28);
 }
 
 .modal-sm .modal-body {
-    padding: 22px 0 0;
-    text-align: center;
+  padding: 22px 0 0;
+  text-align: center;
 }
 
-.modal-sm h3 {
-    font-size: 17px;
-    line-height: 22px;
-    font-weight: 600;
+.modal-sm h2 {
+  font-size: 17px;
+  line-height: 22px;
+  font-weight: 600;
 }
 
 .modal-sm p {
-    margin-top: 6px;
-    font-size: 15px;
-    line-height: 20px;
-    color: var(--c-secondary);
+  margin-top: 6px;
+  font-size: 15px;
+  line-height: 20px;
+  color: var(--c-secondary);
+}
+
+.modal-sm .confirm-error {
+  margin-top: 12px;
+  color: var(--danger-t);
 }
 
 .modal-sm .modal-footer {
-    padding: 20px 0;
+  padding: 20px 0;
 }
 
 /* ============================================
@@ -216,77 +239,78 @@
    внутри кружка размером с кнопку.
    ============================================ */
 @keyframes modal-fade {
-    from {
-        opacity: 0;
-    }
+  from {
+    opacity: 0;
+  }
 }
 
 @keyframes modal-rise {
-    from {
-        opacity: 0;
-        transform: translateY(40px) scale(0.98);
-    }
+  from {
+    opacity: 0;
+    transform: translateY(40px) scale(0.98);
+  }
 }
 
 @keyframes modal-pop {
-    from {
-        opacity: 0;
-        transform: scale(0.94);
-    }
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
 }
 
 @keyframes modal-grow {
-    from {
-        opacity: 0;
-        transform: translate(var(--morph-x, 0), var(--morph-y, 0)) scale(var(--morph-k, 0.9));
-        border-radius: var(--morph-r, 32px);
-    }
+  from {
+    opacity: 0;
+    transform: translate(var(--morph-x, 0), var(--morph-y, 0)) scale(var(--morph-k, 0.9));
+    border-radius: var(--morph-r, 32px);
+  }
 }
 
 @keyframes modal-grow-content {
-    0%, 42% {
-        opacity: 0;
-    }
+  0%,
+  42% {
+    opacity: 0;
+  }
 }
 
-.modal-overlay[data-morph="in"] .modal {
-    animation: modal-rise var(--t-morph) var(--e-morph) both;
+.modal-overlay[data-morph='in'] .modal {
+  animation: modal-rise var(--t-morph) var(--e-morph) both;
 }
 
-.modal-overlay[data-morph="out"] .modal {
-    animation: modal-rise var(--t-morph) var(--e-morph) reverse both;
+.modal-overlay[data-morph='out'] .modal {
+  animation: modal-rise var(--t-morph) var(--e-morph) reverse both;
 }
 
-.modal-overlay[data-morph="in"] .modal-sm {
-    animation: modal-pop 0.22s ease both;
+.modal-overlay[data-morph='in'] .modal-sm {
+  animation: modal-pop 0.22s ease both;
 }
 
-.modal-overlay[data-morph="out"] .modal-sm {
-    animation: modal-pop 0.22s ease reverse both;
+.modal-overlay[data-morph='out'] .modal-sm {
+  animation: modal-pop 0.22s ease reverse both;
 }
 
-.modal-overlay[data-morph="in"] .modal-morph {
-    animation: modal-grow var(--t-morph) var(--e-morph) both;
+.modal-overlay[data-morph='in'] .modal-morph {
+  animation: modal-grow var(--t-morph) var(--e-morph) both;
 }
 
-.modal-overlay[data-morph="out"] .modal-morph {
-    animation: modal-grow var(--t-morph) var(--e-morph) reverse both;
+.modal-overlay[data-morph='out'] .modal-morph {
+  animation: modal-grow var(--t-morph) var(--e-morph) reverse both;
 }
 
-.modal-overlay[data-morph="in"] .modal-morph > * {
-    animation: modal-grow-content var(--t-morph) ease both;
+.modal-overlay[data-morph='in'] .modal-morph > * {
+  animation: modal-grow-content var(--t-morph) ease both;
 }
 
-.modal-overlay[data-morph="out"] .modal-morph > * {
-    animation: modal-grow-content var(--t-morph) ease reverse both;
+.modal-overlay[data-morph='out'] .modal-morph > * {
+  animation: modal-grow-content var(--t-morph) ease reverse both;
 }
 
 /* Рост из кнопки — движение ради движения: при выключенной анимации от него
    остаётся только проявление. */
 @media (prefers-reduced-motion: reduce) {
-    .modal-overlay[data-morph] .modal,
-    .modal-overlay[data-morph] .modal-morph,
-    .modal-overlay[data-morph] .modal-morph > * {
-        animation: none;
-    }
+  .modal-overlay[data-morph] .modal,
+  .modal-overlay[data-morph] .modal-morph,
+  .modal-overlay[data-morph] .modal-morph > * {
+    animation: none;
+  }
 }

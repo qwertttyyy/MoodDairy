@@ -1,17 +1,25 @@
-import { useState } from 'react'
+import { lazy, Suspense, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 
-import { AuthProvider, useAuth } from '../../features/auth/AuthProvider'
+import { useAuth } from '../../features/auth/AuthContext'
+import { AuthProvider } from '../../features/auth/AuthProvider'
 import { AuthScreen } from '../../features/auth/AuthScreen'
-import { ChartTab } from '../../features/chart/ChartTab'
-import { EntriesTab } from '../../features/entries/EntriesTab'
+import { StartupScreen } from '../../features/auth/StartupScreen'
 import { EntryModal } from '../../features/entries/EntryModal'
-import { EntryModalProvider, useEntryModal } from '../../features/entries/EntryModalContext'
-import { GuideProvider, useGuide } from '../../features/guide/GuideContext'
+import { useEntryModal } from '../../features/entries/EntryModalContext'
+import { EntryModalProvider } from '../../features/entries/EntryModalProvider'
+import { useGuide } from '../../features/guide/GuideContext'
+import { GuideProvider } from '../../features/guide/GuideProvider'
 import { MoodGuideModal } from '../../features/guide/MoodGuideModal'
-import { SettingsTab } from '../../features/settings/SettingsTab'
 import { ConfirmProvider } from '../../shared/ui/ConfirmProvider'
 import { SettingsProvider } from '../../shared/settings/SettingsProvider'
+import { LoadingState } from '../../shared/ui/QueryState'
+
+import '../../shared/styles/shell.css'
+
+const EntriesTab = lazy(() => import('../../features/entries/EntriesTab'))
+const ChartTab = lazy(() => import('../../features/chart/ChartTab'))
+const SettingsTab = lazy(() => import('../../features/settings/SettingsTab'))
 
 type TabName = 'home' | 'chart' | 'settings'
 
@@ -28,9 +36,18 @@ export function AppPage() {
   )
 }
 
+export default AppPage
+
 function AppRoot() {
-  const { status } = useAuth()
-  if (status === 'loading') return null
+  const { status, retryBootstrap } = useAuth()
+  if (
+    status === 'loading' ||
+    status === 'offline' ||
+    status === 'server-unavailable' ||
+    status === 'invalid-config'
+  ) {
+    return <StartupScreen status={status} onRetry={retryBootstrap} />
+  }
   if (status === 'anon') return <AuthScreen />
   return (
     <EntryModalProvider>
@@ -45,31 +62,57 @@ function AppRoot() {
 
 function AppShell() {
   const [tab, setTab] = useState<TabName>('home')
+  const [visited, setVisited] = useState<ReadonlySet<TabName>>(() => new Set(['home']))
   const entryModal = useEntryModal()
   const guide = useGuide()
+
+  const selectTab = (next: TabName) => {
+    setTab(next)
+    setVisited((previous) => {
+      if (previous.has(next)) return previous
+      const updated = new Set(previous)
+      updated.add(next)
+      return updated
+    })
+  }
 
   return (
     <div className="app-shell">
       {/* Табы остаются в DOM и скрываются классом — как в старом фронте:
           так лента не теряет прокрутку при переключении. */}
-      <main className={tabClass(tab === 'home')} id="tab-home">
-        <PageHeader title="Записи" onOpenGuide={() => guide.open('mood')} />
-        <EntriesTab />
+      <main>
+        {visited.has('home') ? (
+          <section className={tabClass(tab === 'home')} id="tab-home">
+            <PageHeader title="Записи" onOpenGuide={() => guide.open('mood')} />
+            <Suspense fallback={<LoadingState label="Открываем записи…" />}>
+              <EntriesTab active={tab === 'home'} />
+            </Suspense>
+          </section>
+        ) : null}
+
+        {visited.has('chart') ? (
+          <section className={tabClass(tab === 'chart')} id="tab-chart">
+            <PageHeader title="График" onOpenGuide={() => guide.open('mood')} />
+            <Suspense fallback={<LoadingState label="Открываем график…" />}>
+              <ChartTab active={tab === 'chart'} />
+            </Suspense>
+          </section>
+        ) : null}
+
+        {visited.has('settings') ? (
+          <section className={tabClass(tab === 'settings')} id="tab-settings">
+            <PageHeader title="Настройки" />
+            <Suspense fallback={<LoadingState label="Открываем настройки…" />}>
+              <SettingsTab active={tab === 'settings'} />
+            </Suspense>
+          </section>
+        ) : null}
       </main>
 
-      <section className={tabClass(tab === 'chart')} id="tab-chart">
-        <PageHeader title="График" onOpenGuide={() => guide.open('mood')} />
-        <ChartTab active={tab === 'chart'} />
-      </section>
-
-      <section className={tabClass(tab === 'settings')} id="tab-settings">
-        <PageHeader title="Настройки" />
-        <SettingsTab />
-      </section>
-
       <div className="tab-dock">
-        <TabBar tab={tab} onChange={setTab} />
+        <TabBar tab={tab} visited={visited} onChange={selectTab} />
         <button
+          type="button"
           className={entryModal.isOpen ? 'fab-add is-hidden' : 'fab-add'}
           onClick={(event: MouseEvent<HTMLButtonElement>) => {
             entryModal.open(null, event.currentTarget.getBoundingClientRect())
@@ -82,6 +125,7 @@ function AppShell() {
             stroke="currentColor"
             strokeWidth="2.1"
             strokeLinecap="round"
+            aria-hidden="true"
           >
             <path d="M12 5.4v13.2M5.4 12h13.2" />
           </svg>
@@ -95,9 +139,10 @@ function AppShell() {
 function PageHeader({ title, onOpenGuide }: { title: string; onOpenGuide?: () => void }) {
   return (
     <header className="page-header">
-      <h2 className="large-title">{title}</h2>
+      <h1 className="large-title">{title}</h1>
       {onOpenGuide && (
         <button
+          type="button"
           className="btn-icon-glass page-info"
           onClick={onOpenGuide}
           aria-label="Шкала настроения"
@@ -108,6 +153,7 @@ function PageHeader({ title, onOpenGuide }: { title: string; onOpenGuide?: () =>
             stroke="currentColor"
             strokeWidth="1.7"
             strokeLinecap="round"
+            aria-hidden="true"
           >
             <circle cx="12" cy="12" r="9" />
             <path d="M12 11v6" />
@@ -125,6 +171,7 @@ function tabClass(active: boolean): string {
 
 interface TabBarProps {
   tab: TabName
+  visited: ReadonlySet<TabName>
   onChange: (tab: TabName) => void
 }
 
@@ -157,15 +204,18 @@ const TABS: ReadonlyArray<{ name: TabName; label: string; icon: ReactNode }> = [
 ]
 
 /** Плавающая капсула вкладок. Активная подсвечена своей плашкой. */
-function TabBar({ tab, onChange }: TabBarProps) {
+function TabBar({ tab, visited, onChange }: TabBarProps) {
   return (
-    <nav className="tab-bar liquid-glass">
+    <nav className="tab-bar liquid-glass" aria-label="Основная навигация">
       {TABS.map((item) => (
         <button
+          type="button"
           key={item.name}
           className={item.name === tab ? 'tab-btn active' : 'tab-btn'}
           onClick={() => onChange(item.name)}
           aria-label={item.label}
+          aria-current={item.name === tab ? 'page' : undefined}
+          aria-controls={visited.has(item.name) ? `tab-${item.name}` : undefined}
         >
           <svg
             viewBox="0 0 24 24"
@@ -174,6 +224,7 @@ function TabBar({ tab, onChange }: TabBarProps) {
             strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
+            aria-hidden="true"
           >
             {item.icon}
           </svg>

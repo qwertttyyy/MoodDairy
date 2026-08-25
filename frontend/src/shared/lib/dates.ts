@@ -37,11 +37,41 @@ export function formatDateShort(iso: string): string {
   return new Date(iso).toLocaleDateString('ru-RU', { day: 'numeric', month: 'short' })
 }
 
+function dateValue(value: Date | string): Date {
+  return value instanceof Date ? value : new Date(value)
+}
+
+/** Единый ключ локального календарного дня, не UTC-срез ISO-строки. */
+export function localDateKey(value: Date | string, timeZone?: string): string {
+  const date = dateValue(value)
+  if (!timeZone) {
+    const month = String(date.getMonth() + 1).padStart(2, '0')
+    const day = String(date.getDate()).padStart(2, '0')
+    return `${date.getFullYear()}-${month}-${day}`
+  }
+
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(date)
+  const read = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((part) => part.type === type)?.value ?? ''
+  return `${read('year')}-${read('month')}-${read('day')}`
+}
+
+export function localYearMonth(
+  value: Date | string,
+  timeZone?: string,
+): { year: number; month: number } {
+  const [year = '', month = ''] = localDateKey(value, timeZone).split('-')
+  return { year: Number(year), month: Number(month) }
+}
+
 /** Локальная дата в формате YYYY-MM-DD (для <input type="date">). */
 export function isoDateStr(d: Date): string {
-  const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${d.getFullYear()}-${month}-${day}`
+  return localDateKey(d)
 }
 
 /** Локальное время в формате HH:MM (для <input type="time">). */

@@ -10,7 +10,7 @@
  *   - localStorage["wrapped_enc_key"] — ключ, обёрнутый серверным wrapping_key.
  */
 
-import { b64ToBytes, bytesToB64 } from '../lib/base64'
+import { b64ToBytes, bytesToB64, isValidB64 } from '../lib/base64'
 import type { Bytes } from '../lib/base64'
 
 export const PBKDF2_ITERATIONS = 600000
@@ -19,6 +19,20 @@ export const WRAPPED_KEY_STORAGE = 'wrapped_enc_key'
 
 const IV_LENGTH = 12
 const KEY_LENGTH = 32
+
+export class EncryptedDataFormatError extends Error {
+  constructor() {
+    super('Некорректный формат зашифрованных данных')
+    this.name = 'EncryptedDataFormatError'
+  }
+}
+
+export class DecryptionError extends Error {
+  constructor(cause: unknown) {
+    super('Не удалось расшифровать данные', { cause })
+    this.name = 'DecryptionError'
+  }
+}
 
 /**
  * Раньше флаг приходил из шаблона (`window.__APP_CONFIG__`),
@@ -39,7 +53,7 @@ export function isEncryptionEnabled(): boolean {
 
 /** Выводит 256-битный ключ из пароля и соли (base64). */
 export async function deriveKey(password: string, saltB64: string): Promise<ArrayBuffer> {
-  const salt = b64ToBytes(saltB64)
+  const salt = decodeB64(saltB64)
   const keyMaterial = await crypto.subtle.importKey(
     'raw',
     new TextEncoder().encode(password),
@@ -66,7 +80,7 @@ export async function encrypt(plaintext: string): Promise<string> {
 
 export async function decrypt(blob: string): Promise<string> {
   if (!encryptionEnabled) return blob || ''
-  if (!blob || !blob.includes(':')) return ''
+  parseEncryptedBlob(blob)
   const key = await getCryptoKey()
   return decryptWithCryptoKey(key, blob)
 }
@@ -77,7 +91,7 @@ export async function wrapKey(wrappingKeyB64: string): Promise<void> {
   if (!raw) return
   const wrappingKey = await crypto.subtle.importKey(
     'raw',
-    b64ToBytes(wrappingKeyB64),
+    decodeEncryptionKey(wrappingKeyB64),
     'AES-GCM',
     false,
     ['encrypt'],
@@ -94,21 +108,22 @@ export async function wrapKey(wrappingKeyB64: string): Promise<void> {
 export async function unwrapKey(wrappingKeyB64: string): Promise<boolean> {
   const blob = localStorage.getItem(WRAPPED_KEY_STORAGE)
   if (!blob) return false
-  const [ivB64, ctB64] = blob.split(':', 2)
-  const wrappingKey = await crypto.subtle.importKey(
-    'raw',
-    b64ToBytes(wrappingKeyB64),
-    'AES-GCM',
-    false,
-    ['decrypt'],
-  )
-  const raw = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: b64ToBytes(ivB64) },
-    wrappingKey,
-    b64ToBytes(ctB64),
-  )
-  storeRawKey(new Uint8Array(raw))
-  return true
+  const { iv, ciphertext } = parseEncryptedBlob(blob)
+  try {
+    const wrappingKey = await crypto.subtle.importKey(
+      'raw',
+      decodeEncryptionKey(wrappingKeyB64),
+      'AES-GCM',
+      false,
+      ['decrypt'],
+    )
+    const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, wrappingKey, ciphertext)
+    storeRawKey(new Uint8Array(raw))
+    return true
+  } catch (error) {
+    if (error instanceof EncryptedDataFormatError) throw error
+    throw new DecryptionError(error)
+  }
 }
 
 export function storeFromDerived(bits: ArrayBuffer): void {
@@ -124,8 +139,13 @@ export function hasWrapped(): boolean {
 }
 
 export function clearKeys(): void {
-  sessionStorage.removeItem(ENC_KEY_STORAGE)
+  clearSessionKey()
   localStorage.removeItem(WRAPPED_KEY_STORAGE)
+}
+
+/** При истечении сессии wrapped key сохраняется для следующего входа. */
+export function clearSessionKey(): void {
+  sessionStorage.removeItem(ENC_KEY_STORAGE)
   cachedKey = null
 }
 
@@ -146,8 +166,13 @@ export async function encryptWithKey(rawKey: Bytes, plaintext: string): Promise<
 }
 
 export async function decryptWithKey(rawKey: Bytes, blob: string): Promise<string> {
-  const key = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['decrypt'])
-  return decryptWithCryptoKey(key, blob)
+  try {
+    const key = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['decrypt'])
+    return await decryptWithCryptoKey(key, blob)
+  } catch (error) {
+    if (error instanceof EncryptedDataFormatError || error instanceof DecryptionError) throw error
+    throw new DecryptionError(error)
+  }
 }
 
 // ============================================
@@ -165,13 +190,45 @@ async function encryptWithCryptoKey(key: CryptoKey, plaintext: string): Promise<
 }
 
 async function decryptWithCryptoKey(key: CryptoKey, blob: string): Promise<string> {
-  const [ivB64, ctB64] = blob.split(':', 2)
-  const plain = await crypto.subtle.decrypt(
-    { name: 'AES-GCM', iv: b64ToBytes(ivB64) },
-    key,
-    b64ToBytes(ctB64),
-  )
-  return new TextDecoder().decode(plain)
+  const { iv, ciphertext } = parseEncryptedBlob(blob)
+  try {
+    const plain = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext)
+    return new TextDecoder().decode(plain)
+  } catch (error) {
+    throw new DecryptionError(error)
+  }
+}
+
+/** Проверяет `<ivB64>:<ctB64>` до передачи данных в Web Crypto. */
+export function parseEncryptedBlob(blob: string): { iv: Bytes; ciphertext: Bytes } {
+  const parts = blob.split(':')
+  const ivB64 = parts[0]
+  const ciphertextB64 = parts[1]
+  if (
+    parts.length !== 2 ||
+    !ivB64 ||
+    !ciphertextB64 ||
+    !isValidB64(ivB64) ||
+    !isValidB64(ciphertextB64)
+  ) {
+    throw new EncryptedDataFormatError()
+  }
+
+  const iv = b64ToBytes(ivB64)
+  const ciphertext = b64ToBytes(ciphertextB64)
+  if (iv.length !== IV_LENGTH || ciphertext.length < 16) throw new EncryptedDataFormatError()
+  return { iv, ciphertext }
+}
+
+function decodeB64(value: string): Bytes {
+  if (!isValidB64(value)) throw new EncryptedDataFormatError()
+  return b64ToBytes(value)
+}
+
+export function decodeEncryptionKey(value: string): Bytes {
+  const key = decodeB64(value)
+  if (key.length !== KEY_LENGTH) throw new EncryptedDataFormatError()
+  return key
 }
 
 function storeRawKey(raw: Bytes): void {
@@ -181,7 +238,7 @@ function storeRawKey(raw: Bytes): void {
 
 function getRawKey(): Bytes | null {
   const b64 = sessionStorage.getItem(ENC_KEY_STORAGE)
-  return b64 ? b64ToBytes(b64) : null
+  return b64 ? decodeEncryptionKey(b64) : null
 }
 
 async function getCryptoKey(): Promise<CryptoKey> {

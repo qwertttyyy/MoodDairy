@@ -8,7 +8,7 @@
  */
 
 import { MAX_ANXIETY, MAX_MOOD } from '../../shared/constants'
-import { isoDateStr } from '../../shared/lib/dates'
+import { localDateKey } from '../../shared/lib/dates'
 import type { ChartEntry, DayPoint, DayRange } from './types'
 
 /** Локальная полночь указанной даты. */
@@ -55,7 +55,7 @@ export function buildDailySeries(entries: ChartEntry[], range: DayRange): DayPoi
   for (const entry of entries) {
     const date = new Date(entry.timestamp)
     if (Number.isNaN(date.getTime())) continue
-    const key = isoDateStr(date)
+    const key = localDateKey(date)
     const acc = byDay.get(key) ?? emptyAccumulator()
     if (isValid(entry.mood, MAX_MOOD)) {
       acc.moodSum += entry.mood
@@ -70,7 +70,7 @@ export function buildDailySeries(entries: ChartEntry[], range: DayRange): DayPoi
 
   const rows: DayPoint[] = []
   for (let date = from; date <= to; date = addDays(date, 1)) {
-    const acc = byDay.get(isoDateStr(date))
+    const acc = byDay.get(localDateKey(date))
     rows.push({
       date,
       mood: acc && acc.moodCount ? acc.moodSum / acc.moodCount : null,
@@ -87,8 +87,13 @@ export function rangeOfEntries(entries: ChartEntry[], wholeMonth: boolean): DayR
     return { from: now, to: now }
   }
   const dates = entries.map((entry) => startOfDay(new Date(entry.timestamp)))
-  const from = dates.reduce((min, date) => (date < min ? date : min), dates[0])
-  const to = dates.reduce((max, date) => (date > max ? date : max), dates[0])
+  const first = dates[0]
+  if (!first) {
+    const now = today()
+    return { from: now, to: now }
+  }
+  const from = dates.reduce((min, date) => (date < min ? date : min), first)
+  const to = dates.reduce((max, date) => (date > max ? date : max), first)
   if (!wholeMonth) return { from, to }
   // Месяц показываем целиком: ось не сжимается к дням, где есть записи.
   return {

@@ -1,17 +1,23 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
-import { BrowserRouter, Route, Routes } from 'react-router'
 
-import { AppPage } from './pages/AppPage/AppPage'
-import { SharePage } from './pages/SharePage/SharePage'
+import { AppRouter } from './AppRouter'
+import { shouldRetry } from './shared/api/client'
+import { PwaProvider } from './shared/pwa/PwaProvider'
+import { ErrorBoundary } from './shared/ui/ErrorBoundary'
 import { ToastProvider } from './shared/ui/ToastProvider'
 
-import './shared/styles/styles.css'
+import './shared/styles/base.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false },
+    queries: {
+      retry: shouldRetry,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: true,
+    },
   },
 })
 
@@ -20,17 +26,14 @@ if (!root) throw new Error('Не найден корневой элемент #r
 
 createRoot(root).render(
   <StrictMode>
-    <QueryClientProvider client={queryClient}>
-      <ToastProvider>
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<AppPage />} />
-            {/* Ссылки врачу выдавались со слешом на конце — принимаем оба варианта. */}
-            <Route path="/share/:token" element={<SharePage />} />
-            <Route path="/share/:token/" element={<SharePage />} />
-          </Routes>
-        </BrowserRouter>
-      </ToastProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <PwaProvider>
+          <ToastProvider>
+            <AppRouter />
+          </ToastProvider>
+        </PwaProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   </StrictMode>,
 )

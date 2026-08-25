@@ -1,3 +1,3 @@
 export function Spinner() {
-  return <div className="spinner" />
+  return <span className="spinner" aria-hidden="true" />
 }

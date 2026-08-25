@@ -4,8 +4,9 @@ import { useState } from 'react'
 
 import { isApiError } from '../../shared/api/client'
 import type { Tag } from '../../shared/api/types'
-import { useConfirm } from '../../shared/ui/ConfirmProvider'
-import { useToast } from '../../shared/ui/ToastProvider'
+import { useConfirm } from '../../shared/ui/confirm'
+import { ErrorState } from '../../shared/ui/QueryState'
+import { useToast } from '../../shared/ui/toast'
 import { useCreateTag, useDeleteTag, useRenameTag, useTags } from './api'
 
 const MAX_TAG_LENGTH = 50
@@ -48,20 +49,13 @@ function TrashIcon() {
 }
 
 /** Строка тега с явными действиями переименования и удаления. */
-function TagRow({
-  tag,
-  onEdit,
-  onDelete,
-}: {
-  tag: Tag
-  onEdit: () => void
-  onDelete: () => void
-}) {
+function TagRow({ tag, onEdit, onDelete }: { tag: Tag; onEdit: () => void; onDelete: () => void }) {
   return (
     <div className="set-row">
       <span className="set-label">{tag.name}</span>
       <div className="tag-actions">
         <button
+          type="button"
           className="tag-action tag-edit"
           aria-label={`Переименовать тег «${tag.name}»`}
           onClick={onEdit}
@@ -69,6 +63,7 @@ function TagRow({
           <PencilIcon />
         </button>
         <button
+          type="button"
           className="tag-action tag-remove"
           aria-label={`Удалить тег «${tag.name}»`}
           onClick={onDelete}
@@ -80,10 +75,10 @@ function TagRow({
   )
 }
 
-export function TagsSection() {
+export function TagsSection({ active = true }: { active?: boolean }) {
   const toast = useToast()
   const confirm = useConfirm()
-  const { data: tags = [], isPending } = useTags()
+  const { data: tags = [], error, isPending, refetch } = useTags(active)
   const createTag = useCreateTag()
   const renameTag = useRenameTag()
   const deleteTag = useDeleteTag()
@@ -139,16 +134,26 @@ export function TagsSection() {
       title: `Удалить тег «${tag.name}»?`,
       text: 'Записи сохранятся — тег просто исчезнет из их списка.',
       confirmLabel: 'Удалить',
-      onConfirm: () =>
-        deleteTag.mutate(tag.id, {
-          onSuccess: () => toast('Тег удалён'),
-          onError: () => toast('Не удалось удалить тег', true),
-        }),
+      onConfirm: async () => {
+        await deleteTag.mutateAsync(tag.id)
+        toast('Тег удалён')
+      },
     })
   }
 
+  if (error) {
+    return (
+      <div className="settings-group">
+        <ErrorState message="Не удалось загрузить теги" onRetry={() => void refetch()} />
+      </div>
+    )
+  }
+
   return (
-    <div className="settings-group">
+    <div
+      className="settings-group"
+      aria-busy={isPending || createTag.isPending || renameTag.isPending || deleteTag.isPending}
+    >
       {isPending && (
         <div className="set-row">
           <span className="set-hint">Загрузка…</span>
@@ -168,6 +173,7 @@ export function TagsSection() {
               <input
                 type="text"
                 className="tag-input"
+                aria-label={`Новое название тега «${tag.name}»`}
                 value={editingName}
                 maxLength={MAX_TAG_LENGTH}
                 autoFocus
@@ -177,23 +183,21 @@ export function TagsSection() {
                   if (event.key === 'Escape') cancelEditing()
                 }}
               />
-              <button className="btn-plain" onClick={cancelEditing}>
+              <button type="button" className="btn-plain" onClick={cancelEditing}>
                 Отмена
               </button>
               <button
+                type="button"
                 className="btn-plain"
                 disabled={renameTag.isPending}
+                aria-busy={renameTag.isPending}
                 onClick={() => handleRename(tag)}
               >
                 Готово
               </button>
             </div>
           ) : (
-            <TagRow
-              tag={tag}
-              onEdit={() => startEditing(tag)}
-              onDelete={() => handleDelete(tag)}
-            />
+            <TagRow tag={tag} onEdit={() => startEditing(tag)} onDelete={() => handleDelete(tag)} />
           )}
           <div className="set-sep" />
         </div>
@@ -203,6 +207,7 @@ export function TagsSection() {
         <input
           type="text"
           className="tag-input"
+          aria-label="Название нового тега"
           placeholder="Новый тег"
           value={newName}
           maxLength={MAX_TAG_LENGTH}
@@ -212,8 +217,10 @@ export function TagsSection() {
           }}
         />
         <button
+          type="button"
           className="btn-plain"
           disabled={createTag.isPending || newName.trim() === ''}
+          aria-busy={createTag.isPending}
           onClick={handleCreate}
         >
           Добавить

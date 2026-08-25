@@ -1,29 +1,28 @@
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 
-import { useConfirm } from '../../shared/ui/ConfirmProvider'
+import { useConfirm } from '../../shared/ui/confirm'
 import { NotesIcon } from '../../shared/ui/EmptyStateIcons'
+import { ErrorState, LoadingState } from '../../shared/ui/QueryState'
 import { Spinner } from '../../shared/ui/Spinner'
-import { useToast } from '../../shared/ui/ToastProvider'
+import { useToast } from '../../shared/ui/toast'
 import { mergeFeedPages, useDeleteEntry, useEntriesFeed } from './api'
 import { DayGroup } from './DayGroup'
 import { useEntryModal } from './EntryModalContext'
-import type { DecryptedEntry } from './types'
+import type { EntryResult } from './types'
+
+import './entries.css'
 
 /** Лента записей, сгруппированных по дням, с подгрузкой при прокрутке. */
-export function EntriesTab() {
-  const { data, error, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage } =
-    useEntriesFeed()
-  const { mutate: deleteEntry } = useDeleteEntry()
+export function EntriesTab({ active = true }: { active?: boolean }) {
+  const { data, error, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } =
+    useEntriesFeed(active)
+  const deleteEntry = useDeleteEntry()
   const confirm = useConfirm()
   const showToast = useToast()
   const { open } = useEntryModal()
   const loaderRef = useRef<HTMLDivElement>(null)
 
   const days = useMemo(() => mergeFeedPages(data?.pages), [data?.pages])
-
-  useEffect(() => {
-    if (error) showToast('Ошибка загрузки', true)
-  }, [error, showToast])
 
   // Лоадер попал в область видимости — просим следующую страницу.
   // Эффект пересоздаёт наблюдателя после каждой догрузки: если лоадер всё ещё
@@ -40,14 +39,14 @@ export function EntriesTab() {
   }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   const requestDelete = useCallback(
-    (entry: DecryptedEntry) => {
+    (entry: EntryResult) => {
       confirm({
         title: 'Удалить запись?',
         text: 'Это действие нельзя отменить.',
-        onConfirm: () =>
-          deleteEntry(entry.id, {
-            onError: () => showToast('Ошибка удаления', true),
-          }),
+        onConfirm: async () => {
+          await deleteEntry.mutateAsync(entry.id)
+          showToast('Запись удалена')
+        },
       })
     },
     [confirm, deleteEntry, showToast],
@@ -56,6 +55,11 @@ export function EntriesTab() {
   const isEmpty = !isLoading && days.length === 0
   // Лоадер скрыт, когда страниц больше нет — как в старом фронте.
   const loaderVisible = isLoading || hasNextPage
+
+  if (isLoading) return <LoadingState label="Загружаем записи…" />
+  if (error) {
+    return <ErrorState message="Не удалось загрузить записи" onRetry={() => void refetch()} />
+  }
 
   return (
     <>
@@ -72,12 +76,7 @@ export function EntriesTab() {
       {days.length > 0 ? (
         <div className="feed">
           {days.map((group) => (
-            <DayGroup
-              key={group.day}
-              group={group}
-              onOpen={open}
-              onDelete={requestDelete}
-            />
+            <DayGroup key={group.day} group={group} onOpen={open} onDelete={requestDelete} />
           ))}
         </div>
       ) : null}
@@ -88,3 +87,5 @@ export function EntriesTab() {
     </>
   )
 }
+
+export default EntriesTab

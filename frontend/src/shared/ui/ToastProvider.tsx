@@ -1,15 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
-type ShowToast = (message: string, isError?: boolean) => void
-
-const ToastContext = createContext<ShowToast | null>(null)
-
-export function useToast(): ShowToast {
-  const show = useContext(ToastContext)
-  if (!show) throw new Error('useToast должен вызываться внутри ToastProvider')
-  return show
-}
+import { ToastContext } from './toast'
+import type { ShowToast } from './toast'
 
 const VISIBLE_MS = 2500
 const FADE_MS = 300
@@ -63,7 +56,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
-      <div className={className}>{toast.message}</div>
+      <div
+        className={className}
+        role={toast.isError ? 'alert' : 'status'}
+        aria-live={toast.isError ? 'assertive' : 'polite'}
+        aria-atomic="true"
+      >
+        {toast.message}
+      </div>
     </ToastContext.Provider>
   )
 }

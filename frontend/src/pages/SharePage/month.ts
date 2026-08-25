@@ -29,8 +29,7 @@ export function compareMonths(a: YearMonth, b: YearMonth): number {
 
 /** Месяц метки времени по локальному времени браузера — как `new Date(...)` в share.js. */
 export function monthOf(timestamp: string): YearMonth {
-  const date = new Date(timestamp)
-  return { year: date.getFullYear(), month: date.getMonth() + 1 }
+  return localYearMonth(timestamp)
 }
 
 /**
@@ -39,13 +38,15 @@ export function monthOf(timestamp: string): YearMonth {
  */
 export function getMonthBounds(entries: readonly Timestamped[]): MonthBounds {
   if (entries.length === 0) {
-    const now = new Date()
-    const current: YearMonth = { year: now.getFullYear(), month: now.getMonth() + 1 }
+    const current = localYearMonth(new Date())
     return { min: current, max: current }
   }
+  const first = entries[0]
+  const last = entries.at(-1)
+  if (!first || !last) throw new Error('Не удалось определить границы записей')
   return {
-    min: monthOf(entries[0].timestamp),
-    max: monthOf(entries[entries.length - 1].timestamp),
+    min: monthOf(first.timestamp),
+    max: monthOf(last.timestamp),
   }
 }
 
@@ -63,3 +64,4 @@ export function clampMonth(target: YearMonth, bounds: MonthBounds): YearMonth {
   if (compareMonths(target, bounds.max) > 0) return bounds.max
   return target
 }
+import { localYearMonth } from '../../shared/lib/dates'

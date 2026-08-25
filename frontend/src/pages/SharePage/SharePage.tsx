@@ -8,13 +8,16 @@ import { useParams } from 'react-router'
 
 import { ChartStats } from '../../features/chart/ChartStats'
 import { MoodChart } from '../../features/chart/MoodChart'
+import { NetworkError, RequestTimeoutError } from '../../shared/api/client'
 import type { ShareEntry } from '../../shared/api/types'
 import { MONTH_NAMES, MOOD_LABELS } from '../../shared/constants'
-import { dayLabelPlain, formatTime } from '../../shared/lib/dates'
+import { dayLabelPlain, formatTime, localDateKey } from '../../shared/lib/dates'
 import { ChartIcon, LockIcon } from '../../shared/ui/EmptyStateIcons'
 import { clampMonth, compareMonths, getMonthBounds, monthOf, shiftMonth } from './month'
 import type { YearMonth } from './month'
 import { MissingKeyError, loadShareEntries, readShareKeyFromHash } from './snapshot'
+
+import './share.css'
 
 const INVALID_LINK_TITLE = 'Ссылка недействительна'
 const MISSING_KEY_TITLE = 'Ключ отсутствует'
@@ -22,53 +25,87 @@ const MISSING_KEY_TITLE = 'Ключ отсутствует'
 /** Три состояния страницы — как три блока в share.html. */
 type PageState =
   | { status: 'loading' }
-  | { status: 'error'; title: string }
+  | { status: 'error'; title: string; text: string; retryable: boolean }
   | { status: 'ready'; entries: ShareEntry[] }
 
 export function SharePage() {
   const { token } = useParams<'token'>()
   const [state, setState] = useState<PageState>({ status: 'loading' })
+  const [attempt, setAttempt] = useState(0)
 
   useSystemTheme()
 
   useEffect(() => {
     if (!token) {
-      setState({ status: 'error', title: INVALID_LINK_TITLE })
+      setState({
+        status: 'error',
+        title: INVALID_LINK_TITLE,
+        text: 'Проверьте адрес или запросите новую ссылку у пациента',
+        retryable: false,
+      })
       return
     }
 
     // Ключ читаем прямо здесь и не храним в состоянии: он не должен попасть ни в запрос, ни в лог.
     const shareKey = readShareKeyFromHash()
     let cancelled = false
+    const controller = new AbortController()
 
-    loadShareEntries(token, shareKey)
+    loadShareEntries(token, shareKey, controller.signal)
       .then((entries) => {
         if (!cancelled) setState({ status: 'ready', entries })
       })
       .catch((error: unknown) => {
         if (cancelled) return
-        const title = error instanceof MissingKeyError ? MISSING_KEY_TITLE : INVALID_LINK_TITLE
-        setState({ status: 'error', title })
+        if (error instanceof NetworkError || error instanceof RequestTimeoutError) {
+          setState({
+            status: 'error',
+            title: navigator.onLine ? 'Сервер сейчас недоступен' : 'Нет подключения к интернету',
+            text: 'Для открытия общей ссылки нужен интернет.',
+            retryable: true,
+          })
+          return
+        }
+        setState({
+          status: 'error',
+          title: error instanceof MissingKeyError ? MISSING_KEY_TITLE : INVALID_LINK_TITLE,
+          text:
+            error instanceof MissingKeyError
+              ? 'Откройте полную ссылку с ключом после символа #'
+              : 'Запросите новую ссылку у пациента',
+          retryable: false,
+        })
       })
 
     return () => {
       cancelled = true
+      controller.abort()
     }
-  }, [token])
+  }, [token, attempt])
 
   return (
     <div className="share-page">
       <header className="share-header">
-        <span className="share-header-title">Moods</span>
+        <h1 className="share-header-title">Moods</h1>
         <span className="share-readonly">только чтение</span>
       </header>
 
-      {state.status === 'loading' ? <ShareLoading /> : null}
-      {state.status === 'error' ? <ShareError title={state.title} /> : null}
-      {state.status === 'ready' ? <ShareContent entries={state.entries} /> : null}
+      <main>
+        {state.status === 'loading' ? <ShareLoading /> : null}
+        {state.status === 'error' ? (
+          <ShareError
+            title={state.title}
+            text={state.text}
+            {...(state.retryable ? { onRetry: () => setAttempt((value) => value + 1) } : {})}
+          />
+        ) : null}
+        {state.status === 'ready' ? <ShareContent entries={state.entries} /> : null}
+      </main>
     </div>
   )
 }
+
+export default SharePage
 
 /**
  * Тема только по системной настройке: страница врача ничего не читает
@@ -76,30 +113,51 @@ export function SharePage() {
  */
 function useSystemTheme(): void {
   useEffect(() => {
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.setAttribute('data-theme', 'dark')
+    const preference = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = (dark: boolean) => {
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', dark ? '#000000' : '#f2f2f7')
     }
+    const handleChange = (event: MediaQueryListEvent) => apply(event.matches)
+    apply(preference.matches)
+    preference.addEventListener('change', handleChange)
+    return () => preference.removeEventListener('change', handleChange)
   }, [])
 }
 
 function ShareLoading() {
   return (
-    <div className="share-loading">
-      <div className="spinner" />
+    <div className="share-loading" role="status" aria-live="polite" aria-busy="true">
+      <div className="spinner" aria-hidden="true" />
       <p className="share-loading-text">Загрузка…</p>
     </div>
   )
 }
 
-function ShareError({ title }: { title: string }) {
+function ShareError({
+  title,
+  text,
+  onRetry,
+}: {
+  title: string
+  text: string
+  onRetry?: () => void
+}) {
   return (
-    <div className="share-error">
+    <div className="share-error" role="alert">
       <div className="empty-state">
         <div className="empty-icon">
           <LockIcon />
         </div>
-        <p className="empty-title">{title}</p>
-        <p className="empty-sub">Запросите новую ссылку у пациента</p>
+        <h2 className="empty-title">{title}</h2>
+        <p className="empty-sub">{text}</p>
+        {onRetry ? (
+          <button type="button" className="btn-secondary" onClick={onRetry}>
+            Повторить
+          </button>
+        ) : null}
       </div>
     </div>
   )
@@ -146,7 +204,7 @@ function ShareContent({ entries }: { entries: ShareEntry[] }) {
 
       {dayGroups.map((group) => (
         <Fragment key={group.day}>
-          <div className="share-dayhead">{dayLabelPlain(group.day)}</div>
+          <h2 className="share-dayhead">{dayLabelPlain(group.day)}</h2>
           <div className="share-group">
             {group.items.map((entry, index) => (
               <Fragment key={`${group.day}-${index}`}>
@@ -171,6 +229,7 @@ interface MonthNavButtonProps {
 function MonthNavButton({ direction, disabled, onClick }: MonthNavButtonProps) {
   return (
     <button
+      type="button"
       className={disabled ? 'share-arrow off' : 'share-arrow'}
       disabled={disabled}
       aria-label={direction === -1 ? 'Предыдущий месяц' : 'Следующий месяц'}
@@ -185,6 +244,7 @@ function MonthNavButton({ direction, disabled, onClick }: MonthNavButtonProps) {
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+        aria-hidden="true"
       >
         <polyline points={direction === -1 ? '15 18 9 12 15 6' : '9 18 15 12 9 6'} />
       </svg>
@@ -225,7 +285,7 @@ interface DayGroup {
 function groupByDay(entries: ShareEntry[]): DayGroup[] {
   const groups: DayGroup[] = []
   for (const entry of entries) {
-    const day = entry.timestamp.slice(0, 10)
+    const day = localDateKey(entry.timestamp)
     const last = groups.at(-1)
     if (last && last.day === day) last.items.push(entry)
     else groups.push({ day, items: [entry] })

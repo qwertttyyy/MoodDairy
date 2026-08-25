@@ -12,9 +12,16 @@
  */
 export type Bytes = Uint8Array<ArrayBuffer>
 
+const BASE64_PATTERN = /^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/
+
+/** Строгий стандартный Base64 с обязательным корректным padding. */
+export function isValidB64(value: string): boolean {
+  return value.length > 0 && value.length % 4 === 0 && BASE64_PATTERN.test(value)
+}
+
 export function bytesToB64(bytes: Uint8Array): string {
   let bin = ''
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  for (const byte of bytes) bin += String.fromCharCode(byte)
   return btoa(bin)
 }
 

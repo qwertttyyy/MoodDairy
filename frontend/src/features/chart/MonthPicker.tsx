@@ -6,12 +6,7 @@
 
 import { MONTH_NAMES } from '../../shared/constants'
 import { ChartNavButton } from './ChartNav'
-
-/** Месяц как пара «год + номер месяца 1..12». */
-export interface YearMonth {
-  year: number
-  month: number
-}
+import { clampMonth, compareMonths, currentYearMonth, shiftMonth } from './pickerDates'
 
 interface MonthPickerProps {
   year: number
@@ -20,32 +15,6 @@ interface MonthPickerProps {
   minYear: number | null
   minMonth: number | null
   onChange: (year: number, month: number) => void
-}
-
-/** Текущий месяц: верхняя граница навигации и точка сброса. */
-export function currentYearMonth(): YearMonth {
-  const now = new Date()
-  return { year: now.getFullYear(), month: now.getMonth() + 1 }
-}
-
-/** Сравнение месяцев: < 0 — a раньше b, 0 — совпадают, > 0 — a позже b. */
-function compareMonths(a: YearMonth, b: YearMonth): number {
-  return a.year !== b.year ? a.year - b.year : a.month - b.month
-}
-
-/** Сдвиг на step месяцев с переносом через год. */
-function shiftMonth({ year, month }: YearMonth, step: number): YearMonth {
-  // Считаем в «абсолютных месяцах», чтобы не разбирать переход через декабрь вручную.
-  const absolute = year * 12 + (month - 1) + step
-  return { year: Math.floor(absolute / 12), month: (absolute % 12) + 1 }
-}
-
-/** Зажимает месяц в диапазон [min, текущий месяц]. */
-export function clampMonth(value: YearMonth, min: YearMonth | null): YearMonth {
-  const max = currentYearMonth()
-  if (compareMonths(value, max) > 0) return max
-  if (min && compareMonths(value, min) < 0) return min
-  return value
 }
 
 export function MonthPicker({ year, month, minYear, minMonth, onChange }: MonthPickerProps) {
