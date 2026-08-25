@@ -27,6 +27,7 @@ function useStickyPinned(target: HTMLElement | null): boolean {
 
     const observer = new IntersectionObserver(
       ([record]) => {
+        if (!record) return
         const box = record.boundingClientRect
         // У скрытого таба (display:none) прямоугольник нулевой, а верх равен
         // нулю — без проверки высоты все заголовки скрытой ленты считались бы

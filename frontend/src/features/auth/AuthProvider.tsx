@@ -2,14 +2,16 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useCallback, useEffect, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { api } from '../../shared/api/client'
-import type {
-  AppConfig,
-  AuthResponse,
-  AuthUser,
-  ProfileResponse,
-  WrappingKeyResponse,
+import { api, REQUEST_TIMEOUTS } from '../../shared/api/client'
+import {
+  appConfigSchema,
+  authResponseSchema,
+  authUserSchema,
+  profileResponseSchema,
+  voidResponseSchema,
+  wrappingKeyResponseSchema,
 } from '../../shared/api/types'
+import type { AuthUser } from '../../shared/api/types'
 import {
   clearKeys,
   deriveKey,
@@ -38,16 +40,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let cancelled = false
+    const controller = new AbortController()
 
     const bootstrap = async () => {
       try {
-        const config = await api.get<AppConfig>('/api/config/')
+        const config = await api.get('/api/config/', appConfigSchema, {
+          signal: controller.signal,
+          timeoutMs: REQUEST_TIMEOUTS.bootstrap,
+        })
         setEncryptionEnabled(config.encryption_enabled)
       } catch {
         // Недоступный конфиг не должен блокировать вход: остаётся значение по умолчанию.
       }
 
-      const restored = await tryRestore()
+      const restored = await tryRestore(controller.signal)
       if (cancelled) return
       setUser(restored)
       setStatus(restored ? 'authed' : 'anon')
@@ -56,6 +62,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     void bootstrap()
     return () => {
       cancelled = true
+      controller.abort()
     }
   }, [])
 
@@ -66,11 +73,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       storeFromDerived(await deriveKey(password, salt))
     }
 
-    const data = await api.post<AuthResponse>('/api/auth/register/', {
-      username,
-      password,
-      encryption_salt: salt,
-    })
+    const data = await api.post(
+      '/api/auth/register/',
+      { username, password, encryption_salt: salt },
+      authResponseSchema,
+    )
 
     if (isEncryptionEnabled()) await wrapKey(data.wrapping_key)
     setUser({ id: data.id, username: data.username })
@@ -78,10 +85,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const login = useCallback(async (username: string, password: string) => {
-    const data = await api.post<AuthResponse>('/api/auth/login/', { username, password })
+    const data = await api.post('/api/auth/login/', { username, password }, authResponseSchema)
 
     if (isEncryptionEnabled()) {
-      const profile = await api.get<ProfileResponse>('/api/auth/profile/')
+      const profile = await api.get('/api/auth/profile/', profileResponseSchema)
       storeFromDerived(await deriveKey(password, profile.encryption_salt))
       await wrapKey(data.wrapping_key)
     }
@@ -93,7 +100,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     clearKeys()
     try {
-      await api.post('/api/auth/logout/', {})
+      await api.post('/api/auth/logout/', {}, voidResponseSchema)
     } catch {
       // Сессия могла истечь — локальное состояние всё равно сбрасываем.
     }
@@ -113,10 +120,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
  * Восстановление сессии после перезагрузки страницы.
  * Порт Auth.tryRestore: сессия есть → ключ в sessionStorage? → развернуть обёрнутый ключ.
  */
-async function tryRestore(): Promise<AuthUser | null> {
+async function tryRestore(signal: AbortSignal): Promise<AuthUser | null> {
   let me: AuthUser
   try {
-    me = await api.get<AuthUser>('/api/auth/me/')
+    me = await api.get('/api/auth/me/', authUserSchema, { signal })
   } catch {
     return null
   }
@@ -125,7 +132,9 @@ async function tryRestore(): Promise<AuthUser | null> {
   if (!hasWrapped()) return null
 
   try {
-    const { wrapping_key } = await api.get<WrappingKeyResponse>('/api/auth/unwrap-key/')
+    const { wrapping_key } = await api.get('/api/auth/unwrap-key/', wrappingKeyResponseSchema, {
+      signal,
+    })
     await unwrapKey(wrapping_key)
     return me
   } catch {

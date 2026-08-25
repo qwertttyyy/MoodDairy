@@ -63,7 +63,7 @@ function monthView(year: number, month: number): PeriodView {
       from: new Date(year, month - 1, 1),
       to: clampToToday(lastDayOfMonth(year, month)),
     },
-    caption: `${MONTH_NAMES[month - 1].toLowerCase()} ${year}`,
+    caption: `${(MONTH_NAMES[month - 1] ?? '').toLowerCase()} ${year}`,
     previous: {
       query: { kind: 'month', ...previousMonth },
       range: {

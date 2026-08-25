@@ -5,13 +5,14 @@ import { BrowserRouter, Route, Routes } from 'react-router'
 
 import { AppPage } from './pages/AppPage/AppPage'
 import { SharePage } from './pages/SharePage/SharePage'
+import { shouldRetry } from './shared/api/client'
 import { ToastProvider } from './shared/ui/ToastProvider'
 
 import './shared/styles/styles.css'
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, refetchOnWindowFocus: false },
+    queries: { retry: shouldRetry, refetchOnWindowFocus: false },
   },
 })
 

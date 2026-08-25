@@ -7,10 +7,10 @@
  * и мы его тоже никуда не передаём — только в расшифровку.
  */
 
-import { api } from '../../shared/api/client'
-import type { ShareDataResponse, ShareEntry } from '../../shared/api/types'
-import { decryptWithKey } from '../../shared/crypto/crypto'
-import { b64ToBytes } from '../../shared/lib/base64'
+import { api, IncompatibleApiResponseError } from '../../shared/api/client'
+import { shareDataResponseSchema, shareEntriesSchema } from '../../shared/api/types'
+import type { ShareEntry } from '../../shared/api/types'
+import { decodeEncryptionKey, decryptWithKey } from '../../shared/crypto/crypto'
 
 /** Снапшот зашифрован, а ключа во фрагменте нет: врачу нужна ссылка целиком. */
 export class MissingKeyError extends Error {
@@ -26,17 +26,37 @@ export function readShareKeyFromHash(): string {
 }
 
 /** Записи снапшота, отсортированные по времени по возрастанию. */
-export async function loadShareEntries(token: string, shareKeyB64: string): Promise<ShareEntry[]> {
-  const data = await api.get<ShareDataResponse>(`/api/sharing/${encodeURIComponent(token)}/data/`)
+export async function loadShareEntries(
+  token: string,
+  shareKeyB64: string,
+  signal?: AbortSignal,
+): Promise<ShareEntry[]> {
+  const data = await api.get(
+    `/api/sharing/${encodeURIComponent(token)}/data/`,
+    shareDataResponseSchema,
+    signal ? { signal } : {},
+  )
 
   let json: string
   if (data.is_encrypted) {
     if (!shareKeyB64) throw new MissingKeyError()
-    json = await decryptWithKey(b64ToBytes(shareKeyB64), data.data_blob)
+    json = await decryptWithKey(decodeEncryptionKey(shareKeyB64), data.data_blob)
   } else {
     json = data.data_blob
   }
 
-  const entries = JSON.parse(json) as ShareEntry[]
+  let decoded: unknown
+  try {
+    decoded = JSON.parse(json)
+  } catch {
+    throw new IncompatibleApiResponseError([{ path: [], message: 'Некорректный JSON снапшота' }])
+  }
+  const result = shareEntriesSchema.safeParse(decoded)
+  if (!result.success) {
+    throw new IncompatibleApiResponseError(
+      result.error.issues.map((issue) => ({ path: issue.path, message: issue.message })),
+    )
+  }
+  const entries = result.data
   return entries.sort((a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp))
 }

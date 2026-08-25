@@ -9,7 +9,7 @@
 
 import { describe, expect, it } from 'vitest'
 
-import { b64ToBytes, bytesToB64 } from './base64'
+import { b64ToBytes, bytesToB64, isValidB64 } from './base64'
 
 describe('bytesToB64 / b64ToBytes', () => {
   it('делает roundtrip на коротком массиве', () => {
@@ -42,7 +42,7 @@ describe('bytesToB64 / b64ToBytes', () => {
     expect(restored[size - 1]).toBe(bytes[size - 1])
     expect(restored[size >> 1]).toBe(bytes[size >> 1])
     let sum = 0
-    for (let i = 0; i < size; i++) sum += restored[i] ^ bytes[i]
+    for (let i = 0; i < size; i++) sum += (restored[i] ?? 0) ^ (bytes[i] ?? 0)
     expect(sum).toBe(0)
   })
 
@@ -67,5 +67,13 @@ describe('bytesToB64 / b64ToBytes', () => {
     const out = b64ToBytes('AQID')
     expect(out).toBeInstanceOf(Uint8Array)
     expect(out.buffer).toBeInstanceOf(ArrayBuffer)
+  })
+
+  it.each(['AQID', 'AQI=', 'AQ==', 'YWJjZA=='])('принимает строгий Base64 %s', (value) => {
+    expect(isValidB64(value)).toBe(true)
+  })
+
+  it.each(['', 'AQI', 'AQ===', 'A Q==', '!!!!', 'AQ==tail'])('отклоняет %s', (value) => {
+    expect(isValidB64(value)).toBe(false)
   })
 })

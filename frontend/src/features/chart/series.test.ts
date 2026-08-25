@@ -17,7 +17,7 @@ function entry(day: number, mood: number, anxiety?: number): ChartEntry {
   return {
     timestamp: new Date(2026, 2, day, 12, 0, 0).toISOString(),
     mood,
-    anxiety,
+    ...(anxiety === undefined ? {} : { anxiety }),
   }
 }
 
@@ -40,28 +40,28 @@ describe('buildDailySeries', () => {
   it('несколько записей за день усредняются', () => {
     const rows = buildDailySeries([entry(1, 4), entry(1, 7)], MARCH)
 
-    expect(rows[0].mood).toBe(5.5)
+    expect(rows[0]?.mood).toBe(5.5)
   })
 
   it('тревога считается отдельно от настроения и только по заполненным оценкам', () => {
     const rows = buildDailySeries([entry(1, 4, 2), entry(1, 6)], MARCH)
 
-    expect(rows[0].mood).toBe(5)
-    expect(rows[0].anxiety).toBe(2)
+    expect(rows[0]?.mood).toBe(5)
+    expect(rows[0]?.anxiety).toBe(2)
   })
 
   it('оценки вне шкалы не попадают в ряд', () => {
     const rows = buildDailySeries([entry(1, 0), entry(1, 12, 9)], MARCH)
 
-    expect(rows[0].mood).toBeNull()
-    expect(rows[0].anxiety).toBeNull()
+    expect(rows[0]?.mood).toBeNull()
+    expect(rows[0]?.anxiety).toBeNull()
   })
 
   it('границы берутся из периода, а не из записей', () => {
     const rows = buildDailySeries([entry(3, 5)], MARCH)
 
-    expect(rows[0].date.getDate()).toBe(1)
-    expect(rows[rows.length - 1].date.getDate()).toBe(5)
+    expect(rows[0]?.date.getDate()).toBe(1)
+    expect(rows.at(-1)?.date.getDate()).toBe(5)
   })
 })
 

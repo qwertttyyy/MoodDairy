@@ -18,6 +18,8 @@ import { b64ToBytes } from '../lib/base64'
 import type { Bytes } from '../lib/base64'
 import {
   ENC_KEY_STORAGE,
+  DecryptionError,
+  EncryptedDataFormatError,
   PBKDF2_ITERATIONS,
   WRAPPED_KEY_STORAGE,
   clearKeys,
@@ -65,8 +67,16 @@ const TRICKY_TEXT = 'Тревога 7/10 — «сжатие» в груди 😮
 
 function toB64(bytes: Uint8Array): string {
   let bin = ''
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i])
+  for (const byte of bytes) bin += String.fromCharCode(byte)
   return btoa(bin)
+}
+
+function splitBlob(blob: string): [string, string] {
+  const parts = blob.split(':')
+  const iv = parts[0]
+  const ciphertext = parts[1]
+  if (parts.length !== 2 || !iv || !ciphertext) throw new Error('Некорректный тестовый blob')
+  return [iv, ciphertext]
 }
 
 function fromB64(b64: string): Bytes {
@@ -106,7 +116,7 @@ async function referenceEncrypt(rawKey: ArrayBuffer, plaintext: string): Promise
 
 async function referenceDecrypt(rawKey: ArrayBuffer, blob: string): Promise<string> {
   const key = await crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['decrypt'])
-  const [ivB64, ctB64] = blob.split(':', 2)
+  const [ivB64, ctB64] = splitBlob(blob)
   const plain = await crypto.subtle.decrypt(
     { name: 'AES-GCM', iv: fromB64(ivB64) },
     key,
@@ -235,14 +245,13 @@ describe('encrypt / decrypt roundtrip', () => {
 
 describe('формат шифротекста', () => {
   it('состоит ровно из двух частей, разделённых двоеточием', async () => {
-    const parts = (await encrypt(TRICKY_TEXT)).split(':')
-    expect(parts).toHaveLength(2)
-    expect(parts[0].length).toBeGreaterThan(0)
-    expect(parts[1].length).toBeGreaterThan(0)
+    const [iv, ciphertext] = splitBlob(await encrypt(TRICKY_TEXT))
+    expect(iv.length).toBeGreaterThan(0)
+    expect(ciphertext.length).toBeGreaterThan(0)
   })
 
   it('первая часть — base64 от 12 байт IV', async () => {
-    const [ivB64] = (await encrypt('x')).split(':')
+    const [ivB64] = splitBlob(await encrypt('x'))
     expect(b64ToBytes(ivB64).length).toBe(12)
   })
 
@@ -258,7 +267,7 @@ describe('формат шифротекста', () => {
 
   it('шифротекст длиннее открытого текста на тег GCM (16 байт)', async () => {
     const plainLength = new TextEncoder().encode('короткая запись').length
-    const [, ctB64] = (await encrypt('короткая запись')).split(':')
+    const [, ctB64] = splitBlob(await encrypt('короткая запись'))
     expect(b64ToBytes(ctB64).length).toBe(plainLength + 16)
   })
 })
@@ -280,14 +289,14 @@ describe('совместимость с уже сохранёнными данн
 
   it('не расшифровывает вектор, зашифрованный другим ключом', async () => {
     const foreign = await referenceEncrypt(keyBitsOtherSalt, TRICKY_TEXT)
-    await expect(decrypt(foreign)).rejects.toThrow()
+    await expect(decrypt(foreign)).rejects.toBeInstanceOf(DecryptionError)
   })
 
   it('отклоняет вектор с подменённым шифротекстом (аутентификация GCM)', async () => {
-    const [ivB64, ctB64] = LEGACY_BLOB.split(':')
+    const [ivB64, ctB64] = splitBlob(LEGACY_BLOB)
     const tampered = b64ToBytes(ctB64)
-    tampered[0] ^= 0xff
-    await expect(decrypt(`${ivB64}:${toB64(tampered)}`)).rejects.toThrow()
+    tampered[0] = (tampered[0] ?? 0) ^ 0xff
+    await expect(decrypt(`${ivB64}:${toB64(tampered)}`)).rejects.toBeInstanceOf(DecryptionError)
   })
 })
 
@@ -297,9 +306,11 @@ describe('wrapKey / unwrapKey', () => {
 
     const blob = localStorage.getItem(WRAPPED_KEY_STORAGE)
     expect(blob).toMatch(BLOB_SHAPE)
-    expect(b64ToBytes(blob!.split(':')[0]).length).toBe(12)
+    if (!blob) throw new Error('Обёрнутый ключ не сохранён')
+    const [iv, ciphertext] = splitBlob(blob)
+    expect(b64ToBytes(iv).length).toBe(12)
     // 32 байта ключа + 16 байт тега GCM.
-    expect(b64ToBytes(blob!.split(':')[1]).length).toBe(48)
+    expect(b64ToBytes(ciphertext).length).toBe(48)
   })
 
   it('восстанавливает ключ и читает ранее зашифрованный текст', async () => {
@@ -309,7 +320,7 @@ describe('wrapKey / unwrapKey', () => {
     // Подменяем ключ чужим — так сбрасывается внутренний кэш CryptoKey,
     // и успех расшифровки ниже нельзя объяснить кэшем.
     storeFromDerived(keyBitsOtherSalt)
-    await expect(decrypt(blob)).rejects.toThrow()
+    await expect(decrypt(blob)).rejects.toBeInstanceOf(DecryptionError)
 
     sessionStorage.removeItem(ENC_KEY_STORAGE)
     expect(hasKey()).toBe(false)
@@ -334,7 +345,7 @@ describe('wrapKey / unwrapKey', () => {
   it('не разворачивает ключ чужим wrapping_key', async () => {
     await wrapKey(wrappingKeyB64)
     const foreign = toB64(crypto.getRandomValues(new Uint8Array(32)))
-    await expect(unwrapKey(foreign)).rejects.toThrow()
+    await expect(unwrapKey(foreign)).rejects.toBeInstanceOf(DecryptionError)
   })
 })
 
@@ -399,17 +410,20 @@ describe('шифрование выключено', () => {
 })
 
 describe('decrypt на некорректном входе', () => {
-  it('строка без двоеточия даёт пустую строку', async () => {
-    expect(await decrypt('нешифрованный текст')).toBe('')
+  it.each([
+    '',
+    'нешифрованный текст',
+    'AAAA:BBBB:CCCC',
+    '!!!!:AAAA',
+    'AQID:QUJDRA==',
+    'AAAAAAAAAAAAAAAA:AA==',
+  ])('отклоняет некорректный формат без передачи в Web Crypto', async (value) => {
+    await expect(decrypt(value)).rejects.toBeInstanceOf(EncryptedDataFormatError)
   })
 
-  it('пустая строка даёт пустую строку', async () => {
-    expect(await decrypt('')).toBe('')
-  })
-
-  it('не требует ключа, чтобы вернуть пустую строку', async () => {
+  it('проверяет формат до поиска локального ключа', async () => {
     clearKeys()
-    expect(await decrypt('нет двоеточия')).toBe('')
+    await expect(decrypt('нет двоеточия')).rejects.toBeInstanceOf(EncryptedDataFormatError)
   })
 })
 
@@ -443,7 +457,7 @@ describe('ключ для ссылки врачу', () => {
     const blob = await encryptWithKey(raw, TRICKY_TEXT)
 
     expect(blob).toMatch(BLOB_SHAPE)
-    expect(b64ToBytes(blob.split(':')[0]).length).toBe(12)
+    expect(b64ToBytes(splitBlob(blob)[0]).length).toBe(12)
     expect(await decryptWithKey(raw, blob)).toBe(TRICKY_TEXT)
   })
 
@@ -452,7 +466,7 @@ describe('ключ для ссылки врачу', () => {
     const { raw: foreign } = generateShareKey()
     const blob = await encryptWithKey(raw, TRICKY_TEXT)
 
-    await expect(decryptWithKey(foreign, blob)).rejects.toThrow()
+    await expect(decryptWithKey(foreign, blob)).rejects.toBeInstanceOf(DecryptionError)
   })
 
   it('работает независимо от ключа пользователя в сессии', async () => {

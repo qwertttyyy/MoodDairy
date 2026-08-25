@@ -8,10 +8,10 @@ import { useEffect, useMemo, useRef } from 'react'
 import { drawChart } from './chartEngine'
 import type { ChartStyle } from './chartEngine'
 import { buildDailySeries, rangeOfEntries } from './series'
-import type { MoodChartProps } from './types'
+import type { ChartKind, MoodChartProps } from './types'
 
 /** Тревога — столбики: её оценка дискретная, кривая между ними ничего не значит. */
-const STYLE: Record<string, ChartStyle> = { mood: 'line', anxiety: 'bars' }
+const STYLE: Record<ChartKind, ChartStyle> = { mood: 'line', anxiety: 'bars' }
 
 export function MoodChart({
   entries,

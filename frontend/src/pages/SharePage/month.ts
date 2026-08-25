@@ -43,9 +43,12 @@ export function getMonthBounds(entries: readonly Timestamped[]): MonthBounds {
     const current: YearMonth = { year: now.getFullYear(), month: now.getMonth() + 1 }
     return { min: current, max: current }
   }
+  const first = entries[0]
+  const last = entries.at(-1)
+  if (!first || !last) throw new Error('Не удалось определить границы записей')
   return {
-    min: monthOf(entries[0].timestamp),
-    max: monthOf(entries[entries.length - 1].timestamp),
+    min: monthOf(first.timestamp),
+    max: monthOf(last.timestamp),
   }
 }
 

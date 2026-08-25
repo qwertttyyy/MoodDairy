@@ -87,8 +87,13 @@ export function rangeOfEntries(entries: ChartEntry[], wholeMonth: boolean): DayR
     return { from: now, to: now }
   }
   const dates = entries.map((entry) => startOfDay(new Date(entry.timestamp)))
-  const from = dates.reduce((min, date) => (date < min ? date : min), dates[0])
-  const to = dates.reduce((max, date) => (date > max ? date : max), dates[0])
+  const first = dates[0]
+  if (!first) {
+    const now = today()
+    return { from: now, to: now }
+  }
+  const from = dates.reduce((min, date) => (date < min ? date : min), first)
+  const to = dates.reduce((max, date) => (date > max ? date : max), first)
   if (!wholeMonth) return { from, to }
   // Месяц показываем целиком: ось не сжимается к дням, где есть записи.
   return {

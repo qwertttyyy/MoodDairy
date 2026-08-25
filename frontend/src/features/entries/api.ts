@@ -12,13 +12,16 @@ import {
 } from '@tanstack/react-query'
 
 import { api } from '../../shared/api/client'
-import type {
-  ChartRawEntry,
-  DateRangeResponse,
-  GroupedEntriesResponse,
-  RawEntry,
-  Tag,
+import {
+  chartRawEntriesSchema,
+  dateRangeResponseSchema,
+  groupedEntriesResponseSchema,
+  rawEntrySchema,
+  tagSchema,
+  tagsSchema,
+  voidResponseSchema,
 } from '../../shared/api/types'
+import type { DateRangeResponse, RawEntry, Tag } from '../../shared/api/types'
 import { decrypt, encrypt } from '../../shared/crypto/crypto'
 import type { ChartEntry } from '../chart/types'
 import type { DecryptedEntry, EntryDayGroup, EntryFormData } from './types'
@@ -72,12 +75,12 @@ export function useEntriesFeed() {
   return useInfiniteQuery<FeedPage>({
     queryKey: entriesKeys.feed,
     initialPageParam: null,
-    queryFn: async ({ pageParam }) => {
+    queryFn: async ({ pageParam, signal }) => {
       const before = pageParam as string | null
       const url = before
         ? `/api/entries/grouped/?before=${encodeURIComponent(before)}`
         : '/api/entries/grouped/'
-      const data = await api.get<GroupedEntriesResponse>(url)
+      const data = await api.get(url, groupedEntriesResponseSchema, { signal })
 
       const days = await Promise.all(
         Object.entries(data.results).map(async ([day, items]) => ({
@@ -114,8 +117,8 @@ export function useChartEntries(query: ChartQuery, enabled: boolean) {
     // При смене периода на канвасе остаётся прежняя картинка до перерисовки —
     // как в старом фронте, где график не исчезал на время запроса.
     placeholderData: keepPreviousData,
-    queryFn: async () => {
-      const raw = await api.get<ChartRawEntry[]>(buildChartUrl(query))
+    queryFn: async ({ signal }) => {
+      const raw = await api.get(buildChartUrl(query), chartRawEntriesSchema, { signal })
       const entries = await Promise.all(
         raw.map(async (item) => ({
           mood: parseInt(await decrypt(item.mood), 10) || 0,
@@ -148,14 +151,15 @@ export function useDateRange(enabled: boolean) {
   return useQuery<DateRangeResponse>({
     queryKey: entriesKeys.dateRange,
     enabled,
-    queryFn: () => api.get<DateRangeResponse>('/api/entries/date-range/'),
+    queryFn: ({ signal }) =>
+      api.get('/api/entries/date-range/', dateRangeResponseSchema, { signal }),
   })
 }
 
 export function useTags() {
   return useQuery<Tag[]>({
     queryKey: entriesKeys.tags,
-    queryFn: () => api.get<Tag[]>('/api/tags/'),
+    queryFn: ({ signal }) => api.get('/api/tags/', tagsSchema, { signal }),
   })
 }
 
@@ -178,18 +182,18 @@ function useTagMutation<TVariables>(mutationFn: (variables: TVariables) => Promi
 }
 
 export function useCreateTag() {
-  return useTagMutation((name: string) => api.post<Tag>('/api/tags/', { name }))
+  return useTagMutation((name: string) => api.post('/api/tags/', { name }, tagSchema))
 }
 
 export function useRenameTag() {
   return useTagMutation(({ id, name }: { id: number; name: string }) =>
-    api.patch<Tag>(`/api/tags/${id}/`, { name }),
+    api.patch(`/api/tags/${id}/`, { name }, tagSchema),
   )
 }
 
 /** Удаление тега не трогает записи: пропадает только связь с ними. */
 export function useDeleteTag() {
-  return useTagMutation((id: number) => api.del<void>(`/api/tags/${id}/`))
+  return useTagMutation((id: number) => api.del(`/api/tags/${id}/`, voidResponseSchema))
 }
 
 export function useSaveEntry() {
@@ -204,8 +208,8 @@ export function useSaveEntry() {
         timestamp: data.timestamp,
       }
       return editId
-        ? api.put<RawEntry>(`/api/entries/${editId}/`, body)
-        : api.post<RawEntry>('/api/entries/', body)
+        ? api.put(`/api/entries/${editId}/`, body, rawEntrySchema)
+        : api.post('/api/entries/', body, rawEntrySchema)
     },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: entriesKeys.all }),
   })
@@ -214,7 +218,7 @@ export function useSaveEntry() {
 export function useDeleteEntry() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) => api.del<void>(`/api/entries/${id}/`),
+    mutationFn: (id: number) => api.del(`/api/entries/${id}/`, voidResponseSchema),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: entriesKeys.all }),
   })
 }

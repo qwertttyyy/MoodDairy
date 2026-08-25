@@ -192,7 +192,7 @@
 ## Прогресс
 
 - [x] 1. Quality toolchain
-- [ ] 2. API и crypto boundaries
+- [x] 2. API и crypto boundaries
 - [ ] 3. Startup и data failures
 - [ ] 4. CRUD, даты и sharing
 - [ ] 5. Accessibility

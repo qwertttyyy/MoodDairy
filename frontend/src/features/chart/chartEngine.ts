@@ -68,13 +68,13 @@ interface Point {
   value: number
 }
 
-const FALLBACK: Record<string, Rgba> = {
+const FALLBACK = {
   line: [10, 124, 140, 1],
   fillTop: [10, 124, 140, 0.2],
   fillBottom: [10, 124, 140, 0.01],
   grid: [198, 198, 200, 1],
   text: [114, 114, 122, 1],
-}
+} satisfies Record<string, Rgba>
 
 /**
  * Разбор цвета из CSS-переменной.
@@ -103,7 +103,9 @@ function toRgba(value: string, fallback: Rgba): Rgba {
   }
   const parts = parsed.match(/[\d.]+/g)
   if (!parts || parts.length < 3) return fallback
-  return [+parts[0], +parts[1], +parts[2], parts[3] === undefined ? 1 : +parts[3]]
+  const [red, green, blue, alpha] = parts
+  if (red === undefined || green === undefined || blue === undefined) return fallback
+  return [+red, +green, +blue, alpha === undefined ? 1 : +alpha]
 }
 
 function rgba(color: Rgba, alpha?: number): string {
@@ -136,7 +138,13 @@ function pickTicks(
     const centers: number[] = []
     let start = 0
     for (let i = 1; i <= count; i++) {
-      const monthEnded = i === count || rows[i].date.getMonth() !== rows[start].date.getMonth()
+      const current = rows[i]
+      const first = rows[start]
+      const monthEnded =
+        i === count ||
+        (current !== undefined &&
+          first !== undefined &&
+          current.date.getMonth() !== first.date.getMonth())
       if (monthEnded) {
         centers.push(Math.round((start + i - 1) / 2))
         start = i
@@ -145,7 +153,7 @@ function pickTicks(
     const every = Math.ceil(centers.length / Math.max(2, Math.floor(innerWidth / 42)))
     return {
       indexes: centers.filter((_, position) => position % every === 0),
-      format: (date) => MONTHS_SHORT[date.getMonth()],
+      format: (date) => MONTHS_SHORT[date.getMonth()] ?? '',
     }
   }
 
@@ -158,9 +166,13 @@ function pickTicks(
   for (let i = count - 1; i >= 0; i -= step) indexes.push(i)
   indexes.reverse()
   // Крайняя левая подпись, стоящая вплотную к следующей, только мешает.
-  if (indexes.length > 1 && indexes[0] < step * 0.5) indexes.shift()
+  const firstIndex = indexes[0]
+  if (indexes.length > 1 && firstIndex !== undefined && firstIndex < step * 0.5) indexes.shift()
 
-  return { indexes, format: (date) => `${date.getDate()} ${MONTHS_SHORT[date.getMonth()]}` }
+  return {
+    indexes,
+    format: (date) => `${date.getDate()} ${MONTHS_SHORT[date.getMonth()] ?? ''}`,
+  }
 }
 
 /**
@@ -174,12 +186,15 @@ function tracePath(
   continuePath = false,
 ): void {
   if (points.length < 2) return
-  if (continuePath) ctx.lineTo(points[0].x, points[0].y)
-  else ctx.moveTo(points[0].x, points[0].y)
+  const first = points[0]
+  if (!first) return
+  if (continuePath) ctx.lineTo(first.x, first.y)
+  else ctx.moveTo(first.x, first.y)
 
   for (let i = 0; i < points.length - 1; i++) {
     const p1 = points[i]
     const p2 = points[i + 1]
+    if (!p1 || !p2) continue
     if (!smooth) {
       ctx.lineTo(p2.x, p2.y)
       continue
@@ -248,7 +263,7 @@ function collectPoints(
     }
     bucket.lastIndex = index
     const value = values[index]
-    if (value !== null) {
+    if (value !== null && value !== undefined) {
       bucket.sum += value
       bucket.count++
     }
@@ -350,10 +365,10 @@ export function drawChart(canvas: HTMLCanvasElement, options: ChartOptions): voi
   if (!points.length) return
 
   if (options.style === 'bars') {
-    const slot =
-      points.length > 1
-        ? (points[points.length - 1].x - points[0].x) / (points.length - 1)
-        : innerWidth
+    const firstPoint = points[0]
+    const lastPoint = points.at(-1)
+    if (!firstPoint || !lastPoint) return
+    const slot = points.length > 1 ? (lastPoint.x - firstPoint.x) / (points.length - 1) : innerWidth
     // Верхний предел нужен коротким периодам: без него восемь месяцев года
     // дают столбики шире, чем выше, и график читается как ряд плашек.
     const maxWidth = cssNumber('--ch-bar-max', innerWidth)
@@ -380,10 +395,13 @@ export function drawChart(canvas: HTMLCanvasElement, options: ChartOptions): voi
   gradient.addColorStop(1, rgba(colorFillBottom))
   ctx.fillStyle = gradient
   if (points.length >= 2) {
+    const firstPoint = points[0]
+    const lastPoint = points.at(-1)
+    if (!firstPoint || !lastPoint) return
     ctx.beginPath()
     tracePath(ctx, points, options.smooth)
-    ctx.lineTo(points[points.length - 1].x, baseY)
-    ctx.lineTo(points[0].x, baseY)
+    ctx.lineTo(lastPoint.x, baseY)
+    ctx.lineTo(firstPoint.x, baseY)
     ctx.closePath()
     ctx.fill()
   }
@@ -396,7 +414,9 @@ export function drawChart(canvas: HTMLCanvasElement, options: ChartOptions): voi
   ctx.lineCap = 'round'
   ctx.beginPath()
   if (points.length < 2) {
-    ctx.arc(points[0].x, points[0].y, lineWidth * 0.8, 0, Math.PI * 2)
+    const point = points[0]
+    if (!point) return
+    ctx.arc(point.x, point.y, lineWidth * 0.8, 0, Math.PI * 2)
     ctx.fill()
   } else {
     // Пропуски сохраняют расстояние по времени, но не разрывают линию.
@@ -448,8 +468,10 @@ function drawXLabels(
   if (!rows.length) return
   const ticks = pickTicks(rows, geometry.innerWidth, ctx)
 
-  const boxes: LabelBox[] = ticks.indexes.map((index) => {
-    const text = ticks.format(rows[index].date)
+  const boxes: LabelBox[] = ticks.indexes.flatMap((index) => {
+    const row = rows[index]
+    if (!row) return []
+    const text = ticks.format(row.date)
     const half = ctx.measureText(text).width / 2
     const center = geometry.x(index)
     if (center - half < 0) return { text, x: 0, align: 'left', left: 0, right: half * 2 }
@@ -471,6 +493,7 @@ function drawXLabels(
   let nextLeft = Number.POSITIVE_INFINITY
   for (let i = boxes.length - 1; i >= 0; i--) {
     const box = boxes[i]
+    if (!box) continue
     if (box.right + LABEL_MIN_GAP > nextLeft) continue
     ctx.textAlign = box.align
     ctx.fillText(box.text, box.x, geometry.height - 4)

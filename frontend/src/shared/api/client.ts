@@ -1,16 +1,5 @@
-/**
- * Обёртка над fetch для DRF-бэкенда.
- *
- * Сессионная аутентификация по cookie, CSRF-токен из cookie `csrftoken`
- * в заголовке `X-CSRFToken`, `credentials: same-origin`.
- *
- * Ошибки бэкенд отдаёт единым конвертом `{"error": {code, message, ...}}` —
- * контракт описан в docs/api-errors.md. Реагировать в коде нужно на `code`:
- * он стабилен, а `message` может меняться и переводиться. Ответы не от нашего
- * API (заглушка nginx, ошибка прокси) разбираются запасным путём.
- */
+import type { ZodType } from 'zod'
 
-/** Машиночитаемые коды ошибок. Полный список — docs/api-errors.md. */
 export const ERROR_CODES = {
   validationError: 'validation_error',
   invalidCredentials: 'invalid_credentials',
@@ -22,43 +11,69 @@ export const ERROR_CODES = {
   gone: 'gone',
   rateLimited: 'rate_limited',
   internalError: 'internal_error',
-  /** Запасной код: ошибка не от нашего API либо код неизвестен клиенту. */
   unknown: 'error',
+} as const
+
+export const REQUEST_TIMEOUTS = {
+  bootstrap: 12_000,
+  standard: 20_000,
+  createShare: 60_000,
 } as const
 
 export type ErrorCode = string
 
-/** Разобранное содержимое конверта ошибки. */
 export interface ApiErrorPayload {
   code: ErrorCode
   message: string
-  /** Ошибки по полям формы — только для `validation_error`. */
   fields: Record<string, string[]>
-  /** Идентификатор запроса: по нему ошибку находят в логах сервера. */
   requestId: string
 }
 
-/**
- * Ошибка запроса.
- *
- * `status` нужен для ветвления по HTTP-семантике (401 — нет сессии),
- * `code` — для реакции на конкретную ошибку, `fields` — для подсветки формы.
- */
+export class NetworkError extends Error {
+  constructor(cause: unknown) {
+    super('Не удалось подключиться к серверу', { cause })
+    this.name = 'NetworkError'
+  }
+}
+
+export class RequestTimeoutError extends Error {
+  readonly timeoutMs: number
+
+  constructor(timeoutMs: number) {
+    super('Сервер не ответил вовремя')
+    this.name = 'RequestTimeoutError'
+    this.timeoutMs = timeoutMs
+  }
+}
+
 export class ApiError extends Error {
   readonly status: number
   readonly code: ErrorCode
   readonly fields: Record<string, string[]>
   readonly requestId: string
-  readonly data: unknown
 
-  constructor(status: number, payload: ApiErrorPayload, data?: unknown) {
+  constructor(status: number, payload: ApiErrorPayload) {
     super(payload.message)
     this.name = 'ApiError'
     this.status = status
     this.code = payload.code
     this.fields = payload.fields
     this.requestId = payload.requestId
-    this.data = data
+  }
+}
+
+export interface ResponseIssue {
+  path: PropertyKey[]
+  message: string
+}
+
+export class IncompatibleApiResponseError extends Error {
+  readonly issues: ResponseIssue[]
+
+  constructor(issues: ResponseIssue[]) {
+    super('Сервер вернул ответ в неизвестном формате')
+    this.name = 'IncompatibleApiResponseError'
+    this.issues = issues
   }
 }
 
@@ -66,45 +81,103 @@ export function isApiError(error: unknown): error is ApiError {
   return error instanceof ApiError
 }
 
-function getCsrfToken(): string {
-  const match = document.cookie.match(/csrftoken=([^;]+)/)
-  return match ? match[1] : ''
+export function isRetryableError(error: unknown): boolean {
+  return (
+    error instanceof NetworkError ||
+    error instanceof RequestTimeoutError ||
+    (error instanceof ApiError && error.status >= 500 && error.status <= 599)
+  )
 }
 
-async function request<T>(method: string, url: string, body?: unknown): Promise<T> {
-  const response = await fetch(url, {
-    method,
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
-    credentials: 'same-origin',
-    body: body === undefined ? undefined : JSON.stringify(body),
-  })
+/** TanStack Query делает не более одной повторной попытки только для временных сбоев. */
+export function shouldRetry(failureCount: number, error: unknown): boolean {
+  return failureCount < 1 && isRetryableError(error)
+}
 
-  // 204 и пустое тело — законный ответ (logout, delete), JSON.parse на нём падает.
-  const text = await response.text()
-  let data: unknown
-  if (text) {
-    try {
-      data = JSON.parse(text)
-    } catch {
-      data = text
+export interface RequestOptions {
+  signal?: AbortSignal
+  timeoutMs?: number
+}
+
+function getCsrfToken(): string {
+  const match = document.cookie.match(/csrftoken=([^;]+)/)
+  return match?.[1] ?? ''
+}
+
+async function request<T>(
+  method: string,
+  url: string,
+  schema: ZodType<T>,
+  body?: unknown,
+  options: RequestOptions = {},
+): Promise<T> {
+  const controller = new AbortController()
+  const timeoutMs = options.timeoutMs ?? REQUEST_TIMEOUTS.standard
+  let timedOut = false
+
+  const abortFromCaller = () => controller.abort()
+  if (options.signal?.aborted) controller.abort()
+  else options.signal?.addEventListener('abort', abortFromCaller, { once: true })
+
+  const timer = window.setTimeout(() => {
+    timedOut = true
+    controller.abort()
+  }, timeoutMs)
+
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCsrfToken() },
+      credentials: 'same-origin',
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
+      signal: controller.signal,
+    })
+
+    const text = await response.text()
+    let data: unknown
+    if (text) {
+      try {
+        data = JSON.parse(text)
+      } catch {
+        data = text
+      }
     }
-  }
 
-  if (!response.ok) throw new ApiError(response.status, parseApiError(data), data)
-  return data as T
+    if (!response.ok) throw new ApiError(response.status, parseApiError(data))
+
+    const parsed = schema.safeParse(data)
+    if (!parsed.success) {
+      throw new IncompatibleApiResponseError(
+        parsed.error.issues.map((issue) => ({ path: issue.path, message: issue.message })),
+      )
+    }
+    return parsed.data
+  } catch (error) {
+    if (timedOut) throw new RequestTimeoutError(timeoutMs)
+    if (options.signal?.aborted) throw new DOMException('Запрос отменён', 'AbortError')
+    if (error instanceof ApiError || error instanceof IncompatibleApiResponseError) throw error
+    throw new NetworkError(error)
+  } finally {
+    window.clearTimeout(timer)
+    options.signal?.removeEventListener('abort', abortFromCaller)
+  }
 }
 
 export const api = {
-  get: <T>(url: string) => request<T>('GET', url),
-  post: <T>(url: string, body?: unknown) => request<T>('POST', url, body),
-  patch: <T>(url: string, body?: unknown) => request<T>('PATCH', url, body),
-  put: <T>(url: string, body?: unknown) => request<T>('PUT', url, body),
-  del: <T>(url: string) => request<T>('DELETE', url),
+  get: <T>(url: string, schema: ZodType<T>, options?: RequestOptions) =>
+    request('GET', url, schema, undefined, options),
+  post: <T>(url: string, body: unknown, schema: ZodType<T>, options?: RequestOptions) =>
+    request('POST', url, schema, body, options),
+  patch: <T>(url: string, body: unknown, schema: ZodType<T>, options?: RequestOptions) =>
+    request('PATCH', url, schema, body, options),
+  put: <T>(url: string, body: unknown, schema: ZodType<T>, options?: RequestOptions) =>
+    request('PUT', url, schema, body, options),
+  del: <T>(url: string, schema: ZodType<T>, options?: RequestOptions) =>
+    request('DELETE', url, schema, undefined, options),
 }
 
 const FALLBACK_MESSAGE = 'Произошла ошибка'
 
-/** Разбирает ответ об ошибке: сначала конверт бэкенда, затем запасной путь. */
 export function parseApiError(data: unknown): ApiErrorPayload {
   return (
     readEnvelope(data) ?? {
@@ -116,7 +189,6 @@ export function parseApiError(data: unknown): ApiErrorPayload {
   )
 }
 
-/** Читает `{"error": {...}}`. Возвращает null, если это ответ не нашего API. */
 function readEnvelope(data: unknown): ApiErrorPayload | null {
   if (!data || typeof data !== 'object') return null
 
@@ -135,7 +207,6 @@ function readEnvelope(data: unknown): ApiErrorPayload | null {
   }
 }
 
-/** Приводит `fields` к `{поле: [сообщения]}`, отбрасывая всё неожиданное. */
 function readFields(value: unknown): Record<string, string[]> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
 
@@ -148,40 +219,30 @@ function readFields(value: unknown): Record<string, string[]> {
   return result
 }
 
-/** Служебные ключи DRF: их текст показываем без имени поля. */
 const GENERAL_ERROR_KEYS = ['detail', 'non_field_errors']
 
-/**
- * Запасной разбор для ответов вне контракта: заглушки прокси, голый DRF.
- * Приводит что угодно к одной строке для пользователя.
- */
 export function parseErrors(data: unknown): string {
   if (typeof data === 'string') return data || FALLBACK_MESSAGE
   if (!data || typeof data !== 'object') return FALLBACK_MESSAGE
 
   const payload = data as Record<string, unknown>
-
   for (const key of GENERAL_ERROR_KEYS) {
-    const text = toText(payload[key])
-    if (text) return text
+    const message = toText(payload[key])
+    if (message) return message
   }
 
-  // Пустые значения пропускаем: иначе в сообщении окажется имя поля без причины.
   const messages = Object.entries(payload)
     .filter(([field]) => !GENERAL_ERROR_KEYS.includes(field))
     .map(([field, errors]) => [field, toText(errors)] as const)
-    .filter(([, text]) => text !== '')
-    .map(([field, text]) => `${field}: ${text}`)
+    .filter(([, message]) => message !== '')
+    .map(([field, message]) => `${field}: ${message}`)
 
   return messages.join('\n') || FALLBACK_MESSAGE
 }
 
-/** Значение ошибки DRF (строка, число, массив строк) в одну строку. */
 function toText(value: unknown): string {
   if (value === null || value === undefined) return ''
   if (Array.isArray(value)) return value.map(toText).filter(Boolean).join(' ')
-  // Вложенный объект показать нечем: строка вида "[object Object]" хуже,
-  // чем общий текст ошибки.
   if (typeof value === 'object') return ''
   return String(value as string | number | boolean | bigint | symbol)
 }

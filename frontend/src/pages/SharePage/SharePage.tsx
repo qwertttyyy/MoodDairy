@@ -40,8 +40,9 @@ export function SharePage() {
     // Ключ читаем прямо здесь и не храним в состоянии: он не должен попасть ни в запрос, ни в лог.
     const shareKey = readShareKeyFromHash()
     let cancelled = false
+    const controller = new AbortController()
 
-    loadShareEntries(token, shareKey)
+    loadShareEntries(token, shareKey, controller.signal)
       .then((entries) => {
         if (!cancelled) setState({ status: 'ready', entries })
       })
@@ -53,6 +54,7 @@ export function SharePage() {
 
     return () => {
       cancelled = true
+      controller.abort()
     }
   }, [token])
 
