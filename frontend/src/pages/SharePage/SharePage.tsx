@@ -11,7 +11,7 @@ import { MoodChart } from '../../features/chart/MoodChart'
 import { NetworkError, RequestTimeoutError } from '../../shared/api/client'
 import type { ShareEntry } from '../../shared/api/types'
 import { MONTH_NAMES, MOOD_LABELS } from '../../shared/constants'
-import { dayLabelPlain, formatTime } from '../../shared/lib/dates'
+import { dayLabelPlain, formatTime, localDateKey } from '../../shared/lib/dates'
 import { ChartIcon, LockIcon } from '../../shared/ui/EmptyStateIcons'
 import { clampMonth, compareMonths, getMonthBounds, monthOf, shiftMonth } from './month'
 import type { YearMonth } from './month'
@@ -269,7 +269,7 @@ interface DayGroup {
 function groupByDay(entries: ShareEntry[]): DayGroup[] {
   const groups: DayGroup[] = []
   for (const entry of entries) {
-    const day = entry.timestamp.slice(0, 10)
+    const day = localDateKey(entry.timestamp)
     const last = groups.at(-1)
     if (last && last.day === day) last.items.push(entry)
     else groups.push({ day, items: [entry] })

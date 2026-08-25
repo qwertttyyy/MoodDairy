@@ -1,11 +1,12 @@
+import { localYearMonth } from '../../shared/lib/dates'
+
 export interface YearMonth {
   year: number
   month: number
 }
 
 export function currentYearMonth(): YearMonth {
-  const now = new Date()
-  return { year: now.getFullYear(), month: now.getMonth() + 1 }
+  return localYearMonth(new Date())
 }
 
 export function compareMonths(a: YearMonth, b: YearMonth): number {
@@ -25,7 +26,7 @@ export function clampMonth(value: YearMonth, min: YearMonth | null): YearMonth {
 }
 
 export function currentYear(): number {
-  return new Date().getFullYear()
+  return localYearMonth(new Date()).year
 }
 
 export function clampYear(value: number, minYear: number | null): number {

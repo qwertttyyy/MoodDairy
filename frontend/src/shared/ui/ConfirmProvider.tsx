@@ -10,9 +10,31 @@ const DEFAULT_CONFIRM_LABEL = 'Удалить'
 /** Диалог подтверждения: разметка из старого фронта, подпись действия задаёт вызывающий код. */
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [request, setRequest] = useState<ConfirmRequest | null>(null)
+  const [pending, setPending] = useState(false)
+  const [error, setError] = useState('')
 
-  const confirm = useCallback<Confirm>((next) => setRequest(next), [])
-  const close = useCallback(() => setRequest(null), [])
+  const confirm = useCallback<Confirm>((next) => {
+    setError('')
+    setPending(false)
+    setRequest(next)
+  }, [])
+  const close = useCallback(() => {
+    if (!pending) setRequest(null)
+  }, [pending])
+
+  const runAction = async () => {
+    if (!request || pending) return
+    setPending(true)
+    setError('')
+    try {
+      await request.onConfirm()
+      setRequest(null)
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : 'Не удалось выполнить действие')
+    } finally {
+      setPending(false)
+    }
+  }
 
   return (
     <ConfirmContext.Provider value={confirm}>
@@ -21,19 +43,23 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
         <div className="modal-body">
           <h3>{request?.title}</h3>
           <p>{request?.text}</p>
+          {error ? (
+            <p className="confirm-error" role="alert">
+              {error}
+            </p>
+          ) : null}
         </div>
         <div className="modal-footer modal-footer-split">
-          <button className="btn-secondary" onClick={close}>
+          <button className="btn-secondary" onClick={close} disabled={pending}>
             Отмена
           </button>
           <button
             className="btn-danger"
-            onClick={() => {
-              request?.onConfirm()
-              close()
-            }}
+            onClick={() => void runAction()}
+            disabled={pending}
+            aria-busy={pending}
           >
-            {request?.confirmLabel ?? DEFAULT_CONFIRM_LABEL}
+            {pending ? 'Выполняется…' : (request?.confirmLabel ?? DEFAULT_CONFIRM_LABEL)}
           </button>
         </div>
       </Modal>

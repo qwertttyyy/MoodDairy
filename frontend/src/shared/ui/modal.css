@@ -204,6 +204,11 @@
   color: var(--c-secondary);
 }
 
+.modal-sm .confirm-error {
+  margin-top: 12px;
+  color: var(--danger-t);
+}
+
 .modal-sm .modal-footer {
   padding: 20px 0;
 }

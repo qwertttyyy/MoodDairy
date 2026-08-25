@@ -132,11 +132,10 @@ export function TagsSection() {
       title: `Удалить тег «${tag.name}»?`,
       text: 'Записи сохранятся — тег просто исчезнет из их списка.',
       confirmLabel: 'Удалить',
-      onConfirm: () =>
-        deleteTag.mutate(tag.id, {
-          onSuccess: () => toast('Тег удалён'),
-          onError: () => toast('Не удалось удалить тег', true),
-        }),
+      onConfirm: async () => {
+        await deleteTag.mutateAsync(tag.id)
+        toast('Тег удалён')
+      },
     })
   }
 

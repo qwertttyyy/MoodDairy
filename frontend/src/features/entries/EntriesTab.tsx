@@ -14,7 +14,7 @@ import type { EntryResult } from './types'
 export function EntriesTab() {
   const { data, error, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } =
     useEntriesFeed()
-  const { mutate: deleteEntry } = useDeleteEntry()
+  const deleteEntry = useDeleteEntry()
   const confirm = useConfirm()
   const showToast = useToast()
   const { open } = useEntryModal()
@@ -41,10 +41,10 @@ export function EntriesTab() {
       confirm({
         title: 'Удалить запись?',
         text: 'Это действие нельзя отменить.',
-        onConfirm: () =>
-          deleteEntry(entry.id, {
-            onError: () => showToast('Ошибка удаления', true),
-          }),
+        onConfirm: async () => {
+          await deleteEntry.mutateAsync(entry.id)
+          showToast('Запись удалена')
+        },
       })
     },
     [confirm, deleteEntry, showToast],

@@ -28,6 +28,7 @@ import {
   decrypt,
   encrypt,
 } from '../../shared/crypto/crypto'
+import { localDateKey } from '../../shared/lib/dates'
 import type { ChartEntry } from '../chart/types'
 import type { EntryDayGroup, EntryFormData, EntryResult } from './types'
 
@@ -128,9 +129,12 @@ export function mergeFeedPages(pages: FeedPage[] | undefined): EntryDayGroup[] {
   const byDay = new Map<string, EntryResult[]>()
   for (const page of pages ?? []) {
     for (const group of page.days) {
-      const existing = byDay.get(group.day)
-      if (existing) existing.push(...group.entries)
-      else byDay.set(group.day, [...group.entries])
+      for (const entry of group.entries) {
+        const day = localDateKey(entry.timestamp)
+        const existing = byDay.get(day)
+        if (existing) existing.push(entry)
+        else byDay.set(day, [entry])
+      }
     }
   }
   return [...byDay.entries()]

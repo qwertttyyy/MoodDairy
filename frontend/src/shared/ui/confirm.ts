@@ -3,7 +3,7 @@ import { createContext, useContext } from 'react'
 export interface ConfirmRequest {
   title: string
   text: string
-  onConfirm: () => void
+  onConfirm: () => void | Promise<void>
   confirmLabel?: string
 }
 

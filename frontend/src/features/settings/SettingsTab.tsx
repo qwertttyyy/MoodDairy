@@ -34,9 +34,7 @@ export function SettingsTab() {
       title: 'Выйти из аккаунта?',
       text: 'Зашифрованные ключи будут удалены.',
       confirmLabel: 'Выйти',
-      onConfirm: () => {
-        void logout()
-      },
+      onConfirm: logout,
     })
   }
 

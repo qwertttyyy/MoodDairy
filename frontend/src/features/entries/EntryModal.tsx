@@ -3,9 +3,10 @@ import { useEffect, useState } from 'react'
 import { ANXIETY_LABELS, MAX_ANXIETY, MAX_MOOD, MOOD_LABELS } from '../../shared/constants'
 import { isoDateStr, isoTimeStr } from '../../shared/lib/dates'
 import { Modal, ModalCloseButton } from '../../shared/ui/Modal'
+import { useConfirm } from '../../shared/ui/confirm'
 import { useToast } from '../../shared/ui/toast'
 import { useGuide } from '../guide/GuideContext'
-import { useSaveEntry, useTags } from './api'
+import { useDeleteEntry, useSaveEntry, useTags } from './api'
 import { useEntryModal } from './EntryModalContext'
 
 /**
@@ -130,8 +131,10 @@ export function EntryModal() {
     useEntryModal()
   const { open: openGuide } = useGuide()
   const showToast = useToast()
+  const confirm = useConfirm()
   const { data: tags, error: tagsError, refetch: refetchTags } = useTags()
   const saveEntry = useSaveEntry()
+  const deleteEntry = useDeleteEntry()
 
   const [note, setNote] = useState('')
   const [date, setDate] = useState('')
@@ -198,6 +201,20 @@ export function EntryModal() {
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Произошла ошибка')
     }
+  }
+
+  const handleDelete = () => {
+    if (!editing) return
+    confirm({
+      title: 'Удалить запись?',
+      text: 'Это действие нельзя отменить.',
+      confirmLabel: 'Удалить',
+      onConfirm: async () => {
+        await deleteEntry.mutateAsync(editing.id)
+        close()
+        showToast('Запись удалена')
+      },
+    })
   }
 
   return (
@@ -322,6 +339,16 @@ export function EntryModal() {
       </div>
 
       <div className="modal-footer">
+        {isEditing ? (
+          <button
+            type="button"
+            className="btn-secondary btn-delete-entry"
+            onClick={handleDelete}
+            disabled={deleteEntry.isPending || saveEntry.isPending}
+          >
+            Удалить
+          </button>
+        ) : null}
         <button
           type="button"
           className="btn-primary"

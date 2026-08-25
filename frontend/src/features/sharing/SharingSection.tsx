@@ -3,26 +3,9 @@ import { useState } from 'react'
 import { useConfirm } from '../../shared/ui/confirm'
 import { ErrorState } from '../../shared/ui/QueryState'
 import { useToast } from '../../shared/ui/toast'
-import { buildShareUrl, useCreateShare, useRevokeShare, useSharingStatus } from './api'
+import { useCreateShare, useRevokeShare, useSharingStatus } from './api'
 import type { CreatedShare } from './api'
-
-/** Заглушка вместо ссылки, ключ которой уже не известен клиенту. */
-const HIDDEN_LINK_TEXT = '🔒 Полная ссылка была показана при создании'
-
-/**
- * Полная ссылка либо null, когда показать её нечем.
- *
- * Ключ есть только у ссылки, созданной в этой вкладке: на сервере лежит один шифротекст.
- * Ссылке без шифрования ключ не нужен, поэтому её URL полон и после перезагрузки.
- */
-function resolveShareUrl(
-  created: CreatedShare | null,
-  serverShare: { token: string; is_encrypted: boolean } | null,
-): string | null {
-  if (created) return buildShareUrl(created.token, created.shareKeyB64)
-  if (serverShare && !serverShare.is_encrypted) return buildShareUrl(serverShare.token, '')
-  return null
-}
+import { HIDDEN_LINK_TEXT, resolveShareUrl } from './shareLink'
 
 /**
  * Блок «Доступ для врача»: группа настроек и пояснение под ней.
@@ -43,14 +26,24 @@ export function SharingSection() {
   const fullUrl = resolveShareUrl(created, serverShare)
   const boxVisible = created !== null || serverShare !== null
 
+  const createNewShare = async () => {
+    const share = await createShare.mutateAsync()
+    setCreated(share)
+    toast(serverShare ? 'Ссылка заменена' : 'Ссылка создана')
+  }
+
   const handleCreate = () => {
-    createShare.mutate(undefined, {
-      onSuccess: (share) => {
-        setCreated(share)
-        toast('Ссылка создана')
-      },
-      onError: (error) =>
-        toast(error instanceof Error ? error.message : 'Ошибка при создании ссылки', true),
+    if (serverShare) {
+      confirm({
+        title: 'Создать новую ссылку?',
+        text: 'Старая ссылка сразу перестанет работать.',
+        confirmLabel: 'Заменить',
+        onConfirm: createNewShare,
+      })
+      return
+    }
+    void createNewShare().catch((error: unknown) => {
+      toast(error instanceof Error ? error.message : 'Ошибка при создании ссылки', true)
     })
   }
 
@@ -67,14 +60,11 @@ export function SharingSection() {
       title: 'Отозвать ссылку?',
       text: 'Врач потеряет доступ к данным.',
       confirmLabel: 'Отозвать',
-      onConfirm: () =>
-        revokeShare.mutate(undefined, {
-          onSuccess: () => {
-            setCreated(null)
-            toast('Ссылка отозвана')
-          },
-          onError: () => toast('Ошибка', true),
-        }),
+      onConfirm: async () => {
+        await revokeShare.mutateAsync()
+        setCreated(null)
+        toast('Ссылка отозвана')
+      },
     })
   }
 
@@ -97,7 +87,11 @@ export function SharingSection() {
             onClick={handleCreate}
             disabled={status.isPending || createShare.isPending}
           >
-            {status.isPending || createShare.isPending ? 'Загрузка…' : 'Создать ссылку'}
+            {status.isPending || createShare.isPending
+              ? 'Загрузка…'
+              : boxVisible
+                ? 'Создать новую ссылку'
+                : 'Создать ссылку'}
           </button>
         </div>
 
@@ -111,7 +105,7 @@ export function SharingSection() {
                 readOnly
                 value={fullUrl ?? HIDDEN_LINK_TEXT}
               />
-              <button className="btn-plain" onClick={handleCopy}>
+              <button className="btn-plain" onClick={handleCopy} disabled={!fullUrl}>
                 Копировать
               </button>
             </div>
