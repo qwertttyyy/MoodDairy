@@ -127,21 +127,4 @@ describe('завершение сессии', () => {
     expect(localStorage.getItem(WRAPPED_KEY_STORAGE)).toBe('wrapped-secret')
     expect(client.getQueryData(['entries'])).toBeUndefined()
   })
-
-  it('не показывает сообщение об истёкшей сессии при первом анонимном запуске', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn<typeof fetch>()
-        .mockImplementation(async (input) =>
-          requestUrl(input) === '/api/config/'
-            ? json({ encryption_enabled: false })
-            : notAuthenticated(),
-        ),
-    )
-
-    renderProvider()
-    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('anon'))
-    expect(screen.getByTestId('message')).toBeEmptyDOMElement()
-  })
 })

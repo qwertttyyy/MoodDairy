@@ -16,19 +16,19 @@ MoodDiary — веб-приложение для ежедневного трек
 - **Графики** — визуализация на canvas со сглаживанием, фильтры по периодам, месяцам и годам
 - **Доступ для врача** — одноразовая ссылка со снапшотом данных, ключ передаётся в URL-фрагменте (не попадает на сервер)
 - **Тёмная тема** — переключение вручную, на странице врача — по `prefers-color-scheme`
-- **PWA-ready** — адаптивный интерфейс, `viewport-fit=cover`
+- **Устанавливаемая PWA** — оболочка запускается без сети, обновляется только с согласия пользователя и никогда не кеширует API/дневниковые данные
 
 ## Стек
 
-| Слой | Технологии |
-|------|-----------|
-| Backend | Python 3.12, Django 6, Django REST Framework, Gunicorn, WhiteNoise, uv |
-| Frontend | React 19, TypeScript, Vite, react-router, TanStack Query, HTML5 Canvas |
-| БД | PostgreSQL 16 |
-| Кэш | Redis 7, django-redis |
-| Инфраструктура | Docker Compose, GitHub Actions (CI/CD), nginx на сервере |
+| Слой           | Технологии                                                             |
+| -------------- | ---------------------------------------------------------------------- |
+| Backend        | Python 3.12, Django 6, Django REST Framework, Gunicorn, WhiteNoise, uv |
+| Frontend       | React 19, TypeScript, Vite, Zod, TanStack Query, Workbox, HTML5 Canvas |
+| БД             | PostgreSQL 16                                                          |
+| Кэш            | Redis 7, django-redis                                                  |
+| Инфраструктура | Docker Compose, GitHub Actions (CI/CD), nginx на сервере               |
 
-Репозиторий монорепный. В докере живёт только бэкенд и его зависимости; фронтенд — это статическая сборка. В проде её раздаёт nginx сервера, он же проксирует `/api/`, `/admin/` и `/static/` на `127.0.0.1:8000`. **Конфиг nginx в репозитории не хранится** — он часть настройки сервера.
+Репозиторий монорепный. В докере живёт только бэкенд и его зависимости; фронтенд — это статическая сборка. В проде её раздаёт nginx сервера, он же проксирует `/api/`, `/admin/` и `/static/` на `127.0.0.1:8000`. Проверяемый production-шаблон nginx находится в `deploy/nginx/`.
 
 ## Структура проекта
 
@@ -52,6 +52,7 @@ MoodDiary/
 │   ├── dist/              # результат `npm run build`, в git не попадает
 │   └── vite.config.ts
 ├── docs/                  # Контракт ошибок API
+├── deploy/                # пример production-конфигурации nginx
 ├── plans/                 # Проектные документы
 ├── .github/workflows/     # CI/CD
 ├── docker-compose.yml
@@ -160,7 +161,11 @@ cd frontend && npm install && npm run dev
 Проверки фронтенда:
 
 ```bash
-cd frontend && npm run lint && npm run test -- --run && npm run build
+cd frontend
+npm run check       # format, lint, types, unit/component и production build
+npm run test:e2e    # короткий smoke-набор в Chromium
+npm run test:e2e:all # необязательная ручная проверка Firefox и WebKit
+npm run test:pwa    # production service worker и offline shell
 ```
 
 Тесты бэкенда (эфемерная БД в tmpfs и отдельный Redis, на диске ничего не остаётся):
@@ -188,6 +193,28 @@ cd backend && uv run coverage run manage.py test && uv run coverage report
 
 Web Crypto API доступен только в secure context: работать нужно на `localhost` или по https. По голому http с другого хоста шифрование не заработает.
 
+## PWA и работа без сети
+
+Moods устанавливается на актуальных Chrome и Edge через действие
+«Установить» в настройках. На Safari/iOS 16.4+ настройки показывают системный
+путь «Поделиться → На экран Домой». В standalone-режиме действие скрывается.
+Поддерживаются две последние версии Chrome, Edge и Firefox, а также
+Safari/iOS 16.4 и новее.
+
+Service worker кеширует только оболочку: `index.html`, хешированные JS/CSS,
+manifest, иконки и `theme-init.js`. Все `/api/**` обслуживаются стратегией
+`NetworkOnly`; ответы авторизации, конфигурация шифрования, записи, теги и
+содержимое общих ссылок в Cache Storage не попадают.
+
+Поэтому без сети можно открыть интерфейс и увидеть понятное состояние с
+кнопкой повтора, но читать или редактировать дневник, входить в аккаунт и
+открывать общую ссылку нельзя. Защищённое offline-хранилище и синхронизация
+конфликтов сознательно не входят в текущую реализацию.
+
+Когда новая версия service worker готова, приложение предлагает «Обновить» и
+не активирует её автоматически во время работы. После согласия новый worker
+активируется и страница перезагружается.
+
 ### Зависимости бэкенда
 
 Управляются uv: прямые перечислены в `backend/pyproject.toml`, точные версии (включая транзитивные) — в `backend/uv.lock`. Лок коммитится, образ собирается командой `uv sync --frozen`, поэтому сборка воспроизводима.
@@ -211,22 +238,22 @@ cd backend && uv lock --upgrade     # пересчитать лок в пред�
 на старте с понятной ошибкой, а не работает с небезопасным значением. Полный
 список с комментариями — в `.env.example` (разработка) и `.env.prod.example`.
 
-| Переменная | Описание | Умолчание (dev) | Обязательна в проде |
-|-----------|----------|-------------|---|
-| `SECRET_KEY` | Секретный ключ Django | небезопасный dev-ключ | да |
-| `ALLOWED_HOSTS` | Хосты через запятую | `localhost,127.0.0.1` | да |
-| `CSRF_TRUSTED_ORIGINS` | Доверенные origins | `http://localhost` | да |
-| `DB_NAME`, `DB_USER` | Параметры PostgreSQL | `moods` | нет |
-| `DB_PASSWORD` | Пароль PostgreSQL | `moods` | да |
-| `DB_HOST`, `DB_PORT` | Хост и порт БД | `db`, `5432` | нет |
-| `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB` | Параметры Redis | `127.0.0.1`, `6379`, `0` | нет |
-| `REDIS_PASSWORD` | Пароль Redis | dev-значение | да |
-| `ENCRYPTION_ENABLED` | Клиентское шифрование (`1`/`0`) | `1` | нет |
-| `LOG_LEVEL` | Уровень логирования | `INFO` | нет |
-| `CACHE_TTL` | Время жизни кэша ответов, сек | `86400` | нет |
-| `SECURE_HSTS_SECONDS` | Срок действия HSTS | `300` | нет |
-| `GUNICORN_WORKERS`, `GUNICORN_THREADS`, `GUNICORN_TIMEOUT` | Параметры gunicorn | `2`, `2`, `30` | нет |
-| `BACKEND_IMAGE` | Образ бэкенда для compose | `mooddiary-backend:latest` | нет |
+| Переменная                                                 | Описание                        | Умолчание (dev)            | Обязательна в проде |
+| ---------------------------------------------------------- | ------------------------------- | -------------------------- | ------------------- |
+| `SECRET_KEY`                                               | Секретный ключ Django           | небезопасный dev-ключ      | да                  |
+| `ALLOWED_HOSTS`                                            | Хосты через запятую             | `localhost,127.0.0.1`      | да                  |
+| `CSRF_TRUSTED_ORIGINS`                                     | Доверенные origins              | `http://localhost`         | да                  |
+| `DB_NAME`, `DB_USER`                                       | Параметры PostgreSQL            | `moods`                    | нет                 |
+| `DB_PASSWORD`                                              | Пароль PostgreSQL               | `moods`                    | да                  |
+| `DB_HOST`, `DB_PORT`                                       | Хост и порт БД                  | `db`, `5432`               | нет                 |
+| `REDIS_HOST`, `REDIS_PORT`, `REDIS_DB`                     | Параметры Redis                 | `127.0.0.1`, `6379`, `0`   | нет                 |
+| `REDIS_PASSWORD`                                           | Пароль Redis                    | dev-значение               | да                  |
+| `ENCRYPTION_ENABLED`                                       | Клиентское шифрование (`1`/`0`) | `1`                        | нет                 |
+| `LOG_LEVEL`                                                | Уровень логирования             | `INFO`                     | нет                 |
+| `CACHE_TTL`                                                | Время жизни кэша ответов, сек   | `86400`                    | нет                 |
+| `SECURE_HSTS_SECONDS`                                      | Срок действия HSTS              | `300`                      | нет                 |
+| `GUNICORN_WORKERS`, `GUNICORN_THREADS`, `GUNICORN_TIMEOUT` | Параметры gunicorn              | `2`, `2`, `30`             | нет                 |
+| `BACKEND_IMAGE`                                            | Образ бэкенда для compose       | `mooddiary-backend:latest` | нет                 |
 
 Режима `DEBUG` среди переменных больше нет: его задаёт выбранный модуль
 настроек, поэтому «случайно включить отладку на проде» нельзя.
@@ -241,10 +268,10 @@ cd backend && uv lock --upgrade     # пересчитать лок в пред�
 
 ### Config и health (`/api/`)
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/config/` | Флаг шифрования; заодно ставит cookie `csrftoken` (публичный) |
-| GET | `/health/` | Состояние БД и кэша; 503 при недоступной БД (публичный) |
+| Метод | Путь       | Описание                                                      |
+| ----- | ---------- | ------------------------------------------------------------- |
+| GET   | `/config/` | Флаг шифрования; заодно ставит cookie `csrftoken` (публичный) |
+| GET   | `/health/` | Состояние БД и кэша; 503 при недоступной БД (публичный)       |
 
 SPA вызывает `/config/` при старте: Django-шаблона, который раньше ставил
 CSRF-cookie, больше нет. `/health/` используют healthcheck контейнера и
@@ -252,26 +279,26 @@ CSRF-cookie, больше нет. `/health/` используют healthcheck к
 
 ### Auth (`/api/auth/`)
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| POST | `/register/` | Регистрация |
-| POST | `/login/` | Вход |
-| POST | `/logout/` | Выход |
-| GET | `/me/` | Текущий пользователь |
-| GET | `/profile/` | encryption_salt |
-| GET | `/unwrap-key/` | wrapping_key из сессии |
+| Метод | Путь           | Описание               |
+| ----- | -------------- | ---------------------- |
+| POST  | `/register/`   | Регистрация            |
+| POST  | `/login/`      | Вход                   |
+| POST  | `/logout/`     | Выход                  |
+| GET   | `/me/`         | Текущий пользователь   |
+| GET   | `/profile/`    | encryption_salt        |
+| GET   | `/unwrap-key/` | wrapping_key из сессии |
 
 ### Entries (`/api/`)
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/entries/` | Данные для графиков за период — **параметр обязателен** |
-| GET | `/entries/grouped/` | Лента по дням с курсором (`?before=YYYY-MM-DD`) |
-| GET | `/entries/date-range/` | Дата первой записи |
-| GET | `/entries/snapshot/` | Вся история со всеми полями — для ссылки врачу |
-| POST | `/entries/` | Создать запись |
-| PUT | `/entries/{id}/` | Обновить |
-| DELETE | `/entries/{id}/` | Удалить |
+| Метод  | Путь                   | Описание                                                |
+| ------ | ---------------------- | ------------------------------------------------------- |
+| GET    | `/entries/`            | Данные для графиков за период — **параметр обязателен** |
+| GET    | `/entries/grouped/`    | Лента по дням с курсором (`?before=YYYY-MM-DD`)         |
+| GET    | `/entries/date-range/` | Дата первой записи                                      |
+| GET    | `/entries/snapshot/`   | Вся история со всеми полями — для ссылки врачу          |
+| POST   | `/entries/`            | Создать запись                                          |
+| PUT    | `/entries/{id}/`       | Обновить                                                |
+| DELETE | `/entries/{id}/`       | Удалить                                                 |
 
 `GET /entries/` принимает ровно один вариант периода, иначе отвечает 400:
 
@@ -290,21 +317,21 @@ CSRF-cookie, больше нет. `/health/` используют healthcheck к
 
 ### Tags (`/api/`)
 
-| Метод | Путь | Описание |
-|-------|------|----------|
-| GET | `/tags/` | Свои теги |
-| POST | `/tags/` | Создать тег |
-| PATCH | `/tags/{id}/` | Переименовать |
+| Метод  | Путь          | Описание                                             |
+| ------ | ------------- | ---------------------------------------------------- |
+| GET    | `/tags/`      | Свои теги                                            |
+| POST   | `/tags/`      | Создать тег                                          |
+| PATCH  | `/tags/{id}/` | Переименовать                                        |
 | DELETE | `/tags/{id}/` | Удалить (записи сохраняются, пропадает только связь) |
 
 ### Sharing (`/api/sharing/`)
 
-| Метод | Путь | Описание                                     |
-|-------|------|----------------------------------------------|
-| GET | `/` | Статус активной ссылки                       |
-| POST | `/` | Создать новую ссылку (время жизни 12 часов)  |
-| DELETE | `/` | Отозвать ссылку                              |
-| GET | `/{token}/data/` | Получить данные (публичный, без авторизации) |
+| Метод  | Путь             | Описание                                     |
+| ------ | ---------------- | -------------------------------------------- |
+| GET    | `/`              | Статус активной ссылки                       |
+| POST   | `/`              | Создать новую ссылку (время жизни 12 часов)  |
+| DELETE | `/`              | Отозвать ссылку                              |
+| GET    | `/{token}/data/` | Получить данные (публичный, без авторизации) |
 
 ## Шифрование
 
@@ -344,24 +371,52 @@ CSRF-cookie, больше нет. `/health/` используют healthcheck к
 
 ## Деплой
 
-GitHub Actions на пуш в `master`. Порядок: фильтр изменённых путей → проверки
-бэкенда (ruff, `check --deploy`, `makemigrations --check`) и тесты в
-docker-compose → проверки и сборка фронтенда → сборка образа бэкенда и пуш в
-GHCR → деплой по SSH → проверка `/api/health/`.
+GitHub Actions на пуш в `master`. Порядок: проверки бэкенда и фронтенда →
+Chromium/PWA smoke → сборка backend-образа → проверка `/api/health/` →
+публикация статического frontend → короткий production smoke. На pull request
+выполняются только проверки, без деплоя.
 
-На pull request выполняются только проверки, деплой не запускается.
+Backend собирается в CI и публикуется в GHCR с тегом `sha-<коммит>`.
+Frontend также собирается только в CI и загружается как готовая статика;
+Node.js на production-сервере не требуется.
 
-**Образ собирается в CI, а не на сервере.** Сервер получает готовый образ с
-тегом `sha-<коммит>`: сборка воспроизводима, прод не тратит на неё ресурсы, а
-откат сводится к запуску предыдущего тега:
+Структура frontend на сервере:
+
+```text
+/var/www/moods/
+├── index.html
+├── manifest.webmanifest
+├── sw.js
+├── icons/
+└── assets/
+```
+
+CI сначала добавляет новые хешированные файлы в `assets/`, не удаляя старые,
+затем копирует manifest, service worker и иконки, а `index.html` заменяет
+последним. Это делает короткое окно обновления безопасным для небольшого
+проекта и не ломает уже открытые вкладки. Отдельных release-каталогов,
+автоматической очистки и миграции структуры каталогов нет.
+
+### Smoke и rollback
+
+После публикации workflow проверяет `/`, manifest и `/api/health/`. Те же
+проверки можно выполнить вручную:
+
+```bash
+curl -fsS https://moods.qwertttyyy.ru/ > /dev/null
+curl -fsS https://moods.qwertttyyy.ru/manifest.webmanifest > /dev/null
+curl -fsS https://moods.qwertttyyy.ru/api/health/ > /dev/null
+```
+
+Для frontend rollback в GitHub Actions повторно запустите последний исправный
+workflow: он пересоберёт тот же commit и снова положит его `index.html` поверх
+текущего. Старые хешированные assets сохраняются на сервере.
+
+Backend rollback выполняется отдельно:
 
 ```bash
 BACKEND_IMAGE=ghcr.io/<owner>/<repo>/backend:sha-<коммит> docker compose up -d backend
 ```
-
-**Фронтенд тоже собирается в CI** и приезжает артефактом в `/var/www/moods` —
-раньше он собирался на сервере одноразовым контейнером `node:22-alpine`, что
-дублировало уже выполненную в CI работу и оставляло `node_modules` от root.
 
 Секреты в Settings → Secrets репозитория: `SERVER_HOST`, `SERVER_USER`,
 `SERVER_PASSWORD`, `SERVER_PORT`, `GHCR_TOKEN` (токен с правом `read:packages`
@@ -378,12 +433,25 @@ docker compose exec backend python manage.py cleanup_shares
 
 ### nginx на сервере
 
-Конфига nginx в репозитории нет, он живёт на сервере (`/etc/nginx/sites-available/`). Что он должен делать:
+Самодостаточный пример находится в
+[deploy/nginx/moods.example.conf](deploy/nginx/moods.example.conf). Он основан
+на production-конфигурации проекта, но использует нейтральный домен
+`moods.example.com` и не устанавливается автоматически. В нём настроены proxy
+для Django, SPA fallback, 404 для отсутствующих assets, кеширование PWA-файлов,
+gzip и основные security headers.
 
-- отдавать статику SPA из `/var/www/moods` с фолбэком на `index.html` (клиентский роутинг: `/share/<token>/` должен открываться напрямую);
-- проксировать `/api/`, `/admin/` и `/static/` на `127.0.0.1:8000`, пробрасывая `Host`, `X-Real-IP`, `X-Forwarded-For` и `X-Forwarded-Proto`;
-- отдавать `index.html` без кэша, а `/assets/` — с долгим кэшем: имена файлов там содержат хэш содержимого;
-- терминировать TLS.
+Миграция frontend-каталога не нужна. На уже настроенном сервере существующий
+конфиг можно оставить. Для нового сервера скопируйте пример, замените домен и
+пути сертификатов, затем проверьте nginx перед reload:
+
+```bash
+cp deploy/nginx/moods.example.conf /tmp/moods.conf
+$EDITOR /tmp/moods.conf
+sudo install -m 0644 /tmp/moods.conf /etc/nginx/sites-available/moods.conf
+sudo ln -sfn /etc/nginx/sites-available/moods.conf /etc/nginx/sites-enabled/moods.conf
+sudo nginx -t
+sudo systemctl reload nginx
+```
 
 Отдельного каталога со статикой Django на диске больше нет: `/static/` уходит на бэкенд, где его отдаёт WhiteNoise.
 

@@ -75,10 +75,10 @@ function TagRow({ tag, onEdit, onDelete }: { tag: Tag; onEdit: () => void; onDel
   )
 }
 
-export function TagsSection() {
+export function TagsSection({ active = true }: { active?: boolean }) {
   const toast = useToast()
   const confirm = useConfirm()
-  const { data: tags = [], error, isPending, refetch } = useTags()
+  const { data: tags = [], error, isPending, refetch } = useTags(active)
   const createTag = useCreateTag()
   const renameTag = useRenameTag()
   const deleteTag = useDeleteTag()

@@ -17,6 +17,8 @@ import { clampMonth, compareMonths, getMonthBounds, monthOf, shiftMonth } from '
 import type { YearMonth } from './month'
 import { MissingKeyError, loadShareEntries, readShareKeyFromHash } from './snapshot'
 
+import './share.css'
+
 const INVALID_LINK_TITLE = 'Ссылка недействительна'
 const MISSING_KEY_TITLE = 'Ключ отсутствует'
 
@@ -103,6 +105,8 @@ export function SharePage() {
   )
 }
 
+export default SharePage
+
 /**
  * Тема только по системной настройке: страница врача ничего не читает
  * и не пишет в настройки пользователя и localStorage.
@@ -147,7 +151,7 @@ function ShareError({
         <div className="empty-icon">
           <LockIcon />
         </div>
-        <p className="empty-title">{title}</p>
+        <h2 className="empty-title">{title}</h2>
         <p className="empty-sub">{text}</p>
         {onRetry ? (
           <button type="button" className="btn-secondary" onClick={onRetry}>

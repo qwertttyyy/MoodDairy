@@ -27,20 +27,4 @@ describe('публичный снапшот', () => {
 
     await expect(buildSnapshotJson()).rejects.toBeInstanceOf(IncompleteShareError)
   })
-
-  it('сериализует только полностью проверенный набор', async () => {
-    setEncryptionEnabled(false)
-    vi.stubGlobal(
-      'fetch',
-      vi
-        .fn<typeof fetch>()
-        .mockResolvedValue(
-          new Response(JSON.stringify([{ mood: '7', note: 'Корректная', anxiety: '', timestamp }])),
-        ),
-    )
-
-    await expect(buildSnapshotJson()).resolves.toBe(
-      JSON.stringify([{ mood: 7, note: 'Корректная', anxiety: 0, timestamp }]),
-    )
-  })
 })

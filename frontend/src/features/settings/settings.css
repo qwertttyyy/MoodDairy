@@ -83,6 +83,28 @@
   color: var(--c-tertiary);
 }
 
+.install-instruction {
+  height: auto;
+  min-height: 50px;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 2px;
+  padding-top: 10px;
+  padding-bottom: 10px;
+}
+
+.install-instruction .set-label,
+.install-instruction .set-hint {
+  width: 100%;
+  overflow: visible;
+  white-space: normal;
+}
+
+.install-instruction .set-hint {
+  font-size: 15px;
+  line-height: 20px;
+}
+
 .set-sep {
   height: 1px;
   background: var(--sep);

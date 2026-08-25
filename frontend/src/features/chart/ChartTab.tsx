@@ -183,6 +183,8 @@ export function ChartTab({ active }: { active: boolean }) {
   )
 }
 
+export default ChartTab
+
 function SectionHead({ title, scale }: { title: string; scale: string }) {
   return (
     <div className="chart-sechead">

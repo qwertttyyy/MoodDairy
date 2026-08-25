@@ -9,6 +9,8 @@ import { useGuide } from '../guide/GuideContext'
 import { useDeleteEntry, useSaveEntry, useTags } from './api'
 import { useEntryModal } from './EntryModalContext'
 
+import './entry-form.css'
+
 /**
  * Различия двух шкал: классы, подписи и палитры.
  * Логика пикеров одинаковая, поэтому она живёт в одном ScaleField.
@@ -133,7 +135,7 @@ export function EntryModal() {
   const { open: openGuide } = useGuide()
   const showToast = useToast()
   const confirm = useConfirm()
-  const { data: tags, error: tagsError, refetch: refetchTags } = useTags()
+  const { data: tags, error: tagsError, refetch: refetchTags } = useTags(isOpen)
   const saveEntry = useSaveEntry()
   const deleteEntry = useDeleteEntry()
 

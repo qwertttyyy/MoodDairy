@@ -4,6 +4,9 @@ import { Toggle } from '../../shared/ui/Toggle'
 import { useAuth } from '../auth/AuthContext'
 import { TagsSection } from '../entries/TagsSection'
 import { SharingSection } from '../sharing/SharingSection'
+import { InstallSection } from './InstallSection'
+
+import './settings.css'
 
 /** Ряд настройки: подпись слева, тумблер справа. */
 function ToggleRow({
@@ -24,7 +27,7 @@ function ToggleRow({
 }
 
 /** Таб настроек: вид, теги, доступ для врача, выход. */
-export function SettingsTab() {
+export function SettingsTab({ active = true }: { active?: boolean }) {
   const { settings, update } = useSettings()
   const confirm = useConfirm()
   const { logout } = useAuth()
@@ -62,10 +65,12 @@ export function SettingsTab() {
       </div>
 
       <h2 className="settings-title">Теги</h2>
-      <TagsSection />
+      <TagsSection active={active} />
 
       <h2 className="settings-title">Доступ для врача</h2>
-      <SharingSection />
+      <SharingSection active={active} />
+
+      <InstallSection />
 
       <h2 className="settings-title">Аккаунт</h2>
       <div className="settings-group">
@@ -83,3 +88,5 @@ export function SettingsTab() {
     </>
   )
 }
+
+export default SettingsTab

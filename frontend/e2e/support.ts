@@ -12,9 +12,12 @@ export async function expectNoSeriousAxeViolations(page: Page, include?: string)
 }
 
 export async function mockAuthenticatedApi(page: Page, withEntry = false) {
+  const requests: string[] = []
   await page.route('**/api/**', (route) => {
-    const path = new URL(route.request().url()).pathname
+    const url = new URL(route.request().url())
+    const path = url.pathname
     if (!path.startsWith('/api/')) return route.continue()
+    requests.push(`${path}${url.search}`)
     if (path === '/api/config/') return route.fulfill({ json: { encryption_enabled: false } })
     if (path === '/api/auth/me/') return route.fulfill({ json: { id: 1, username: 'tester' } })
     if (path === '/api/entries/grouped/') {
@@ -46,4 +49,5 @@ export async function mockAuthenticatedApi(page: Page, withEntry = false) {
     if (path === '/api/sharing/') return route.fulfill({ json: { active: false } })
     return route.fulfill({ status: 404, json: { error: { code: 'not_found', message: 'Нет' } } })
   })
+  return requests
 }

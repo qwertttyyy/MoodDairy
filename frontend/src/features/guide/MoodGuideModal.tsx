@@ -14,6 +14,8 @@ import { useEntryModal } from '../entries/EntryModalContext'
 import { useGuide } from './GuideContext'
 import type { GuideTab } from './GuideContext'
 
+import './guide.css'
+
 /** Данные шкал для памятки: подпись таба, префикс класса цвета, названия и описания. */
 const SCALES: Record<
   GuideTab,

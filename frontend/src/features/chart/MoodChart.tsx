@@ -10,6 +10,8 @@ import type { ChartStyle } from './chartEngine'
 import { buildDailySeries, rangeOfEntries } from './series'
 import type { ChartKind, MoodChartProps } from './types'
 
+import './chart.css'
+
 /** Тревога — столбики: её оценка дискретная, кривая между ними ничего не значит. */
 const STYLE: Record<ChartKind, ChartStyle> = { mood: 'line', anxiety: 'bars' }
 

@@ -10,10 +10,12 @@ import { DayGroup } from './DayGroup'
 import { useEntryModal } from './EntryModalContext'
 import type { EntryResult } from './types'
 
+import './entries.css'
+
 /** Лента записей, сгруппированных по дням, с подгрузкой при прокрутке. */
-export function EntriesTab() {
+export function EntriesTab({ active = true }: { active?: boolean }) {
   const { data, error, isLoading, hasNextPage, isFetchingNextPage, fetchNextPage, refetch } =
-    useEntriesFeed()
+    useEntriesFeed(active)
   const deleteEntry = useDeleteEntry()
   const confirm = useConfirm()
   const showToast = useToast()
@@ -85,3 +87,5 @@ export function EntriesTab() {
     </>
   )
 }
+
+export default EntriesTab

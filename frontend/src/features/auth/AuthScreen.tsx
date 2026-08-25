@@ -3,6 +3,8 @@ import type { FormEvent, KeyboardEvent } from 'react'
 
 import { useAuth } from './AuthContext'
 
+import './auth.css'
+
 /** Режим экрана: вход в существующий аккаунт или регистрация нового. */
 type AuthMode = 'login' | 'register'
 

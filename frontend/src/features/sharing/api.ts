@@ -44,9 +44,10 @@ export class IncompleteShareError extends Error {
 }
 
 /** Метаданные активной ссылки. Ошибку не показываем — как и старый `Share.loadActive`. */
-export function useSharingStatus() {
+export function useSharingStatus(enabled = true) {
   return useQuery<SharingStatusResponse>({
     queryKey: sharingKeys.status,
+    enabled,
     queryFn: ({ signal }) => api.get('/api/sharing/', sharingStatusResponseSchema, { signal }),
   })
 }

@@ -1,5 +1,7 @@
 import { Link } from 'react-router'
 
+import '../features/auth/auth.css'
+
 export function NotFoundPage() {
   return (
     <main className="screen auth-screen">
@@ -13,3 +15,5 @@ export function NotFoundPage() {
     </main>
   )
 }
+
+export default NotFoundPage

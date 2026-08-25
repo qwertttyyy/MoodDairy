@@ -1,5 +1,18 @@
 # Полный план исправлений frontend и подготовки PWA
 
+> Актуальное правило работы: изменения всех этапов 1–9 находятся в working tree
+> без тематических коммитов. Коммитить их по пунктам можно только после проверки
+> и явного одобрения пользователя.
+>
+> Решение от 26.08.2026: автоматические frontend-тесты сокращены до критичных
+> unit/component-проверок, трёх Chromium smoke-сценариев и одного PWA-сценария.
+> Firefox и WebKit проверяются необязательной ручной командой; Lighthouse из CI удалён.
+>
+> Решение от 26.08.2026: frontend deploy упрощён до плоского `/var/www/moods`.
+> Assets копируются перед `index.html`, старые хешированные файлы сохраняются,
+> после выкладки проверяются `/`, manifest и health API. Release-каталоги,
+> symlink-переключение, автоочистка, собственный rollback и миграция удалены.
+
 ## Результат
 
 Все исправления выполняются в одной ветке и попадают в один PR/одно общее изменение. Работа разделяется на последовательные тематические коммиты. Каждый коммит должен проходить сборку, проверку типов, линтер и относящиеся к нему тесты. Production-деплой выполняется только после слияния всего изменения.
@@ -15,8 +28,8 @@
 - корректно различать загрузку, ошибку и отсутствие данных;
 - быть доступным с клавиатуры и для программ чтения с экрана;
 - иметь проверяемые контракты API и более безопасную обработку шифрования;
-- иметь автоматические component-, integration-, E2E-, accessibility- и PWA-тесты;
-- безопасно и атомарно выкладываться через nginx без поломки уже открытых вкладок.
+- иметь компактный набор критичных unit/component-, E2E-, accessibility- и PWA-тестов;
+- безопасно выкладываться через nginx без поломки уже открытых вкладок.
 
 ## План коммитов
 
@@ -26,7 +39,7 @@
 - Включить `strict` и запретить прохождение CI при предупреждениях линтера.
 - Исправить существующие Fast Refresh warnings: вынести хуки, контексты, константы и вспомогательные функции из файлов React-компонентов.
 - Добавить Prettier и команды `format`, `format:check`, `typecheck`, `lint`, `test`, `test:e2e`, `test:pwa` и объединяющую обязательные проверки `check`.
-- Добавить Testing Library, `user-event`, `jest-dom`, MSW, Playwright и `@axe-core/playwright`.
+- Добавить Testing Library, `user-event`, `jest-dom`, Playwright и `@axe-core/playwright`.
 - Обновить lock-файл так, чтобы полный `npm audit` не содержал известной уязвимости `nanoid`.
 - Настроить CI: установка через lock-файл, форматирование, линтер, типы, unit/component tests, production build и E2E.
 - Не менять внешний вид или поведение приложения.
@@ -115,16 +128,17 @@
 - Установка в settings: Chromium prompt, скрытие standalone, iOS-инструкция, честный fallback.
 - Автотест отсутствия `/api` в Cache Storage.
 
-### 9. `deploy(frontend): add secure atomic nginx deployment and runbook`
+### 9. `deploy(frontend): add simple secure nginx deployment`
 
 - Production nginx template: navigation-only SPA fallback, direct `/share`, asset 404, Content-Type, no-cache для HTML/manifest/sw/theme init, immutable hashed assets.
 - Security headers: same-origin CSP, `object-src 'none'`, `base-uri 'none'`, `form-action 'self'`, `frame-ancestors 'none'`, `worker-src 'self'`, Permissions-Policy без camera/microphone/geolocation, HSTS/nosniff/Referrer-Policy.
 - Разрешить только нужную часть inline style CSP; не разрешать inline scripts.
-- Releases: `/var/www/moods/releases/<sha>/`, `/shared/assets/`, атомарный `/current` symlink.
-- Workflow: build, upload temp SHA, shared assets, validate references, release, atomic switch, smoke, rollback.
-- Хранить 5 releases; shared assets удалять только старше 30 дней и после проверки ссылок сохранённых releases.
-- Одноразовая migration-инструкция с `nginx -t` перед reload.
-- README: честные offline-возможности, браузеры, install/update, cache policy, runbook, smoke и rollback.
+- Плоский `/var/www/moods`: сначала добавлять hashed assets, затем остальные файлы, `index.html` — последним.
+- Не удалять старые hashed assets автоматически, чтобы не ломать открытые вкладки.
+- После публикации проверять `/`, manifest и `/api/health/`.
+- Rollback frontend — повторный запуск workflow последнего исправного commit.
+- Миграция каталогов не нужна; изменение nginx применяется через `nginx -t` и reload.
+- README: честные offline-возможности, браузеры, install/update, cache policy, smoke и rollback.
 
 ## Изменения внутренних интерфейсов
 
@@ -150,25 +164,19 @@
 
 ### Playwright E2E
 
-- Register/login/logout/session expiry; entry CRUD; tags.
-- Dialog focus/Tab/Shift+Tab/Escape/nested/return focus.
-- Share create/copy/replace/revoke.
-- Сетевые ошибки, corrupted entry, direct share и 404.
-- Light/dark/system; 320 px, mobile portrait/landscape/desktop.
+- Chromium smoke: анонимный запуск, редактирование/подтверждение удаления и public share.
+- Firefox/WebKit доступны только как необязательный ручной прогон.
 
 ### Accessibility и PWA
 
-- Axe без serious/critical в основных авторизованных сценариях.
-- Lighthouse CI: Performance ≥ 90, public Accessibility 100, Best Practices ≥ 95.
+- Axe без serious/critical в трёх smoke-сценариях.
 - Manifest/icons/standalone/SW; offline shell/message; user-approved waiting SW.
 - Cache Storage без `/api`; missing asset возвращает 404, не HTML.
 
 ### Production smoke
 
-- `/`, manifest, `sw.js`, direct `/share/test/`, missing asset 404, immutable assets.
-- CSP не блокирует приложение/SW.
-- Старые вкладки продолжают грузить assets после switch.
-- Rollback без пересборки.
+- `/`, manifest и `/api/health/` отвечают после публикации.
+- Новые assets загружаются до замены `index.html`, старые assets сохраняются.
 
 ## Критерии готовности
 
@@ -178,7 +186,7 @@
 - PWA устанавливается и открывает shell offline; API/user data не попадают в SW cache.
 - Нет пустого startup и нет Error→Empty.
 - CRUD доступен мышью, касанием и клавиатурой.
-- Production deployment атомарен и rollback проверяем.
+- Production deployment прост, имеет smoke и понятный rollback повторным workflow.
 
 ## Принятые ограничения
 
@@ -197,6 +205,6 @@
 - [x] 4. CRUD, даты и sharing
 - [x] 5. Accessibility
 - [x] 6. Theme, settings, charts и layout
-- [ ] 7. Performance и splitting
-- [ ] 8. PWA
-- [ ] 9. Nginx deployment и runbook
+- [x] 7. Performance и splitting
+- [x] 8. PWA
+- [x] 9. Nginx deployment и runbook

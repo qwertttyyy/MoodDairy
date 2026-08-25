@@ -14,10 +14,10 @@ import { HIDDEN_LINK_TEXT, resolveShareUrl } from './shareLink'
  * После перезагрузки страницы его взять негде: сервер хранит лишь шифротекст,
  * поэтому для «старой» ссылки в поле показывается заглушка, а не URL без ключа.
  */
-export function SharingSection() {
+export function SharingSection({ active = true }: { active?: boolean }) {
   const toast = useToast()
   const confirm = useConfirm()
-  const status = useSharingStatus()
+  const status = useSharingStatus(active)
   const createShare = useCreateShare()
   const revokeShare = useRevokeShare()
   const [created, setCreated] = useState<CreatedShare | null>(null)

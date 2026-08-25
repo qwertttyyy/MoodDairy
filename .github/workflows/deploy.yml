@@ -48,9 +48,11 @@ jobs:
               - 'docker-compose.test.yml'
             frontend:
               - 'frontend/**'
+              - '.github/workflows/deploy.yml'
             deploy:
               - 'backend/**'
               - 'frontend/**'
+              - '.github/workflows/deploy.yml'
               - 'docker-compose.yml'
               - 'docker-compose.test.yml'
 
@@ -117,7 +119,7 @@ jobs:
 
   frontend-checks:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
     needs: changes
     if: needs.changes.outputs.frontend == 'true'
     defaults:
@@ -140,26 +142,17 @@ jobs:
       - name: Audit dependencies
         run: npm audit --audit-level=high
 
-      - name: Format check
-        run: npm run format:check
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Type check
-        run: npm run typecheck
-
-      - name: Unit tests
-        run: npm run test
-
-      - name: Production build
-        run: npm run build
+      - name: Format, lint, types, unit tests and build
+        run: npm run check
 
       - name: Install browser engines
-        run: npx playwright install --with-deps chromium firefox webkit
+        run: npx playwright install --with-deps chromium
 
       - name: End-to-end tests
         run: npm run test:e2e
+
+      - name: PWA tests
+        run: npx playwright test --config=playwright.pwa.config.ts
 
       - name: Upload build
         uses: actions/upload-artifact@v4
@@ -208,15 +201,18 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [changes, backend-checks, backend-tests, frontend-checks, build-image]
+    needs:
+      [changes, backend-checks, backend-tests, frontend-checks, build-image]
     if: |
       always() &&
       github.event_name == 'push' &&
       needs.changes.outputs.deploy == 'true' &&
-      needs.backend-checks.result != 'failure' &&
-      needs.backend-tests.result != 'failure' &&
-      needs.frontend-checks.result != 'failure' &&
-      needs.build-image.result != 'failure'
+      (needs.changes.outputs.backend != 'true' ||
+        (needs.backend-checks.result == 'success' &&
+         needs.backend-tests.result == 'success' &&
+         needs.build-image.result == 'success')) &&
+      (needs.changes.outputs.frontend != 'true' ||
+        needs.frontend-checks.result == 'success')
     steps:
       - name: Download frontend build
         if: needs.frontend-checks.result == 'success'
@@ -224,19 +220,6 @@ jobs:
         with:
           name: frontend-dist
           path: dist
-
-      - name: Copy frontend to server
-        if: needs.frontend-checks.result == 'success'
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.SERVER_HOST }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASSWORD }}
-          port: ${{ secrets.SERVER_PORT }}
-          source: dist/*
-          target: /var/www/moods
-          strip_components: 1
-          overwrite: true
 
       - name: Deploy backend
         if: needs.build-image.result == 'success'
@@ -295,3 +278,37 @@ jobs:
             echo "Откат на предыдущий выпуск:"
             echo "  BACKEND_IMAGE=${IMAGE_NAME}:sha-<коммит> docker compose up -d backend"
             exit 1
+
+      - name: Upload frontend files
+        if: needs.frontend-checks.result == 'success'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: dist/assets/*,dist/icons/*,dist/favicon.svg,dist/manifest.webmanifest,dist/sw.js,dist/theme-init.js
+          target: /var/www/moods
+          strip_components: 1
+          overwrite: true
+
+      - name: Upload index last
+        if: needs.frontend-checks.result == 'success'
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASSWORD }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: dist/index.html
+          target: /var/www/moods
+          strip_components: 1
+          overwrite: true
+
+      - name: Frontend smoke checks
+        if: needs.frontend-checks.result == 'success'
+        run: |
+          curl --fail --silent --show-error --max-time 15 \
+            https://moods.qwertttyyy.ru/ > /dev/null
+          curl --fail --silent --show-error --max-time 15 \
+            https://moods.qwertttyyy.ru/manifest.webmanifest > /dev/null

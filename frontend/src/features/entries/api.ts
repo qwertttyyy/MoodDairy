@@ -95,9 +95,10 @@ interface FeedPage {
 }
 
 /** Лента записей: постраничная выборка по курсору `next_before`. */
-export function useEntriesFeed() {
+export function useEntriesFeed(enabled = true) {
   return useInfiniteQuery<FeedPage>({
     queryKey: entriesKeys.feed,
+    enabled,
     initialPageParam: null,
     queryFn: async ({ pageParam, signal }) => {
       const before = pageParam as string | null
@@ -196,9 +197,10 @@ export function useDateRange(enabled: boolean) {
   })
 }
 
-export function useTags() {
+export function useTags(enabled = true) {
   return useQuery<Tag[]>({
     queryKey: entriesKeys.tags,
+    enabled,
     queryFn: ({ signal }) => api.get('/api/tags/', tagsSchema, { signal }),
   })
 }

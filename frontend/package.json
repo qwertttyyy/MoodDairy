@@ -5,15 +5,18 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc -b && vite build",
+    "build": "tsc -b && vite build && npm run check:build",
+    "check:build": "node scripts/check-build.mjs",
+    "generate:icons": "node scripts/generate-icons.mjs",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "typecheck": "tsc -b --pretty false",
     "lint": "oxlint --type-aware --deny-warnings",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test --project=chromium --project=firefox --project=webkit",
-    "test:pwa": "playwright test --project=pwa",
+    "test:e2e": "playwright test --project=chromium",
+    "test:e2e:all": "playwright test",
+    "test:pwa": "npm run build && playwright test --config=playwright.pwa.config.ts",
     "check": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run build",
     "preview": "vite preview"
   },
@@ -34,13 +37,14 @@
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
+    "esbuild": "^0.28.2",
     "happy-dom": "^20.11.1",
-    "msw": "^2.11.1",
     "oxlint": "^1.80.0",
     "oxlint-tsgolint": "7.0.2001",
     "prettier": "^3.6.2",
     "typescript": "~7.0.2",
     "vite": "^8.1.1",
+    "vite-plugin-pwa": "1.3.0",
     "vitest": "^4.1.10"
   }
 }

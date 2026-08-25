@@ -3,6 +3,8 @@ import type { ReactNode, RefObject } from 'react'
 
 import { useScrollLock } from '../lib/useScrollLock'
 
+import './modal.css'
+
 const MORPH_MS = 340
 const FOCUSABLE_SELECTOR = [
   'a[href]',

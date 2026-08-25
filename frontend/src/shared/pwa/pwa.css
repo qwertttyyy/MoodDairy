@@ -1,0 +1,57 @@
+.pwa-update {
+  position: fixed;
+  top: calc(var(--safe-t) + 12px);
+  left: 50%;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: max-content;
+  max-width: calc(100vw - 24px);
+  min-height: 48px;
+  padding: 8px 10px 8px 16px;
+  color: var(--c-primary);
+  background: var(--card);
+  border: 1px solid var(--sep);
+  border-radius: var(--r-lg);
+  box-shadow: var(--card-shadow);
+  transform: translateX(-50%);
+}
+
+.pwa-update span {
+  min-width: 0;
+  font-size: 14px;
+  line-height: 18px;
+}
+
+.pwa-update-action,
+.pwa-update-later {
+  min-width: 44px;
+  min-height: 44px;
+  font-weight: 600;
+}
+
+.pwa-update-action {
+  color: var(--accent);
+}
+
+.pwa-update-later {
+  color: var(--c-secondary);
+}
+
+@media (max-width: 430px) {
+  .pwa-update {
+    display: grid;
+    grid-template-columns: 1fr auto;
+  }
+
+  .pwa-update span {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .pwa-update {
+    background: var(--surface-solid);
+  }
+}
