@@ -8,6 +8,9 @@
    СОДЕРЖИМОЕ ТАБА
    ============================================ */
 .tab-content {
+  width: 100%;
+  max-width: 720px;
+  margin: 0 auto;
   padding-top: var(--content-top);
   padding-bottom: calc(var(--tabbar-h) + var(--tabbar-bottom) + var(--safe-b) + 28px);
   padding-left: 16px;
@@ -43,8 +46,9 @@
    ============================================ */
 .tab-dock {
   position: fixed;
-  left: 16px;
-  right: 16px;
+  left: 50%;
+  width: min(calc(100% - 32px), 688px);
+  transform: translateX(-50%);
   bottom: calc(var(--tabbar-bottom) + var(--safe-b));
   z-index: 50;
   display: flex;

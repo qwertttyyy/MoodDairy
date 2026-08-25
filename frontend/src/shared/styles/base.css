@@ -481,6 +481,10 @@ input {
     opacity var(--t-fast);
 }
 
+a.btn-primary {
+  text-decoration: none;
+}
+
 [data-theme='dark'] .btn-primary {
   box-shadow: 0 6px 18px -8px rgba(0, 0, 0, 0.9);
 }

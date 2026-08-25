@@ -8,7 +8,7 @@ import type { KeyboardEvent } from 'react'
 
 import { useSettings } from '../../shared/settings/settings'
 import { ChartIcon } from '../../shared/ui/EmptyStateIcons'
-import { ErrorState, LoadingState } from '../../shared/ui/QueryState'
+import { ErrorState } from '../../shared/ui/QueryState'
 import { useChartEntries, useDateRange } from '../entries/api'
 import { ChartStats } from './ChartStats'
 import { MoodChart } from './MoodChart'
@@ -37,12 +37,19 @@ export function ChartTab({ active }: { active: boolean }) {
   // Запросы уходят только на открытом табе: скрытому графику данные не нужны.
   const { data, error, isPending, refetch } = useChartEntries(period.query, active)
   const { data: previousData } = useChartEntries(period.previous.query, active)
-  const { data: dateRange, error: dateRangeError, refetch: refetchDateRange } = useDateRange(active)
+  const {
+    data: dateRange,
+    error: dateRangeError,
+    isPending: isDateRangePending,
+    refetch: refetchDateRange,
+  } = useDateRange(active)
 
   const entries = useMemo(() => data?.entries ?? [], [data])
   const hasEntries = entries.length > 0
   // Пока первая загрузка не закончилась, решать нечем — пустое состояние не показываем.
-  const showEmpty = !isPending && !hasEntries
+  const loading = isPending || isDateRangePending
+  const failed = error || dateRangeError
+  const showEmpty = !loading && !failed && !hasEntries
 
   const average = averageMood(entries)
   const trend = useMemo(
@@ -77,19 +84,6 @@ export function ChartTab({ active }: { active: boolean }) {
       ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
       .item(nextIndex)
       .focus()
-  }
-
-  if (isPending) return <LoadingState label="Загружаем график…" />
-  if (error || dateRangeError) {
-    return (
-      <ErrorState
-        message="Не удалось загрузить данные графика"
-        onRetry={() => {
-          void refetch()
-          void refetchDateRange()
-        }}
-      />
-    )
   }
 
   return (
@@ -132,11 +126,24 @@ export function ChartTab({ active }: { active: boolean }) {
           />
         )}
 
-        {hasEntries && (
+        {failed ? (
+          <ErrorState
+            message="Не удалось загрузить данные графика"
+            onRetry={() => {
+              void refetch()
+              void refetchDateRange()
+            }}
+          />
+        ) : null}
+
+        {!failed && loading ? <ChartSkeleton /> : null}
+
+        {!loading && !failed && hasEntries && (
           <>
-            {data.corruptedCount > 0 ? (
+            {(data?.corruptedCount ?? 0) > 0 ? (
               <p className="chart-warning" role="status">
-                Не удалось расшифровать записей: {data.corruptedCount}. Они не показаны на графике.
+                Не удалось расшифровать записей: {data?.corruptedCount ?? 0}. Они не показаны на
+                графике.
               </p>
             ) : null}
             <div className="chart-summary">
@@ -181,6 +188,19 @@ function SectionHead({ title, scale }: { title: string; scale: string }) {
     <div className="chart-sechead">
       <h2 className="chart-sechead-title">{title}</h2>
       <span className="chart-sechead-scale">{scale}</span>
+    </div>
+  )
+}
+
+function ChartSkeleton() {
+  return (
+    <div className="chart-skeleton" role="status" aria-live="polite" aria-busy="true">
+      <span className="sr-only">Загружаем график…</span>
+      <span className="chart-skeleton-summary" aria-hidden="true" />
+      <span className="chart-skeleton-line" aria-hidden="true" />
+      <span className="chart-skeleton-plot chart-skeleton-plot-main" aria-hidden="true" />
+      <span className="chart-skeleton-line" aria-hidden="true" />
+      <span className="chart-skeleton-plot chart-skeleton-plot-small" aria-hidden="true" />
     </div>
   )
 }

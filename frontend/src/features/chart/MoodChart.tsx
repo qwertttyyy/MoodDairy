@@ -43,15 +43,20 @@ export function MoodChart({
     if (!canvas) return
 
     const render = () => drawChart(canvas, { rows, kind, style: STYLE[kind], smooth })
+    let renderFrame = 0
+    const scheduleRender = () => {
+      window.cancelAnimationFrame(renderFrame)
+      renderFrame = window.requestAnimationFrame(render)
+    }
     render()
 
     // Таб может быть скрыт (display: none) — тогда ширина нулевая и рисовать
     // нечего; перерисовку запустит наблюдатель, когда таб покажут.
-    const sizeObserver = new ResizeObserver(render)
+    const sizeObserver = new ResizeObserver(scheduleRender)
     sizeObserver.observe(canvas)
 
     // Тема меняет только CSS-переменные, а канвас сам об этом не узнает.
-    const themeObserver = new MutationObserver(render)
+    const themeObserver = new MutationObserver(scheduleRender)
     themeObserver.observe(document.documentElement, {
       attributes: true,
       attributeFilter: ['data-theme', 'class'],
@@ -60,6 +65,7 @@ export function MoodChart({
     return () => {
       sizeObserver.disconnect()
       themeObserver.disconnect()
+      window.cancelAnimationFrame(renderFrame)
     }
   }, [rows, kind, smooth])
 

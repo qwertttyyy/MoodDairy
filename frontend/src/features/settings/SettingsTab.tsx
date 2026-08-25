@@ -77,7 +77,9 @@ export function SettingsTab() {
         </div>
       </div>
 
-      <p className="settings-footer">Moods v1.2</p>
+      <p className="settings-footer">
+        Moods v{__APP_VERSION__} · сборка {__BUILD_SHA__}
+      </p>
     </>
   )
 }

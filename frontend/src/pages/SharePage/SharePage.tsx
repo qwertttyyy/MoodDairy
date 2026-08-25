@@ -109,9 +109,17 @@ export function SharePage() {
  */
 function useSystemTheme(): void {
   useEffect(() => {
-    if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-      document.documentElement.setAttribute('data-theme', 'dark')
+    const preference = window.matchMedia('(prefers-color-scheme: dark)')
+    const apply = (dark: boolean) => {
+      document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light')
+      document
+        .querySelector('meta[name="theme-color"]')
+        ?.setAttribute('content', dark ? '#000000' : '#f2f2f7')
     }
+    const handleChange = (event: MediaQueryListEvent) => apply(event.matches)
+    apply(preference.matches)
+    preference.addEventListener('change', handleChange)
+    return () => preference.removeEventListener('change', handleChange)
   }, [])
 }
 

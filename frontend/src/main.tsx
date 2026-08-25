@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router'
 
 import { AppPage } from './pages/AppPage/AppPage'
+import { NotFoundPage } from './pages/NotFoundPage'
 import { SharePage } from './pages/SharePage/SharePage'
 import { shouldRetry } from './shared/api/client'
 import { ErrorBoundary } from './shared/ui/ErrorBoundary'
@@ -31,6 +32,7 @@ createRoot(root).render(
               {/* Ссылки врачу выдавались со слешом на конце — принимаем оба варианта. */}
               <Route path="/share/:token" element={<SharePage />} />
               <Route path="/share/:token/" element={<SharePage />} />
+              <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </BrowserRouter>
         </ToastProvider>

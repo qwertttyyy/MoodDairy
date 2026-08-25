@@ -3,13 +3,7 @@
  * Инвалидация по префиксу `['entries']` разом сбрасывает ленту, график и границы дат.
  */
 
-import {
-  keepPreviousData,
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api } from '../../shared/api/client'
 import {
@@ -152,9 +146,6 @@ export function useChartEntries(query: ChartQuery, enabled: boolean) {
   return useQuery<ChartData>({
     queryKey: entriesKeys.chart(query),
     enabled,
-    // При смене периода на канвасе остаётся прежняя картинка до перерисовки —
-    // как в старом фронте, где график не исчезал на время запроса.
-    placeholderData: keepPreviousData,
     queryFn: async ({ signal }) => {
       const raw = await api.get(buildChartUrl(query), chartRawEntriesSchema, { signal })
       const settled = await Promise.allSettled(
