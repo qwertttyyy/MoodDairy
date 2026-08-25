@@ -84,19 +84,21 @@ export function SharePage() {
   return (
     <div className="share-page">
       <header className="share-header">
-        <span className="share-header-title">Moods</span>
+        <h1 className="share-header-title">Moods</h1>
         <span className="share-readonly">только чтение</span>
       </header>
 
-      {state.status === 'loading' ? <ShareLoading /> : null}
-      {state.status === 'error' ? (
-        <ShareError
-          title={state.title}
-          text={state.text}
-          {...(state.retryable ? { onRetry: () => setAttempt((value) => value + 1) } : {})}
-        />
-      ) : null}
-      {state.status === 'ready' ? <ShareContent entries={state.entries} /> : null}
+      <main>
+        {state.status === 'loading' ? <ShareLoading /> : null}
+        {state.status === 'error' ? (
+          <ShareError
+            title={state.title}
+            text={state.text}
+            {...(state.retryable ? { onRetry: () => setAttempt((value) => value + 1) } : {})}
+          />
+        ) : null}
+        {state.status === 'ready' ? <ShareContent entries={state.entries} /> : null}
+      </main>
     </div>
   )
 }
@@ -115,8 +117,8 @@ function useSystemTheme(): void {
 
 function ShareLoading() {
   return (
-    <div className="share-loading">
-      <div className="spinner" />
+    <div className="share-loading" role="status" aria-live="polite" aria-busy="true">
+      <div className="spinner" aria-hidden="true" />
       <p className="share-loading-text">Загрузка…</p>
     </div>
   )
@@ -132,7 +134,7 @@ function ShareError({
   onRetry?: () => void
 }) {
   return (
-    <div className="share-error">
+    <div className="share-error" role="alert">
       <div className="empty-state">
         <div className="empty-icon">
           <LockIcon />
@@ -190,7 +192,7 @@ function ShareContent({ entries }: { entries: ShareEntry[] }) {
 
       {dayGroups.map((group) => (
         <Fragment key={group.day}>
-          <div className="share-dayhead">{dayLabelPlain(group.day)}</div>
+          <h2 className="share-dayhead">{dayLabelPlain(group.day)}</h2>
           <div className="share-group">
             {group.items.map((entry, index) => (
               <Fragment key={`${group.day}-${index}`}>
@@ -215,6 +217,7 @@ interface MonthNavButtonProps {
 function MonthNavButton({ direction, disabled, onClick }: MonthNavButtonProps) {
   return (
     <button
+      type="button"
       className={disabled ? 'share-arrow off' : 'share-arrow'}
       disabled={disabled}
       aria-label={direction === -1 ? 'Предыдущий месяц' : 'Следующий месяц'}
@@ -229,6 +232,7 @@ function MonthNavButton({ direction, disabled, onClick }: MonthNavButtonProps) {
         strokeWidth="2.5"
         strokeLinecap="round"
         strokeLinejoin="round"
+        aria-hidden="true"
       >
         <polyline points={direction === -1 ? '15 18 9 12 15 6' : '9 18 15 12 9 6'} />
       </svg>

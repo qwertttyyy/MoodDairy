@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 
 import { ConfirmContext } from './confirm'
@@ -12,6 +12,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [request, setRequest] = useState<ConfirmRequest | null>(null)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
+  const cancelRef = useRef<HTMLButtonElement>(null)
 
   const confirm = useCallback<Confirm>((next) => {
     setError('')
@@ -39,9 +40,16 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
   return (
     <ConfirmContext.Provider value={confirm}>
       {children}
-      <Modal open={request !== null} onClose={close} className="modal-sm">
+      <Modal
+        open={request !== null}
+        onClose={close}
+        titleId="confirm-title"
+        initialFocusRef={cancelRef}
+        closeDisabled={pending}
+        className="modal-sm"
+      >
         <div className="modal-body">
-          <h3>{request?.title}</h3>
+          <h2 id="confirm-title">{request?.title}</h2>
           <p>{request?.text}</p>
           {error ? (
             <p className="confirm-error" role="alert">
@@ -50,7 +58,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
           ) : null}
         </div>
         <div className="modal-footer modal-footer-split">
-          <button className="btn-secondary" onClick={close} disabled={pending}>
+          <button ref={cancelRef} className="btn-secondary" onClick={close} disabled={pending}>
             Отмена
           </button>
           <button

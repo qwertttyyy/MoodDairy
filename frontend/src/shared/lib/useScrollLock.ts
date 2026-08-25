@@ -7,21 +7,19 @@ import { useEffect } from 'react'
  * и её закрытие не должно разблокировать прокрутку под всё ещё открытой формой.
  */
 let lockCount = 0
-
-function applyLock(): void {
-  const locked = lockCount > 0
-  document.body.style.overflow = locked ? 'hidden' : ''
-  document.body.style.touchAction = locked ? 'none' : ''
-}
+let previousOverflow = ''
 
 export function useScrollLock(active: boolean): void {
   useEffect(() => {
     if (!active) return
+    if (lockCount === 0) {
+      previousOverflow = document.body.style.overflow
+      document.body.style.overflow = 'hidden'
+    }
     lockCount++
-    applyLock()
     return () => {
-      lockCount--
-      applyLock()
+      lockCount = Math.max(0, lockCount - 1)
+      if (lockCount === 0) document.body.style.overflow = previousOverflow
     }
   }, [active])
 }

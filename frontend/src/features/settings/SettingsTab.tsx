@@ -16,10 +16,10 @@ function ToggleRow({
   onChange: (checked: boolean) => void
 }) {
   return (
-    <div className="set-row">
+    <label className="set-row set-row-toggle">
       <span className="set-label">{label}</span>
-      <Toggle checked={checked} onChange={onChange} />
-    </div>
+      <Toggle label={label} checked={checked} onChange={onChange} />
+    </label>
   )
 }
 
@@ -40,7 +40,7 @@ export function SettingsTab() {
 
   return (
     <>
-      <h3 className="settings-title">Вид</h3>
+      <h2 className="settings-title">Вид</h2>
       <div className="settings-group">
         <ToggleRow
           label="Тёмная тема"
@@ -61,17 +61,17 @@ export function SettingsTab() {
         />
       </div>
 
-      <h3 className="settings-title">Теги</h3>
+      <h2 className="settings-title">Теги</h2>
       <TagsSection />
 
-      <h3 className="settings-title">Доступ для врача</h3>
+      <h2 className="settings-title">Доступ для врача</h2>
       <SharingSection />
 
-      <h3 className="settings-title">Аккаунт</h3>
+      <h2 className="settings-title">Аккаунт</h2>
       <div className="settings-group">
         <div className="set-row">
           <span className="set-label">Выйти из аккаунта</span>
-          <button className="btn-plain btn-plain-danger" onClick={askLogout}>
+          <button type="button" className="btn-plain btn-plain-danger" onClick={askLogout}>
             Выход
           </button>
         </div>

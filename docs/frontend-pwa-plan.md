@@ -195,7 +195,7 @@
 - [x] 2. API и crypto boundaries
 - [x] 3. Startup и data failures
 - [x] 4. CRUD, даты и sharing
-- [ ] 5. Accessibility
+- [x] 5. Accessibility
 - [ ] 6. Theme, settings, charts и layout
 - [ ] 7. Performance и splitting
 - [ ] 8. PWA

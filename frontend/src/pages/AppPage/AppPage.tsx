@@ -63,24 +63,27 @@ function AppShell() {
     <div className="app-shell">
       {/* Табы остаются в DOM и скрываются классом — как в старом фронте:
           так лента не теряет прокрутку при переключении. */}
-      <main className={tabClass(tab === 'home')} id="tab-home">
-        <PageHeader title="Записи" onOpenGuide={() => guide.open('mood')} />
-        <EntriesTab />
+      <main>
+        <section className={tabClass(tab === 'home')} id="tab-home">
+          <PageHeader title="Записи" onOpenGuide={() => guide.open('mood')} />
+          <EntriesTab />
+        </section>
+
+        <section className={tabClass(tab === 'chart')} id="tab-chart">
+          <PageHeader title="График" onOpenGuide={() => guide.open('mood')} />
+          <ChartTab active={tab === 'chart'} />
+        </section>
+
+        <section className={tabClass(tab === 'settings')} id="tab-settings">
+          <PageHeader title="Настройки" />
+          <SettingsTab />
+        </section>
       </main>
-
-      <section className={tabClass(tab === 'chart')} id="tab-chart">
-        <PageHeader title="График" onOpenGuide={() => guide.open('mood')} />
-        <ChartTab active={tab === 'chart'} />
-      </section>
-
-      <section className={tabClass(tab === 'settings')} id="tab-settings">
-        <PageHeader title="Настройки" />
-        <SettingsTab />
-      </section>
 
       <div className="tab-dock">
         <TabBar tab={tab} onChange={setTab} />
         <button
+          type="button"
           className={entryModal.isOpen ? 'fab-add is-hidden' : 'fab-add'}
           onClick={(event: MouseEvent<HTMLButtonElement>) => {
             entryModal.open(null, event.currentTarget.getBoundingClientRect())
@@ -93,6 +96,7 @@ function AppShell() {
             stroke="currentColor"
             strokeWidth="2.1"
             strokeLinecap="round"
+            aria-hidden="true"
           >
             <path d="M12 5.4v13.2M5.4 12h13.2" />
           </svg>
@@ -106,9 +110,10 @@ function AppShell() {
 function PageHeader({ title, onOpenGuide }: { title: string; onOpenGuide?: () => void }) {
   return (
     <header className="page-header">
-      <h2 className="large-title">{title}</h2>
+      <h1 className="large-title">{title}</h1>
       {onOpenGuide && (
         <button
+          type="button"
           className="btn-icon-glass page-info"
           onClick={onOpenGuide}
           aria-label="Шкала настроения"
@@ -119,6 +124,7 @@ function PageHeader({ title, onOpenGuide }: { title: string; onOpenGuide?: () =>
             stroke="currentColor"
             strokeWidth="1.7"
             strokeLinecap="round"
+            aria-hidden="true"
           >
             <circle cx="12" cy="12" r="9" />
             <path d="M12 11v6" />
@@ -170,13 +176,16 @@ const TABS: ReadonlyArray<{ name: TabName; label: string; icon: ReactNode }> = [
 /** Плавающая капсула вкладок. Активная подсвечена своей плашкой. */
 function TabBar({ tab, onChange }: TabBarProps) {
   return (
-    <nav className="tab-bar liquid-glass">
+    <nav className="tab-bar liquid-glass" aria-label="Основная навигация">
       {TABS.map((item) => (
         <button
+          type="button"
           key={item.name}
           className={item.name === tab ? 'tab-btn active' : 'tab-btn'}
           onClick={() => onChange(item.name)}
           aria-label={item.label}
+          aria-current={item.name === tab ? 'page' : undefined}
+          aria-controls={`tab-${item.name}`}
         >
           <svg
             viewBox="0 0 24 24"
@@ -185,6 +194,7 @@ function TabBar({ tab, onChange }: TabBarProps) {
             strokeWidth="1.8"
             strokeLinecap="round"
             strokeLinejoin="round"
+            aria-hidden="true"
           >
             {item.icon}
           </svg>

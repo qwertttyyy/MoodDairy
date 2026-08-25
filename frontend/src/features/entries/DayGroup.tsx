@@ -59,7 +59,7 @@ export function DayGroup({ group, onOpen, onDelete }: DayGroupProps) {
 
   return (
     <section className="feed-day">
-      <h3 className={pinned ? 'feed-dayhead is-pinned' : 'feed-dayhead'} ref={setHead}>
+      <h2 className={pinned ? 'feed-dayhead is-pinned' : 'feed-dayhead'} ref={setHead}>
         <span className="feed-dayhead-text">{dayLabel(group.day)}</span>
         {/* Сводка дня: по сегменту на запись, цвет — оценка настроения.
             Видна только в прилипшем состоянии. Число записей отдаём в CSS
@@ -76,7 +76,7 @@ export function DayGroup({ group, onOpen, onDelete }: DayGroupProps) {
             />
           ))}
         </span>
-      </h3>
+      </h2>
 
       <div className="feed-group">
         {group.entries.map((entry, index) => (

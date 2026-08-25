@@ -60,6 +60,10 @@
   background: var(--card);
 }
 
+.set-row-toggle {
+  cursor: pointer;
+}
+
 .set-label {
   font-size: 17px;
   line-height: 22px;
@@ -98,10 +102,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 44px;
+  height: 44px;
   flex: none;
-  border-radius: 16px;
+  border-radius: 22px;
   transition: opacity var(--t-fast);
 }
 

@@ -56,7 +56,14 @@ export function ToastProvider({ children }: { children: ReactNode }) {
   return (
     <ToastContext.Provider value={show}>
       {children}
-      <div className={className}>{toast.message}</div>
+      <div
+        className={className}
+        role={toast.isError ? 'alert' : 'status'}
+        aria-live={toast.isError ? 'assertive' : 'polite'}
+        aria-atomic="true"
+      >
+        {toast.message}
+      </div>
     </ToastContext.Provider>
   )
 }

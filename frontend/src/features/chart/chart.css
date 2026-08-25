@@ -12,7 +12,7 @@
    Не индикатор, который ездит, а подсветка активной кнопки.
    ============================================ */
 .chart-seg {
-  height: 36px;
+  height: 44px;
   padding: 2px;
   display: flex;
   border-radius: 18px;
@@ -57,7 +57,7 @@
    НАВИГАЦИЯ ПО МЕСЯЦУ И ГОДУ
    ============================================ */
 .chart-nav {
-  height: 40px;
+  height: 44px;
   margin-top: 6px;
   display: flex;
   align-items: center;
@@ -65,9 +65,9 @@
 }
 
 .chart-nav-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 16px;
+  width: 44px;
+  height: 44px;
+  border-radius: 22px;
   display: flex;
   align-items: center;
   justify-content: center;

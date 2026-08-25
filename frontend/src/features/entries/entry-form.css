@@ -160,9 +160,9 @@
 .tag-chip {
   display: inline-flex;
   align-items: center;
-  height: 34px;
+  min-height: 44px;
   padding: 0 14px;
-  border-radius: 17px;
+  border-radius: 22px;
   font-size: 15px;
   color: var(--c-primary);
   background: var(--field-bg);

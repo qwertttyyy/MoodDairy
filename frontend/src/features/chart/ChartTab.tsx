@@ -4,6 +4,7 @@
  */
 
 import { useMemo, useState } from 'react'
+import type { KeyboardEvent } from 'react'
 
 import { useSettings } from '../../shared/settings/settings'
 import { ChartIcon } from '../../shared/ui/EmptyStateIcons'
@@ -59,6 +60,25 @@ export function ChartTab({ active }: { active: boolean }) {
     if (next === 'year') setSelectedYear(clampYear(currentYear(), firstMonth?.year ?? null))
   }
 
+  const handleTabKey = (event: KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+    event.preventDefault()
+    let nextIndex = index
+    if (event.key === 'Home') nextIndex = 0
+    else if (event.key === 'End') nextIndex = CHART_MODES.length - 1
+    else
+      nextIndex =
+        (index + (event.key === 'ArrowRight' ? 1 : -1) + CHART_MODES.length) % CHART_MODES.length
+
+    const next = CHART_MODES[nextIndex]
+    if (!next) return
+    selectMode(next.value)
+    event.currentTarget.parentElement
+      ?.querySelectorAll<HTMLButtonElement>('[role="tab"]')
+      .item(nextIndex)
+      .focus()
+  }
+
   if (isPending) return <LoadingState label="Загружаем график…" />
   if (error || dateRangeError) {
     return (
@@ -74,77 +94,84 @@ export function ChartTab({ active }: { active: boolean }) {
 
   return (
     <>
-      <div className="chart-seg" role="tablist">
-        {CHART_MODES.map((item) => (
+      <div className="chart-seg" role="tablist" aria-label="Период графика">
+        {CHART_MODES.map((item, index) => (
           <button
+            type="button"
             key={item.value}
+            id={`chart-period-tab-${item.value}`}
             role="tab"
             aria-selected={item.value === mode}
+            aria-controls="chart-period-panel"
+            tabIndex={item.value === mode ? 0 : -1}
             className={item.value === mode ? 'chart-seg-btn active' : 'chart-seg-btn'}
             onClick={() => selectMode(item.value)}
+            onKeyDown={(event) => handleTabKey(event, index)}
           >
             {item.label}
           </button>
         ))}
       </div>
 
-      {isMonthMode && (
-        <MonthPicker
-          year={selectedMonth.year}
-          month={selectedMonth.month}
-          minYear={firstMonth?.year ?? null}
-          minMonth={firstMonth?.month ?? null}
-          onChange={(year, month) => setSelectedMonth({ year, month })}
-        />
-      )}
-
-      {isYearMode && (
-        <YearPicker
-          year={selectedYear}
-          minYear={firstMonth?.year ?? null}
-          onChange={setSelectedYear}
-        />
-      )}
-
-      {hasEntries && (
-        <>
-          {data.corruptedCount > 0 ? (
-            <p className="chart-warning" role="status">
-              Не удалось расшифровать записей: {data.corruptedCount}. Они не показаны на графике.
-            </p>
-          ) : null}
-          <div className="chart-summary">
-            <div>
-              <div className="chart-avg">{average === null ? '—' : average.toFixed(1)}</div>
-              <div className="chart-caption">{period.caption}</div>
-            </div>
-            {trend !== null && <TrendBadge delta={trend} />}
-          </div>
-
-          <SectionHead title="Настроение" scale="шкала 1–9" />
-          <MoodChart entries={entries} smooth={settings.chartSmooth} range={period.range} />
-
-          <SectionHead title="Тревога" scale="шкала 1–5" />
-          <MoodChart
-            entries={entries}
-            smooth={settings.chartSmooth}
-            kind="anxiety"
-            range={period.range}
+      <div id="chart-period-panel" role="tabpanel" aria-labelledby={`chart-period-tab-${mode}`}>
+        {isMonthMode && (
+          <MonthPicker
+            year={selectedMonth.year}
+            month={selectedMonth.month}
+            minYear={firstMonth?.year ?? null}
+            minMonth={firstMonth?.month ?? null}
+            onChange={(year, month) => setSelectedMonth({ year, month })}
           />
+        )}
 
-          <ChartStats entries={entries} showAnxiety />
-        </>
-      )}
+        {isYearMode && (
+          <YearPicker
+            year={selectedYear}
+            minYear={firstMonth?.year ?? null}
+            onChange={setSelectedYear}
+          />
+        )}
 
-      {showEmpty && (
-        <div className="empty-state">
-          <div className="empty-icon">
-            <ChartIcon />
+        {hasEntries && (
+          <>
+            {data.corruptedCount > 0 ? (
+              <p className="chart-warning" role="status">
+                Не удалось расшифровать записей: {data.corruptedCount}. Они не показаны на графике.
+              </p>
+            ) : null}
+            <div className="chart-summary">
+              <div>
+                <div className="chart-avg">{average === null ? '—' : average.toFixed(1)}</div>
+                <div className="chart-caption">{period.caption}</div>
+              </div>
+              {trend !== null && <TrendBadge delta={trend} />}
+            </div>
+
+            <SectionHead title="Настроение" scale="шкала 1–9" />
+            <MoodChart entries={entries} smooth={settings.chartSmooth} range={period.range} />
+
+            <SectionHead title="Тревога" scale="шкала 1–5" />
+            <MoodChart
+              entries={entries}
+              smooth={settings.chartSmooth}
+              kind="anxiety"
+              range={period.range}
+            />
+
+            <ChartStats entries={entries} showAnxiety />
+          </>
+        )}
+
+        {showEmpty && (
+          <div className="empty-state">
+            <div className="empty-icon">
+              <ChartIcon />
+            </div>
+            <p className="empty-title">Нет данных</p>
+            <p className="empty-sub">Добавь запись, чтобы увидеть график</p>
           </div>
-          <p className="empty-title">Нет данных</p>
-          <p className="empty-sub">Добавь запись, чтобы увидеть график</p>
-        </div>
-      )}
+        )}
+      </div>
     </>
   )
 }
@@ -152,7 +179,7 @@ export function ChartTab({ active }: { active: boolean }) {
 function SectionHead({ title, scale }: { title: string; scale: string }) {
   return (
     <div className="chart-sechead">
-      <span className="chart-sechead-title">{title}</span>
+      <h2 className="chart-sechead-title">{title}</h2>
       <span className="chart-sechead-scale">{scale}</span>
     </div>
   )

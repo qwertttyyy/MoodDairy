@@ -55,6 +55,7 @@ function TagRow({ tag, onEdit, onDelete }: { tag: Tag; onEdit: () => void; onDel
       <span className="set-label">{tag.name}</span>
       <div className="tag-actions">
         <button
+          type="button"
           className="tag-action tag-edit"
           aria-label={`Переименовать тег «${tag.name}»`}
           onClick={onEdit}
@@ -62,6 +63,7 @@ function TagRow({ tag, onEdit, onDelete }: { tag: Tag; onEdit: () => void; onDel
           <PencilIcon />
         </button>
         <button
+          type="button"
           className="tag-action tag-remove"
           aria-label={`Удалить тег «${tag.name}»`}
           onClick={onDelete}
@@ -148,7 +150,10 @@ export function TagsSection() {
   }
 
   return (
-    <div className="settings-group">
+    <div
+      className="settings-group"
+      aria-busy={isPending || createTag.isPending || renameTag.isPending || deleteTag.isPending}
+    >
       {isPending && (
         <div className="set-row">
           <span className="set-hint">Загрузка…</span>
@@ -168,6 +173,7 @@ export function TagsSection() {
               <input
                 type="text"
                 className="tag-input"
+                aria-label={`Новое название тега «${tag.name}»`}
                 value={editingName}
                 maxLength={MAX_TAG_LENGTH}
                 autoFocus
@@ -177,12 +183,14 @@ export function TagsSection() {
                   if (event.key === 'Escape') cancelEditing()
                 }}
               />
-              <button className="btn-plain" onClick={cancelEditing}>
+              <button type="button" className="btn-plain" onClick={cancelEditing}>
                 Отмена
               </button>
               <button
+                type="button"
                 className="btn-plain"
                 disabled={renameTag.isPending}
+                aria-busy={renameTag.isPending}
                 onClick={() => handleRename(tag)}
               >
                 Готово
@@ -199,6 +207,7 @@ export function TagsSection() {
         <input
           type="text"
           className="tag-input"
+          aria-label="Название нового тега"
           placeholder="Новый тег"
           value={newName}
           maxLength={MAX_TAG_LENGTH}
@@ -208,8 +217,10 @@ export function TagsSection() {
           }}
         />
         <button
+          type="button"
           className="btn-plain"
           disabled={createTag.isPending || newName.trim() === ''}
+          aria-busy={createTag.isPending}
           onClick={handleCreate}
         >
           Добавить

@@ -19,7 +19,7 @@
    ============================================ */
 .guide-tabs {
   display: flex;
-  height: 36px;
+  height: 44px;
   flex: none;
   padding: 2px;
   border-radius: 18px;
@@ -101,6 +101,8 @@
 }
 
 .guide-item-clickable {
+  width: 100%;
+  text-align: left;
   cursor: pointer;
   border-radius: var(--r-sm);
   transition: background var(--t-fast);

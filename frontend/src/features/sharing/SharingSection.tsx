@@ -79,13 +79,18 @@ export function SharingSection() {
 
   return (
     <>
-      <div className="settings-group">
+      <div
+        className="settings-group"
+        aria-busy={status.isPending || createShare.isPending || revokeShare.isPending}
+      >
         <div className="set-row">
           <span className="set-label">Ссылка на дневник</span>
           <button
+            type="button"
             className="btn-plain"
             onClick={handleCreate}
             disabled={status.isPending || createShare.isPending}
+            aria-busy={status.isPending || createShare.isPending}
           >
             {status.isPending || createShare.isPending
               ? 'Загрузка…'
@@ -103,16 +108,23 @@ export function SharingSection() {
                 type="text"
                 className="share-input"
                 readOnly
+                aria-label="Ссылка на дневник"
                 value={fullUrl ?? HIDDEN_LINK_TEXT}
               />
-              <button className="btn-plain" onClick={handleCopy} disabled={!fullUrl}>
+              <button type="button" className="btn-plain" onClick={handleCopy} disabled={!fullUrl}>
                 Копировать
               </button>
             </div>
             <div className="set-sep" />
             <div className="set-row">
               <span className="set-label">Закрыть доступ</span>
-              <button className="btn-plain btn-plain-danger" onClick={handleRevoke}>
+              <button
+                type="button"
+                className="btn-plain btn-plain-danger"
+                onClick={handleRevoke}
+                disabled={revokeShare.isPending}
+                aria-busy={revokeShare.isPending}
+              >
                 Отозвать
               </button>
             </div>

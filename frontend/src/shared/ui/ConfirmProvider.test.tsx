@@ -44,6 +44,7 @@ describe('ConfirmProvider', () => {
     )
 
     await userEvent.click(screen.getByRole('button', { name: 'Открыть' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Отмена' })).toHaveFocus())
     await userEvent.click(screen.getByRole('button', { name: 'Удалить' }))
     expect(screen.getByRole('button', { name: 'Выполняется…' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Отмена' })).toBeDisabled()

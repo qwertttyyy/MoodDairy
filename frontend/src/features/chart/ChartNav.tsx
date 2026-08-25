@@ -21,6 +21,7 @@ export function ChartNavButton({ direction, label, disabled, onClick }: ChartNav
         strokeWidth="2.1"
         strokeLinecap="round"
         strokeLinejoin="round"
+        aria-hidden="true"
       >
         <path d={direction === -1 ? PATH_BACK : PATH_FORWARD} />
       </svg>

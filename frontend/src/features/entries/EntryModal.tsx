@@ -60,6 +60,7 @@ function InfoIcon() {
       stroke="currentColor"
       strokeWidth="1.8"
       strokeLinecap="round"
+      aria-hidden="true"
     >
       <circle cx="12" cy="12" r="9" />
       <path d="M12 11v6" />
@@ -95,7 +96,7 @@ function ScaleField({ scale, value, onSelect, onOpenGuide }: ScaleFieldProps) {
         </button>
       </div>
 
-      <div className={meta.scaleClass}>
+      <div className={meta.scaleClass} role="group" aria-label={meta.title}>
         {grades.map((grade) => {
           const classes = ['scale-cell', `${meta.colorClass}${grade}`]
           if (grade === value) classes.push('selected')
@@ -221,14 +222,18 @@ export function EntryModal() {
     <Modal
       open={isOpen}
       onClose={close}
+      titleId="entry-modal-title"
+      closeDisabled={saveEntry.isPending || deleteEntry.isPending}
       className="entry-form"
       overlayClassName="entry-form-overlay"
       morphFrom={origin}
     >
       <div className="modal-handle" />
       <div className="modal-header">
-        <h2>{isEditing ? 'Редактировать' : 'Новая запись'}</h2>
-        <ModalCloseButton onClick={close} />
+        <h2 id="entry-modal-title" tabIndex={-1}>
+          {isEditing ? 'Редактировать' : 'Новая запись'}
+        </h2>
+        <ModalCloseButton onClick={close} disabled={saveEntry.isPending || deleteEntry.isPending} />
       </div>
 
       <div className="modal-body">
@@ -271,6 +276,7 @@ export function EntryModal() {
                 key={tag.id}
                 type="button"
                 className={selectedTagIds.includes(tag.id) ? 'tag-chip selected' : 'tag-chip'}
+                aria-pressed={selectedTagIds.includes(tag.id)}
                 onClick={() => toggleTag(tag.id)}
               >
                 {tag.name}
@@ -298,6 +304,8 @@ export function EntryModal() {
                 value={date}
                 max={today}
                 aria-label="Дата записи"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'entry-form-error' : undefined}
                 onChange={(event) => handleDateChange(event.target.value)}
               />
               <svg
@@ -318,6 +326,8 @@ export function EntryModal() {
                 value={time}
                 max={timeMax}
                 aria-label="Время записи"
+                aria-invalid={Boolean(error)}
+                aria-describedby={error ? 'entry-form-error' : undefined}
                 onChange={(event) => setTime(clampTime(date, event.target.value))}
               />
               <svg
@@ -335,7 +345,11 @@ export function EntryModal() {
           </div>
         </div>
 
-        {error && <div className="form-error">{error}</div>}
+        {error && (
+          <div className="form-error" id="entry-form-error" role="alert">
+            {error}
+          </div>
+        )}
       </div>
 
       <div className="modal-footer">
@@ -345,6 +359,7 @@ export function EntryModal() {
             className="btn-secondary btn-delete-entry"
             onClick={handleDelete}
             disabled={deleteEntry.isPending || saveEntry.isPending}
+            aria-busy={deleteEntry.isPending}
           >
             Удалить
           </button>
@@ -354,8 +369,9 @@ export function EntryModal() {
           className="btn-primary"
           onClick={handleSave}
           disabled={!mood || saveEntry.isPending}
+          aria-busy={saveEntry.isPending}
         >
-          {isEditing ? 'Сохранить' : 'Добавить'}
+          {saveEntry.isPending ? 'Сохраняем…' : isEditing ? 'Сохранить' : 'Добавить'}
         </button>
       </div>
     </Modal>
