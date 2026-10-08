@@ -27,7 +27,9 @@ WORKDIR /app
 COPY --from=builder /app/.venv /app/.venv
 COPY . .
 
+# Профилировщики из dev-зависимостей не устанавливаются в образ.
 RUN DJANGO_SETTINGS_MODULE=config.settings.dev \
+    USE_SILK=0 USE_DEBUG_TOOLBAR=0 \
     python manage.py collectstatic --noinput
 
 COPY entrypoint.sh /entrypoint.sh

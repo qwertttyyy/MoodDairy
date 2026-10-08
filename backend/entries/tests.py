@@ -1152,7 +1152,7 @@ class DateRangeEndpointTest(APITestCase):
 
     def test_returns_date_of_oldest_entry(self):
         """Проверяет дату самой ранней записи пользователя."""
-        oldest = timezone.now() - timedelta(days=400)
+        oldest = timezone.make_aware(datetime(2025, 9, 4, 0, 30))
         MoodEntry.objects.create(
             user=self.user, mood=_enc("5"), timestamp=oldest
         )

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 
+from django.utils import timezone
 from rest_framework import status, viewsets
 from rest_framework.decorators import action
 from rest_framework.request import Request
@@ -110,7 +111,11 @@ class MoodEntryViewSet(viewsets.ModelViewSet):
         """Дата первой записи: по ней клиент строит список доступных лет."""
         first = get_first_entry_timestamp(request.user.id)
         return Response(
-            {"first_date": first.date().isoformat() if first else None}
+            {
+                "first_date": (
+                    timezone.localdate(first).isoformat() if first else None
+                )
+            }
         )
 
     @action(detail=False, methods=["get"], url_path="grouped")
