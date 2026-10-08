@@ -19,6 +19,9 @@ dependencies = [
 dev = [
     "ruff>=0.9",
     "coverage>=7.6",
+    "django-silk>=5.5.2",
+    "black>=26.5.1",
+    "django-debug-toolbar>=7.1.1",
 ]
 
 [tool.uv]

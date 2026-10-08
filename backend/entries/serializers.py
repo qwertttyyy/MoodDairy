@@ -11,7 +11,7 @@ from .constants import (
     NOTE_MAX_LENGTH,
     PERIOD_DAYS,
 )
-from .fields import EncryptedField
+from .fields import EncryptedField, UserTagsRelatedField
 from .models import MoodEntry, Tag
 
 
@@ -38,14 +38,6 @@ class TagSerializer(serializers.ModelSerializer):
         return value
 
 
-class UserTagsRelatedField(serializers.PrimaryKeyRelatedField):
-    """Ограничивает выбираемые теги текущим пользователем."""
-
-    def get_queryset(self):
-        """Возвращает теги пользователя из контекста сериализатора."""
-        return Tag.objects.filter(user=self.context["request"].user)
-
-
 class _MoodEntryBaseSerializer(serializers.ModelSerializer):
     """Базовый класс — единый набор полей для Read и Write."""
 
@@ -60,10 +52,7 @@ class _MoodEntryBaseSerializer(serializers.ModelSerializer):
             "anxiety",
             "tags",
             "timestamp",
-            "created_at",
-            "updated_at",
         )
-        read_only_fields = ("id", "created_at", "updated_at")
 
 
 class MoodEntryReadSerializer(_MoodEntryBaseSerializer):

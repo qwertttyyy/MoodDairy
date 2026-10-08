@@ -120,6 +120,7 @@ export default defineConfig({
       '/api': BACKEND,
       '/admin': BACKEND,
       '/static': BACKEND,
+      '/__debug__': BACKEND,
     },
   },
   test: {

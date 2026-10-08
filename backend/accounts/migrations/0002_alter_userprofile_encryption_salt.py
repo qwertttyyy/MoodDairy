@@ -6,13 +6,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0001_initial'),
+        ("accounts", "0001_initial"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='userprofile',
-            name='encryption_salt',
-            field=models.CharField(blank=True, max_length=64, verbose_name='Salt (base64)'),
+            model_name="userprofile",
+            name="encryption_salt",
+            field=models.CharField(
+                blank=True, max_length=64, verbose_name="Salt (base64)"
+            ),
         ),
     ]

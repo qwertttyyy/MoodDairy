@@ -8,13 +8,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('entries', '0004_user_tags'),
+        ("entries", "0004_user_tags"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddIndex(
-            model_name='moodentry',
-            index=models.Index(django.db.models.functions.datetime.TruncDate('timestamp'), models.F('user'), name='entry_user_day_idx'),
+            model_name="moodentry",
+            index=models.Index(
+                django.db.models.functions.datetime.TruncDate("timestamp"),
+                models.F("user"),
+                name="entry_user_day_idx",
+            ),
         ),
     ]

@@ -14,7 +14,9 @@ CSRF_TRUSTED_ORIGINS = env_list("CSRF_TRUSTED_ORIGINS")
 DATABASES["default"]["PASSWORD"] = env_str("DB_PASSWORD")  # noqa: F405
 
 REDIS_PASSWORD = env_str("REDIS_PASSWORD")
-CACHES["default"]["LOCATION"] = (  # noqa: F405
+CACHES["default"][
+    "LOCATION"
+] = (  # noqa: F405
     f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}"
 )
 

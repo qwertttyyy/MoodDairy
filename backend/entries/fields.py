@@ -6,6 +6,8 @@ import binascii
 from django.conf import settings
 from rest_framework import serializers
 
+from entries.models import Tag
+
 ENCRYPTED_PARTS = 2
 
 
@@ -37,3 +39,11 @@ class EncryptedField(serializers.CharField):
         """Преобразует строку и проверяет формат клиентского шифротекста."""
         value = super().to_internal_value(data)
         return validate_encrypted_value(value)
+
+
+class UserTagsRelatedField(serializers.PrimaryKeyRelatedField):
+    """Ограничивает выбираемые теги текущим пользователем."""
+
+    def get_queryset(self):
+        """Возвращает теги пользователя из контекста сериализатора."""
+        return Tag.objects.filter(user=self.context["request"].user)
