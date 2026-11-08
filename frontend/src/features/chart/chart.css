@@ -242,7 +242,7 @@
   --ch-fill-top: rgba(10, 124, 140, 0.2);
   --ch-fill-bottom: rgba(10, 124, 140, 0.01);
   --ch-grid: #c6c6c8;
-  --ch-text: #72727a;
+  --ch-text: var(--c-tertiary);
   --ch-font: 11;
   --ch-width: 2;
   --ch-dot: #0a7c8c;
@@ -271,7 +271,7 @@
        на коротких периодах без предела он раздувался бы до плашки. */
   --ch-bar-max: 16;
   --ch-grid: #dcdce0;
-  --ch-text: #72727a;
+  --ch-text: var(--c-tertiary);
   --ch-font: 11;
   --ch-pad-left: 14;
   --ch-pad-right: 4;

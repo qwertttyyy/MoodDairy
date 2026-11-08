@@ -9,6 +9,8 @@ export interface DecryptedEntry {
   anxiety: number
   tags: Tag[]
   timestamp: string
+  syncStatus?: 'pending' | 'failed'
+  syncError?: string
 }
 
 /** Только безопасные метаданные записи, содержимое которой открыть нельзя. */

@@ -250,6 +250,7 @@
 
 /* Заметка обрезается тремя строками с многоточием. */
 .feed-note {
+  overflow-wrap: anywhere;
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -269,7 +270,21 @@
 }
 
 .feed-tags span {
+  overflow-wrap: anywhere;
   font-size: 13px;
   line-height: 18px;
   color: var(--c-secondary);
+}
+
+.feed-sync,
+.feed-offline-hint {
+  display: block;
+  margin-top: 8px;
+  font-size: 13px;
+  line-height: 18px;
+  color: var(--c-secondary);
+}
+
+.feed-sync-error {
+  color: var(--danger-t);
 }

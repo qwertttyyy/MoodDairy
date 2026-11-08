@@ -10,6 +10,7 @@ const DEFAULT_CONFIRM_LABEL = 'Удалить'
 /** Диалог подтверждения: разметка из старого фронта, подпись действия задаёт вызывающий код. */
 export function ConfirmProvider({ children }: { children: ReactNode }) {
   const [request, setRequest] = useState<ConfirmRequest | null>(null)
+  const [open, setOpen] = useState(false)
   const [pending, setPending] = useState(false)
   const [error, setError] = useState('')
   const cancelRef = useRef<HTMLButtonElement>(null)
@@ -18,18 +19,19 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     setError('')
     setPending(false)
     setRequest(next)
+    setOpen(true)
   }, [])
   const close = useCallback(() => {
-    if (!pending) setRequest(null)
+    if (!pending) setOpen(false)
   }, [pending])
 
   const runAction = async () => {
-    if (!request || pending) return
+    if (!request || !open || pending) return
     setPending(true)
     setError('')
     try {
       await request.onConfirm()
-      setRequest(null)
+      setOpen(false)
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : 'Не удалось выполнить действие')
     } finally {
@@ -41,7 +43,7 @@ export function ConfirmProvider({ children }: { children: ReactNode }) {
     <ConfirmContext.Provider value={confirm}>
       {children}
       <Modal
-        open={request !== null}
+        open={open}
         onClose={close}
         titleId="confirm-title"
         initialFocusRef={cancelRef}

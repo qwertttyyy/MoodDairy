@@ -12,6 +12,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
 import { api, REQUEST_TIMEOUTS } from '../../shared/api/client'
 import {
+  cachedGet,
+  currentOfflineUser,
+  offlineSessionGeneration,
+} from '../../shared/offline/offline'
+import { isCurrentUser, userQueryKey } from '../../shared/offline/queryScope'
+import { decryptScores } from '../entries/entryCodec'
+import {
   createShareResponseSchema,
   sharingStatusResponseSchema,
   shareEntrySchema,
@@ -46,26 +53,36 @@ export class IncompleteShareError extends Error {
 /** Метаданные активной ссылки. Ошибку не показываем — как и старый `Share.loadActive`. */
 export function useSharingStatus(enabled = true) {
   return useQuery<SharingStatusResponse>({
-    queryKey: sharingKeys.status,
+    networkMode: 'always',
+    queryKey: userQueryKey(sharingKeys.status),
     enabled,
-    queryFn: ({ signal }) => api.get('/api/sharing/', sharingStatusResponseSchema, { signal }),
+    queryFn: ({ signal }) => cachedGet('/api/sharing/', sharingStatusResponseSchema, { signal }),
   })
 }
 
 export function useCreateShare() {
+  const ownerId = currentOfflineUser()?.id
+  const version = offlineSessionGeneration()
   const queryClient = useQueryClient()
   return useMutation<CreatedShare, Error, void>({
-    mutationFn: createShare,
+    networkMode: 'always',
+    mutationFn: () => createShare(ownerId, version),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: sharingKeys.status }),
   })
 }
 
 export function useRevokeShare() {
+  const ownerId = currentOfflineUser()?.id
+  const version = offlineSessionGeneration()
   const queryClient = useQueryClient()
   return useMutation<void, Error, void>({
+    networkMode: 'always',
     // Отзыв идемпотентен: сервер отвечает 204 и когда ссылка была,
     // и когда её не существовало.
-    mutationFn: () => api.del('/api/sharing/', voidResponseSchema),
+    mutationFn: () => {
+      assertCurrentSession(ownerId, version)
+      return api.del('/api/sharing/', voidResponseSchema)
+    },
     onSuccess: () => queryClient.invalidateQueries({ queryKey: sharingKeys.status }),
   })
 }
@@ -80,8 +97,15 @@ export function buildShareUrl(token: string, shareKeyB64: string): string {
  * Выгружает все записи, расшифровывает ключом пользователя и публикует снапшот.
  * Возвращает токен и одноразовый ключ, который нужен только для сборки ссылки.
  */
-async function createShare(): Promise<CreatedShare> {
+function assertCurrentSession(ownerId: number | undefined, version: number): void {
+  if (!isCurrentUser(ownerId, version))
+    throw new Error('Аккаунт изменился. Откройте настройки заново.')
+}
+
+async function createShare(ownerId: number | undefined, version: number): Promise<CreatedShare> {
+  assertCurrentSession(ownerId, version)
   const plainJson = await buildSnapshotJson()
+  assertCurrentSession(ownerId, version)
 
   // Флаг is_encrypted серверу не передаём: режим шифрования — состояние
   // бэкенда, а не выбор клиента, иначе укравший сессию мог бы создать ссылку,
@@ -98,6 +122,7 @@ async function createShare(): Promise<CreatedShare> {
 
   const shareKey = generateShareKey()
   const dataBlob = await encryptWithKey(shareKey.raw, plainJson)
+  assertCurrentSession(ownerId, version)
   const { token } = await api.post(
     '/api/sharing/',
     { data_blob: dataBlob },
@@ -120,9 +145,8 @@ export async function buildSnapshotJson(): Promise<string> {
   const settled = await Promise.allSettled(
     raw.map(async (item) =>
       shareEntrySchema.parse({
-        mood: Number.parseInt(await decrypt(item.mood), 10),
+        ...(await decryptScores(item)),
         note: item.note ? await decrypt(item.note) : '',
-        anxiety: item.anxiety ? Number.parseInt(await decrypt(item.anxiety), 10) : 0,
         timestamp: item.timestamp,
       }),
     ),

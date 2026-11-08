@@ -1,23 +1,30 @@
-import { lazy, Suspense, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent, ReactNode } from 'react'
 
 import { useAuth } from '../../features/auth/AuthContext'
 import { AuthProvider } from '../../features/auth/AuthProvider'
 import { AuthScreen } from '../../features/auth/AuthScreen'
 import { StartupScreen } from '../../features/auth/StartupScreen'
-import { EntryModal } from '../../features/entries/EntryModal'
 import { useEntryModal } from '../../features/entries/EntryModalContext'
 import { EntryModalProvider } from '../../features/entries/EntryModalProvider'
-import { useGuide } from '../../features/guide/GuideContext'
+import { EntrySync, OfflineNotice } from '../../features/entries/EntrySync'
+import { useGuide, useGuideActions } from '../../features/guide/GuideContext'
 import { GuideProvider } from '../../features/guide/GuideProvider'
-import { MoodGuideModal } from '../../features/guide/MoodGuideModal'
 import { ConfirmProvider } from '../../shared/ui/ConfirmProvider'
 import { SettingsProvider } from '../../shared/settings/SettingsProvider'
 import { LoadingState } from '../../shared/ui/QueryState'
+import { useOfflineState } from '../../shared/offline/offline'
 
 import '../../shared/styles/shell.css'
 
-const EntriesTab = lazy(() => import('../../features/entries/EntriesTab'))
+const loadEntries = () => import('../../features/entries/EntriesTab')
+const EntriesTab = lazy(loadEntries)
+const loadEntryModal = () => import('../../features/entries/EntryModal')
+const loadGuideModal = () => import('../../features/guide/MoodGuideModal')
+const EntryModal = lazy(() => loadEntryModal().then((module) => ({ default: module.EntryModal })))
+const MoodGuideModal = lazy(() =>
+  loadGuideModal().then((module) => ({ default: module.MoodGuideModal })),
+)
 const ChartTab = lazy(() => import('../../features/chart/ChartTab'))
 const SettingsTab = lazy(() => import('../../features/settings/SettingsTab'))
 
@@ -40,6 +47,10 @@ export default AppPage
 
 function AppRoot() {
   const { status, retryBootstrap } = useAuth()
+  useEffect(() => {
+    // Код ленты загружается параллельно проверке сессии, без запроса личных данных.
+    void loadEntries().catch(() => undefined)
+  }, [])
   if (
     status === 'loading' ||
     status === 'offline' ||
@@ -52,9 +63,9 @@ function AppRoot() {
   return (
     <EntryModalProvider>
       <GuideProvider>
+        <EntrySync />
         <AppShell />
-        <EntryModal />
-        <MoodGuideModal />
+        <DeferredDialogs />
       </GuideProvider>
     </EntryModalProvider>
   )
@@ -63,10 +74,15 @@ function AppRoot() {
 function AppShell() {
   const [tab, setTab] = useState<TabName>('home')
   const [visited, setVisited] = useState<ReadonlySet<TabName>>(() => new Set(['home']))
-  const entryModal = useEntryModal()
-  const guide = useGuide()
+  const scrollPositions = useRef<Record<TabName, number>>({ home: 0, chart: 0, settings: 0 })
+
+  useLayoutEffect(() => {
+    window.scrollTo({ top: scrollPositions.current[tab], behavior: 'instant' })
+  }, [tab])
 
   const selectTab = (next: TabName) => {
+    if (next === tab) return
+    scrollPositions.current[tab] = window.scrollY
     setTab(next)
     setVisited((previous) => {
       if (previous.has(next)) return previous
@@ -78,12 +94,13 @@ function AppShell() {
 
   return (
     <div className="app-shell">
-      {/* Табы остаются в DOM и скрываются классом — как в старом фронте:
-          так лента не теряет прокрутку при переключении. */}
-      <main>
+      <a className="skip-link" href="#main-content">
+        К содержимому
+      </a>
+      <main id="main-content" tabIndex={-1}>
         {visited.has('home') ? (
           <section className={tabClass(tab === 'home')} id="tab-home">
-            <PageHeader title="Записи" onOpenGuide={() => guide.open('mood')} />
+            <PageHeader title="Записи" withGuide />
             <Suspense fallback={<LoadingState label="Открываем записи…" />}>
               <EntriesTab active={tab === 'home'} />
             </Suspense>
@@ -92,7 +109,7 @@ function AppShell() {
 
         {visited.has('chart') ? (
           <section className={tabClass(tab === 'chart')} id="tab-chart">
-            <PageHeader title="График" onOpenGuide={() => guide.open('mood')} />
+            <PageHeader title="График" withGuide />
             <Suspense fallback={<LoadingState label="Открываем график…" />}>
               <ChartTab active={tab === 'chart'} />
             </Suspense>
@@ -111,57 +128,103 @@ function AppShell() {
 
       <div className="tab-dock">
         <TabBar tab={tab} visited={visited} onChange={selectTab} />
-        <button
-          type="button"
-          className={entryModal.isOpen ? 'fab-add is-hidden' : 'fab-add'}
-          onClick={(event: MouseEvent<HTMLButtonElement>) => {
-            entryModal.open(null, event.currentTarget.getBoundingClientRect())
-          }}
-          aria-label="Добавить запись"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2.1"
-            strokeLinecap="round"
-            aria-hidden="true"
-          >
-            <path d="M12 5.4v13.2M5.4 12h13.2" />
-          </svg>
-        </button>
+        <AddEntryButton />
       </div>
     </div>
   )
 }
 
-/** Заголовок экрана с памяткой, которая уезжает вместе с верхней панелью. */
-function PageHeader({ title, onOpenGuide }: { title: string; onOpenGuide?: () => void }) {
+function AddEntryButton() {
+  const entryModal = useEntryModal()
+  const { writeBlocked } = useOfflineState()
   return (
-    <header className="page-header">
-      <h1 className="large-title">{title}</h1>
-      {onOpenGuide && (
-        <button
-          type="button"
-          className="btn-icon-glass page-info"
-          onClick={onOpenGuide}
-          aria-label="Шкала настроения"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="1.7"
-            strokeLinecap="round"
-            aria-hidden="true"
+    <button
+      type="button"
+      className={entryModal.isOpen ? 'fab-add is-hidden' : 'fab-add'}
+      onClick={(event: MouseEvent<HTMLButtonElement>) => {
+        entryModal.open(null, event.currentTarget.getBoundingClientRect())
+      }}
+      aria-label="Добавить запись"
+      disabled={writeBlocked}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.1"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <path d="M12 5.4v13.2M5.4 12h13.2" />
+      </svg>
+    </button>
+  )
+}
+
+function DeferredDialogs() {
+  const { isOpen: entryOpen } = useEntryModal()
+  const { isOpen: guideOpen } = useGuide()
+  const [loaded, setLoaded] = useState({ entry: entryOpen, guide: guideOpen })
+  useEffect(() => {
+    if (entryOpen || guideOpen) {
+      setLoaded((previous) => ({
+        entry: previous.entry || entryOpen,
+        guide: previous.guide || guideOpen,
+      }))
+    }
+  }, [entryOpen, guideOpen])
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      void loadEntryModal().catch(() => undefined)
+      void loadGuideModal().catch(() => undefined)
+    }, 2000)
+    return () => window.clearTimeout(timer)
+  }, [])
+  return (
+    <Suspense
+      fallback={
+        <p className="dialog-loading" role="status">
+          Открываем окно…
+        </p>
+      }
+    >
+      {(entryOpen || loaded.entry) && <EntryModal />}
+      {(guideOpen || loaded.guide) && <MoodGuideModal />}
+    </Suspense>
+  )
+}
+
+/** Заголовок экрана с памяткой, которая уезжает вместе с верхней панелью. */
+function PageHeader({ title, withGuide = false }: { title: string; withGuide?: boolean }) {
+  const { open } = useGuideActions()
+  return (
+    <>
+      <header className="page-header">
+        <h1 className="large-title">{title}</h1>
+        {withGuide && (
+          <button
+            type="button"
+            className="btn-icon-glass page-info"
+            onClick={() => open('mood')}
+            aria-label="Шкала настроения"
           >
-            <circle cx="12" cy="12" r="9" />
-            <path d="M12 11v6" />
-            <circle cx="12" cy="7.5" r="1.05" fill="currentColor" stroke="none" />
-          </svg>
-        </button>
-      )}
-    </header>
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.7"
+              strokeLinecap="round"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 11v6" />
+              <circle cx="12" cy="7.5" r="1.05" fill="currentColor" stroke="none" />
+            </svg>
+          </button>
+        )}
+      </header>
+      <OfflineNotice />
+    </>
   )
 }
 

@@ -138,6 +138,10 @@
   letter-spacing: -0.02em;
 }
 
+.modal-header h2:focus {
+  outline: none;
+}
+
 .btn-close {
   display: flex;
   align-items: center;

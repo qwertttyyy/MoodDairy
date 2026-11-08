@@ -21,4 +21,12 @@ describe('частично повреждённый набор записей', 
     expect(entries[1]).toEqual({ kind: 'corrupted', id: 2, timestamp: base.timestamp })
     expect(JSON.stringify(entries[1])).not.toContain('Скрытый текст')
   })
+
+  it('не принимает число с посторонним суффиксом как корректную оценку', async () => {
+    setEncryptionEnabled(false)
+    const entries = await decryptEntries([
+      { id: 1, mood: '7oops', anxiety: '', note: '', tags: [], timestamp: '2026-08-24T20:00:00Z' },
+    ])
+    expect(entries[0]?.kind).toBe('corrupted')
+  })
 })

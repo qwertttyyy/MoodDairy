@@ -7,6 +7,7 @@ import { useMemo, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 
 import { useSettings } from '../../shared/settings/settings'
+import { useLocalDay } from '../../shared/lib/useLocalDay'
 import { ChartIcon } from '../../shared/ui/EmptyStateIcons'
 import { ErrorState } from '../../shared/ui/QueryState'
 import { useChartEntries, useDateRange } from '../entries/api'
@@ -26,12 +27,13 @@ export function ChartTab({ active }: { active: boolean }) {
   const [mode, setMode] = useState<ChartMode>('month')
   const [selectedMonth, setSelectedMonth] = useState<YearMonth>(currentYearMonth)
   const [selectedYear, setSelectedYear] = useState<number>(currentYear)
+  const day = useLocalDay()
 
   const isMonthMode = mode === 'month'
   const isYearMode = mode === 'year'
   const period = useMemo(
-    () => periodView(mode, selectedMonth, selectedYear),
-    [mode, selectedMonth, selectedYear],
+    () => periodView(mode, selectedMonth, selectedYear, day),
+    [mode, selectedMonth, selectedYear, day],
   )
 
   // Запросы уходят только на открытом табе: скрытому графику данные не нужны.
@@ -44,12 +46,16 @@ export function ChartTab({ active }: { active: boolean }) {
     refetch: refetchDateRange,
   } = useDateRange(active)
 
-  const entries = useMemo(() => data?.entries ?? [], [data])
+  const entries = useMemo(
+    () => filterByRange(data?.entries ?? [], period.range),
+    [data, period.range],
+  )
   const hasEntries = entries.length > 0
   // Пока первая загрузка не закончилась, решать нечем — пустое состояние не показываем.
   const loading = isPending || isDateRangePending
-  const failed = error || dateRangeError
-  const showEmpty = !loading && !failed && !hasEntries
+  const failed = (error && !data) || (dateRangeError && !dateRange)
+  const unreadable = !hasEntries && (data?.corruptedCount ?? 0) > 0
+  const showEmpty = !loading && !failed && !hasEntries && !unreadable
 
   const average = averageMood(entries)
   const trend = useMemo(
@@ -138,14 +144,15 @@ export function ChartTab({ active }: { active: boolean }) {
 
         {!failed && loading ? <ChartSkeleton /> : null}
 
+        {!loading && !failed && (data?.corruptedCount ?? 0) > 0 ? (
+          <p className="chart-warning" role="status">
+            {unreadable
+              ? 'Записи есть, но их не удалось расшифровать. Попробуйте выйти и войти снова, чтобы восстановить ключ.'
+              : `Не удалось расшифровать записей: ${data?.corruptedCount ?? 0}. Они не показаны на графике.`}
+          </p>
+        ) : null}
         {!loading && !failed && hasEntries && (
           <>
-            {(data?.corruptedCount ?? 0) > 0 ? (
-              <p className="chart-warning" role="status">
-                Не удалось расшифровать записей: {data?.corruptedCount ?? 0}. Они не показаны на
-                графике.
-              </p>
-            ) : null}
             <div className="chart-summary">
               <div>
                 <div className="chart-avg">{average === null ? '—' : average.toFixed(1)}</div>

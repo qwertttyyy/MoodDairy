@@ -64,6 +64,7 @@ export default defineConfig({
         ],
       },
       workbox: {
+        clientsClaim: true,
         globPatterns: ['**/*.{html,js,css,png,svg,webmanifest}'],
         inlineWorkboxRuntime: true,
         navigateFallback: '/index.html',

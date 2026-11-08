@@ -4,6 +4,9 @@ import { resolve } from 'node:path'
 
 const MAX_JS_CHUNK_GZIP = 80 * 1024
 const MAX_ROUTE_CSS_GZIP = 15 * 1024
+// Count the complete static import graph, so splitting a large dependency into
+// several chunks cannot hide a startup-size regression.
+const MAX_ROUTE_GZIP_KIB = { app: 125, share: 120, 'not-found': 115 }
 const buildDir = resolve('dist')
 const manifestPath = resolve(buildDir, '.vite/manifest.json')
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'))
@@ -24,18 +27,19 @@ function gzipBytes(file) {
   return gzipSync(readFileSync(resolve(buildDir, file))).byteLength
 }
 
-function collectCss(keys) {
+function collectFiles(keys) {
   const visited = new Set()
-  const css = new Set()
+  const files = new Set()
   const visit = (key) => {
     if (visited.has(key)) return
     visited.add(key)
     const value = record(key)
-    for (const file of value.css ?? []) css.add(file)
+    files.add(value.file)
+    for (const file of value.css ?? []) files.add(file)
     for (const dependency of value.imports ?? []) visit(dependency)
   }
   keys.forEach(visit)
-  return css
+  return files
 }
 
 const failures = []
@@ -53,11 +57,21 @@ for (const file of jsFiles) {
 }
 
 for (const [route, roots] of Object.entries(routeRoots)) {
-  const files = collectCss(roots)
-  const size = [...files].reduce((total, file) => total + gzipBytes(file), 0)
-  if (size > MAX_ROUTE_CSS_GZIP) {
+  const files = [...collectFiles(roots)]
+  const size = files.reduce((total, file) => total + gzipBytes(file), 0)
+  const cssSize = files
+    .filter((file) => file.endsWith('.css'))
+    .reduce((total, file) => total + gzipBytes(file), 0)
+  process.stdout.write(
+    `${route}: ${files.length} files, ${(size / 1024).toFixed(2)} KiB gzip (CSS ${(cssSize / 1024).toFixed(2)} KiB)\n`,
+  )
+  if (size > MAX_ROUTE_GZIP_KIB[route] * 1024)
     failures.push(
-      `${route} CSS: ${(size / 1024).toFixed(2)} KiB gzip > ${MAX_ROUTE_CSS_GZIP / 1024} KiB`,
+      `${route}: ${(size / 1024).toFixed(2)} KiB gzip > ${MAX_ROUTE_GZIP_KIB[route]} KiB`,
+    )
+  if (cssSize > MAX_ROUTE_CSS_GZIP) {
+    failures.push(
+      `${route} CSS: ${(cssSize / 1024).toFixed(2)} KiB gzip > ${MAX_ROUTE_CSS_GZIP / 1024} KiB`,
     )
   }
 }

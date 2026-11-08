@@ -4,8 +4,10 @@
  */
 
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import type { InfiniteData, QueryClient } from '@tanstack/react-query'
 
 import { api } from '../../shared/api/client'
+import { isCurrentUser, userQueryKey } from '../../shared/offline/queryScope'
 import {
   chartRawEntriesSchema,
   dateRangeResponseSchema,
@@ -17,11 +19,16 @@ import {
 } from '../../shared/api/types'
 import type { DateRangeResponse, RawEntry, Tag } from '../../shared/api/types'
 import {
-  DecryptionError,
-  EncryptedDataFormatError,
-  decrypt,
-  encrypt,
-} from '../../shared/crypto/crypto'
+  cachedGet,
+  currentOfflineUser,
+  offlineSessionGeneration,
+  diaryWritesBlocked,
+  setOfflineState,
+} from '../../shared/offline/offline'
+import { decryptEntries, decryptEntry, decryptScores, encryptEntry } from './entryCodec'
+import { editPendingEntry, OfflineStorageError, queueEntry } from './offlineEntries'
+import { patchCachedFeed } from './feedCache'
+export { decryptEntry, decryptEntries } from './entryCodec'
 import { localDateKey } from '../../shared/lib/dates'
 import type { ChartEntry } from '../chart/types'
 import type { EntryDayGroup, EntryFormData, EntryResult } from './types'
@@ -54,42 +61,7 @@ export const entriesKeys = {
   tags: ['tags'] as const,
 }
 
-export async function decryptEntry(raw: RawEntry): Promise<EntryResult> {
-  try {
-    const mood = Number.parseInt(await decrypt(raw.mood), 10)
-    const anxiety = raw.anxiety ? Number.parseInt(await decrypt(raw.anxiety), 10) : 0
-    if (!Number.isInteger(mood) || mood < 1 || mood > 9) throw new EncryptedDataFormatError()
-    if (!Number.isInteger(anxiety) || anxiety < 0 || anxiety > 5) {
-      throw new EncryptedDataFormatError()
-    }
-    return {
-      kind: 'ready',
-      id: raw.id,
-      mood,
-      note: raw.note ? await decrypt(raw.note) : '',
-      anxiety,
-      tags: raw.tags,
-      timestamp: raw.timestamp,
-    }
-  } catch (error) {
-    if (error instanceof EncryptedDataFormatError || error instanceof DecryptionError) {
-      return { kind: 'corrupted', id: raw.id, timestamp: raw.timestamp }
-    }
-    throw error
-  }
-}
-
-export async function decryptEntries(items: RawEntry[]): Promise<EntryResult[]> {
-  const settled = await Promise.allSettled(items.map(decryptEntry))
-  return settled.map((result, index) => {
-    if (result.status === 'fulfilled') return result.value
-    const raw = items[index]
-    if (!raw) throw new Error('Результат расшифровки не соответствует записи')
-    return { kind: 'corrupted', id: raw.id, timestamp: raw.timestamp }
-  })
-}
-
-interface FeedPage {
+export interface FeedPage {
   days: EntryDayGroup[]
   nextBefore: string | null
 }
@@ -97,7 +69,8 @@ interface FeedPage {
 /** Лента записей: постраничная выборка по курсору `next_before`. */
 export function useEntriesFeed(enabled = true) {
   return useInfiniteQuery<FeedPage>({
-    queryKey: entriesKeys.feed,
+    networkMode: 'always',
+    queryKey: userQueryKey(entriesKeys.feed),
     enabled,
     initialPageParam: null,
     queryFn: async ({ pageParam, signal }) => {
@@ -105,7 +78,7 @@ export function useEntriesFeed(enabled = true) {
       const url = before
         ? `/api/entries/grouped/?before=${encodeURIComponent(before)}`
         : '/api/entries/grouped/'
-      const data = await api.get(url, groupedEntriesResponseSchema, { signal })
+      const data = await cachedGet(url, groupedEntriesResponseSchema, { signal })
 
       const days = await Promise.all(
         Object.entries(data.results).map(async ([day, items]) => ({
@@ -122,9 +95,12 @@ export function useEntriesFeed(enabled = true) {
 /** Склеивает страницы ленты в дни, отсортированные от новых к старым. */
 export function mergeFeedPages(pages: FeedPage[] | undefined): EntryDayGroup[] {
   const byDay = new Map<string, EntryResult[]>()
+  const seen = new Set<number>()
   for (const page of pages ?? []) {
     for (const group of page.days) {
       for (const entry of group.entries) {
+        if (seen.has(entry.id)) continue
+        seen.add(entry.id)
         const day = localDateKey(entry.timestamp)
         const existing = byDay.get(day)
         if (existing) existing.push(entry)
@@ -134,7 +110,10 @@ export function mergeFeedPages(pages: FeedPage[] | undefined): EntryDayGroup[] {
   }
   return [...byDay.entries()]
     .sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0))
-    .map(([day, entries]) => ({ day, entries }))
+    .map(([day, entries]) => ({
+      day,
+      entries: entries.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)),
+    }))
 }
 
 /** Данные графиков: нужны mood и anxiety, поэтому заметки не расшифровываем. */
@@ -145,24 +124,14 @@ export interface ChartData {
 
 export function useChartEntries(query: ChartQuery, enabled: boolean) {
   return useQuery<ChartData>({
-    queryKey: entriesKeys.chart(query),
+    networkMode: 'always',
+    queryKey: userQueryKey(entriesKeys.chart(query)),
     enabled,
     queryFn: async ({ signal }) => {
-      const raw = await api.get(buildChartUrl(query), chartRawEntriesSchema, { signal })
+      const raw = await cachedGet(buildChartUrl(query), chartRawEntriesSchema, { signal })
       const settled = await Promise.allSettled(
         raw.map(async (item) => {
-          const mood = Number.parseInt(await decrypt(item.mood), 10)
-          const anxiety = item.anxiety ? Number.parseInt(await decrypt(item.anxiety), 10) : 0
-          if (
-            !Number.isInteger(mood) ||
-            mood < 1 ||
-            mood > 9 ||
-            !Number.isInteger(anxiety) ||
-            anxiety < 0 ||
-            anxiety > 5
-          ) {
-            throw new EncryptedDataFormatError()
-          }
+          const { mood, anxiety } = await decryptScores(item)
           return { mood, anxiety, timestamp: item.timestamp }
         }),
       )
@@ -190,18 +159,20 @@ export function buildChartUrl(query: ChartQuery): string {
 /** Дата первой записи — нижняя граница помесячной навигации. */
 export function useDateRange(enabled: boolean) {
   return useQuery<DateRangeResponse>({
-    queryKey: entriesKeys.dateRange,
+    networkMode: 'always',
+    queryKey: userQueryKey(entriesKeys.dateRange),
     enabled,
     queryFn: ({ signal }) =>
-      api.get('/api/entries/date-range/', dateRangeResponseSchema, { signal }),
+      cachedGet('/api/entries/date-range/', dateRangeResponseSchema, { signal }),
   })
 }
 
 export function useTags(enabled = true) {
   return useQuery<Tag[]>({
-    queryKey: entriesKeys.tags,
+    networkMode: 'always',
+    queryKey: userQueryKey(entriesKeys.tags),
     enabled,
-    queryFn: ({ signal }) => api.get('/api/tags/', tagsSchema, { signal }),
+    queryFn: ({ signal }) => cachedGet('/api/tags/', tagsSchema, { signal }),
   })
 }
 
@@ -213,9 +184,16 @@ export function useTags(enabled = true) {
  * входят в ленту, а на сервере их изменение обнуляет кэш записей.
  */
 function useTagMutation<TVariables>(mutationFn: (variables: TVariables) => Promise<unknown>) {
+  const ownerId = currentOfflineUser()?.id
+  const version = offlineSessionGeneration()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn,
+    networkMode: 'always',
+    mutationFn: (variables: TVariables) => {
+      if (!isCurrentUser(ownerId, version))
+        throw new Error('Аккаунт изменился. Откройте настройки заново.')
+      return mutationFn(variables)
+    },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: entriesKeys.tags })
       void queryClient.invalidateQueries({ queryKey: entriesKeys.all })
@@ -239,28 +217,142 @@ export function useDeleteTag() {
 }
 
 export function useSaveEntry() {
+  const ownerId = currentOfflineUser()?.id
+  const sessionGeneration = offlineSessionGeneration()
   const queryClient = useQueryClient()
   return useMutation({
+    networkMode: 'always',
     mutationFn: async ({ data, editId }: { data: EntryFormData; editId: number | null }) => {
-      const body = {
-        mood: await encrypt(String(data.mood)),
-        note: data.note ? await encrypt(data.note) : '',
-        anxiety: data.anxiety ? await encrypt(String(data.anxiety)) : '',
-        tags: data.tags,
-        timestamp: data.timestamp,
+      if (!isCurrentUser(ownerId, sessionGeneration))
+        throw new Error('Аккаунт изменился. Откройте запись заново.')
+      if (diaryWritesBlocked())
+        throw new Error('Сначала разблокируйте дневник: войдите заново с паролем.')
+      const body = await encryptEntry(data)
+      if (!isCurrentUser(ownerId, sessionGeneration))
+        throw new Error('Аккаунт изменился. Запись не отправлена.')
+      if (editId !== null && editId < 0) {
+        const tags = queryClient.getQueryData<Tag[]>(userQueryKey(entriesKeys.tags, ownerId)) ?? []
+        const result = await editPendingEntry(
+          editId,
+          body,
+          tags.filter((tag) => data.tags.includes(tag.id)),
+        )
+        if (!result) throw new Error('Не удалось обновить локальную запись')
+        return result
       }
+      if (editId === null && currentOfflineUser()) {
+        const tags = queryClient.getQueryData<Tag[]>(userQueryKey(entriesKeys.tags, ownerId)) ?? []
+        try {
+          return await queueEntry(
+            body,
+            tags.filter((tag) => data.tags.includes(tag.id)),
+          )
+        } catch (error) {
+          if (
+            !(error instanceof OfflineStorageError) ||
+            !navigator.onLine ||
+            !isCurrentUser(ownerId, sessionGeneration)
+          )
+            throw error
+          return api.post('/api/entries/', body, rawEntrySchema)
+        }
+      }
+      if (!navigator.onLine) throw new Error('Для изменения записи подключитесь к интернету')
       return editId
         ? api.put(`/api/entries/${editId}/`, body, rawEntrySchema)
         : api.post('/api/entries/', body, rawEntrySchema)
     },
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: entriesKeys.all }),
+    onSuccess: async (raw) => {
+      if (raw.id < 0 || !isCurrentUser(ownerId, sessionGeneration)) return
+      await queryClient.cancelQueries({ queryKey: entriesKeys.feed })
+      await applySavedEntry(queryClient, raw, ownerId)
+      await patchCachedFeed(raw).catch(() => setOfflineState({ storageError: true }))
+    },
   })
 }
 
 export function useDeleteEntry() {
+  const ownerId = currentOfflineUser()?.id
+  const sessionGeneration = offlineSessionGeneration()
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (id: number) => api.del(`/api/entries/${id}/`, voidResponseSchema),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: entriesKeys.all }),
+    networkMode: 'always',
+    mutationFn: (id: number) => {
+      if (!isCurrentUser(ownerId, sessionGeneration))
+        throw new Error('Аккаунт изменился. Откройте запись заново.')
+      if (id < 0) return editPendingEntry(id).then(() => undefined)
+      if (!navigator.onLine) throw new Error('Для удаления подключитесь к интернету')
+      return api.del(`/api/entries/${id}/`, voidResponseSchema)
+    },
+    onSuccess: async (_data, id) => {
+      if (id < 0 || !isCurrentUser(ownerId, sessionGeneration)) return
+      await queryClient.cancelQueries({ queryKey: entriesKeys.feed })
+      await patchCachedFeed(id).catch(() => setOfflineState({ storageError: true }))
+      queryClient.setQueryData<InfiniteData<FeedPage>>(
+        userQueryKey(entriesKeys.feed, ownerId),
+        (current) =>
+          current
+            ? {
+                ...current,
+                pages: current.pages.map((page) => ({
+                  ...page,
+                  days: page.days
+                    .map((day) => ({
+                      ...day,
+                      entries: day.entries.filter((entry) => entry.id !== id),
+                    }))
+                    .filter((day) => day.entries.length > 0),
+                })),
+              }
+            : current,
+      )
+      void queryClient.invalidateQueries({ queryKey: entriesKeys.all, refetchType: 'none' })
+      void queryClient.invalidateQueries({ queryKey: ['entries', 'chart'] })
+      void queryClient.invalidateQueries({ queryKey: entriesKeys.dateRange })
+    },
   })
+}
+
+/** Apply the confirmed result without waiting for every loaded page to refetch. */
+export async function applySavedEntry(
+  queryClient: QueryClient,
+  raw: RawEntry,
+  ownerId = currentOfflineUser()?.id,
+): Promise<void> {
+  const sessionGeneration = offlineSessionGeneration()
+  if (!isCurrentUser(ownerId, sessionGeneration)) return
+  const entry = await decryptEntry(raw)
+  if (!isCurrentUser(ownerId, sessionGeneration)) return
+  queryClient.setQueryData<InfiniteData<FeedPage>>(
+    userQueryKey(entriesKeys.feed, ownerId),
+    (current) => {
+      if (!current?.pages.length)
+        return {
+          pages: [
+            {
+              days: [{ day: localDateKey(entry.timestamp), entries: [entry] }],
+              nextBefore: localDateKey(new Date(Date.parse(entry.timestamp) + 2 * 86400000)),
+            },
+          ],
+          pageParams: [null],
+        }
+      const pages = current.pages.map((page) => ({
+        ...page,
+        days: page.days
+          .map((day) => ({ ...day, entries: day.entries.filter((item) => item.id !== entry.id) }))
+          .filter((day) => day.entries.length > 0),
+      }))
+      const first = pages[0]
+      if (first) {
+        const key = localDateKey(entry.timestamp)
+        const day = first.days.find((item) => item.day === key)
+        if (day) day.entries.push(entry)
+        else first.days.push({ day: key, entries: [entry] })
+      }
+      return { ...current, pages }
+    },
+  )
+  void queryClient.invalidateQueries({ queryKey: entriesKeys.all, refetchType: 'none' })
+  void queryClient.invalidateQueries({ queryKey: ['entries', 'chart'] })
+  void queryClient.invalidateQueries({ queryKey: entriesKeys.dateRange })
 }

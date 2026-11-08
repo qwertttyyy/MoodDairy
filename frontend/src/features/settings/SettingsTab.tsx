@@ -1,6 +1,7 @@
 import { useSettings } from '../../shared/settings/settings'
 import { useConfirm } from '../../shared/ui/confirm'
 import { Toggle } from '../../shared/ui/Toggle'
+import { useOfflineState } from '../../shared/offline/offline'
 import { useAuth } from '../auth/AuthContext'
 import { TagsSection } from '../entries/TagsSection'
 import { SharingSection } from '../sharing/SharingSection'
@@ -12,30 +13,36 @@ import './settings.css'
 function ToggleRow({
   label,
   checked,
+  disabled = false,
   onChange,
 }: {
   label: string
   checked: boolean
+  disabled?: boolean
   onChange: (checked: boolean) => void
 }) {
   return (
     <label className="set-row set-row-toggle">
       <span className="set-label">{label}</span>
-      <Toggle label={label} checked={checked} onChange={onChange} />
+      <Toggle label={label} checked={checked} disabled={disabled} onChange={onChange} />
     </label>
   )
 }
 
 /** Таб настроек: вид, теги, доступ для врача, выход. */
 export function SettingsTab({ active = true }: { active?: boolean }) {
-  const { settings, update } = useSettings()
+  const { settings, systemReduceTransparency, update } = useSettings()
   const confirm = useConfirm()
   const { logout } = useAuth()
+  const { pending } = useOfflineState()
 
   const askLogout = () => {
     confirm({
       title: 'Выйти из аккаунта?',
-      text: 'Зашифрованные ключи будут удалены.',
+      text:
+        pending > 0
+          ? `На устройстве остались неотправленные записи: ${pending}. При выходе они и локальный кеш будут удалены. Сначала подключитесь к интернету, чтобы сохранить их на сервере.`
+          : 'Локальные записи, кеш и ключи будут удалены с устройства.',
       confirmLabel: 'Выйти',
       onConfirm: logout,
     })
@@ -53,7 +60,8 @@ export function SettingsTab({ active = true }: { active?: boolean }) {
         <div className="set-sep" />
         <ToggleRow
           label="Уменьшить прозрачность"
-          checked={settings.reduceTransparency}
+          checked={settings.reduceTransparency || systemReduceTransparency}
+          disabled={systemReduceTransparency}
           onChange={(reduceTransparency) => update({ reduceTransparency })}
         />
         <div className="set-sep" />
@@ -63,6 +71,9 @@ export function SettingsTab({ active = true }: { active?: boolean }) {
           onChange={(chartSmooth) => update({ chartSmooth })}
         />
       </div>
+      {systemReduceTransparency && (
+        <p className="settings-note">Уменьшение прозрачности включено в настройках устройства.</p>
+      )}
 
       <h2 className="settings-title">Теги</h2>
       <TagsSection active={active} />

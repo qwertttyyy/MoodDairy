@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { EntryModalContext } from './EntryModalContext'
+import { EntryModalActionsContext, EntryModalContext } from './EntryModalContext'
 import type { DecryptedEntry } from './types'
 
 /** Состояние формы доступно памятке, которая может выставлять оценку. */
@@ -46,5 +46,10 @@ export function EntryModalProvider({ children }: { children: ReactNode }) {
     [isOpen, editing, mood, anxiety, origin, open, close, selectAnxiety],
   )
 
-  return <EntryModalContext.Provider value={value}>{children}</EntryModalContext.Provider>
+  const actions = useMemo(() => ({ open, close }), [open, close])
+  return (
+    <EntryModalActionsContext.Provider value={actions}>
+      <EntryModalContext.Provider value={value}>{children}</EntryModalContext.Provider>
+    </EntryModalActionsContext.Provider>
+  )
 }

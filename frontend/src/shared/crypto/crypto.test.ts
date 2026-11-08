@@ -1,4 +1,4 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { b64ToBytes } from '../lib/base64'
 import {
@@ -8,6 +8,7 @@ import {
   PBKDF2_ITERATIONS,
   WRAPPED_KEY_STORAGE,
   clearKeys,
+  clearSessionKey,
   decrypt,
   decryptWithKey,
   deriveKey,
@@ -70,6 +71,7 @@ beforeEach(() => {
 })
 
 afterEach(() => {
+  vi.restoreAllMocks()
   setEncryptionEnabled(true)
   clearKeys()
   sessionStorage.clear()
@@ -77,6 +79,29 @@ afterEach(() => {
 })
 
 describe('критичный контракт шифрования', () => {
+  it('импортирует ключ один раз для параллельного пакета расшифровки', async () => {
+    const imported = vi.spyOn(crypto.subtle, 'importKey')
+    const values = await Promise.all(Array.from({ length: 24 }, () => decrypt(LEGACY_BLOB)))
+    expect(values.every((value) => value === LEGACY_TEXT)).toBe(true)
+    expect(imported).toHaveBeenCalledTimes(1)
+  })
+
+  it('не записывает ключ, если восстановление отменили во время Web Crypto', async () => {
+    await wrapKey(wrappingKeyB64)
+    clearSessionKey()
+    const controller = new AbortController()
+    const original = crypto.subtle.decrypt.bind(crypto.subtle)
+    vi.spyOn(crypto.subtle, 'decrypt').mockImplementationOnce(async (...args) => {
+      const result = await original(...args)
+      controller.abort()
+      return result
+    })
+    await expect(unwrapKey(wrappingKeyB64, controller.signal)).rejects.toMatchObject({
+      name: 'AbortError',
+    })
+    expect(sessionStorage.getItem(ENC_KEY_STORAGE)).toBeNull()
+  })
+
   it('сохраняет параметры PBKDF2 и имена ключей storage', () => {
     expect(PBKDF2_ITERATIONS).toBe(600000)
     expect(ENC_KEY_STORAGE).toBe('enc_key')

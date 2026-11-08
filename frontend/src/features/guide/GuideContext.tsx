@@ -11,6 +11,13 @@ interface GuideValue {
 }
 
 export const GuideContext = createContext<GuideValue | null>(null)
+export const GuideActionsContext = createContext<Pick<GuideValue, 'open'> | null>(null)
+
+export function useGuideActions() {
+  const value = useContext(GuideActionsContext)
+  if (!value) throw new Error('useGuideActions должен вызываться внутри GuideProvider')
+  return value
+}
 
 export function useGuide(): GuideValue {
   const value = useContext(GuideContext)

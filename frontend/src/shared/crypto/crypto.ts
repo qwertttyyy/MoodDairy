@@ -16,6 +16,8 @@ import type { Bytes } from '../lib/base64'
 export const PBKDF2_ITERATIONS = 600000
 export const ENC_KEY_STORAGE = 'enc_key'
 export const WRAPPED_KEY_STORAGE = 'wrapped_enc_key'
+const KEY_OWNER_STORAGE = 'enc_key_owner'
+const WRAPPED_OWNER_STORAGE = 'wrapped_enc_key_owner'
 
 const IV_LENGTH = 12
 const KEY_LENGTH = 32
@@ -41,7 +43,8 @@ export class DecryptionError extends Error {
 let encryptionEnabled = true
 
 /** Импортированный CryptoKey кэшируется: importKey на каждой записи заметно тормозит ленту. */
-let cachedKey: CryptoKey | null = null
+let cachedKey: Promise<CryptoKey> | null = null
+let memoryOwner: number | null = null
 
 export function setEncryptionEnabled(enabled: boolean): void {
   encryptionEnabled = enabled
@@ -105,7 +108,8 @@ export async function wrapKey(wrappingKeyB64: string): Promise<void> {
 }
 
 /** Восстанавливает ключ из localStorage. `false` — если обёрнутого ключа нет. */
-export async function unwrapKey(wrappingKeyB64: string): Promise<boolean> {
+export async function unwrapKey(wrappingKeyB64: string, signal?: AbortSignal): Promise<boolean> {
+  signal?.throwIfAborted()
   const blob = localStorage.getItem(WRAPPED_KEY_STORAGE)
   if (!blob) return false
   const { iv, ciphertext } = parseEncryptedBlob(blob)
@@ -118,9 +122,11 @@ export async function unwrapKey(wrappingKeyB64: string): Promise<boolean> {
       ['decrypt'],
     )
     const raw = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, wrappingKey, ciphertext)
+    signal?.throwIfAborted()
     storeRawKey(new Uint8Array(raw))
     return true
   } catch (error) {
+    if (signal?.aborted) throw error
     if (error instanceof EncryptedDataFormatError) throw error
     throw new DecryptionError(error)
   }
@@ -138,15 +144,46 @@ export function hasWrapped(): boolean {
   return !!localStorage.getItem(WRAPPED_KEY_STORAGE)
 }
 
+export function hasKeyForUser(userId: number): boolean {
+  return (
+    (memoryOwner === userId && cachedKey !== null) ||
+    (sessionStorage.getItem(KEY_OWNER_STORAGE) === String(userId) && hasKey())
+  )
+}
+
+export function wrappedKeyMatchesUser(userId: number): boolean {
+  const owner = localStorage.getItem(WRAPPED_OWNER_STORAGE)
+  return owner === null || owner === String(userId)
+}
+
+export function bindKeyToUser(userId: number): void {
+  memoryOwner = userId
+  sessionStorage.setItem(KEY_OWNER_STORAGE, String(userId))
+  if (hasWrapped()) localStorage.setItem(WRAPPED_OWNER_STORAGE, String(userId))
+}
+
+/** Structured-cloneable, non-extractable key for the encrypted offline vault. */
+export function getLocalEncryptionKey(): Promise<CryptoKey> {
+  return getCryptoKey()
+}
+
+export function restoreLocalEncryptionKey(key: CryptoKey, userId: number): void {
+  cachedKey = Promise.resolve(key)
+  memoryOwner = userId
+}
+
 export function clearKeys(): void {
   clearSessionKey()
   localStorage.removeItem(WRAPPED_KEY_STORAGE)
+  localStorage.removeItem(WRAPPED_OWNER_STORAGE)
 }
 
 /** При истечении сессии wrapped key сохраняется для следующего входа. */
 export function clearSessionKey(): void {
   sessionStorage.removeItem(ENC_KEY_STORAGE)
+  sessionStorage.removeItem(KEY_OWNER_STORAGE)
   cachedKey = null
+  memoryOwner = null
 }
 
 // ============================================
@@ -234,6 +271,8 @@ export function decodeEncryptionKey(value: string): Bytes {
 function storeRawKey(raw: Bytes): void {
   sessionStorage.setItem(ENC_KEY_STORAGE, bytesToB64(raw))
   cachedKey = null
+  memoryOwner = null
+  sessionStorage.removeItem(KEY_OWNER_STORAGE)
 }
 
 function getRawKey(): Bytes | null {
@@ -245,6 +284,6 @@ async function getCryptoKey(): Promise<CryptoKey> {
   if (cachedKey) return cachedKey
   const raw = getRawKey()
   if (!raw) throw new Error('Encryption key not available')
-  cachedKey = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt'])
+  cachedKey = crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt'])
   return cachedKey
 }

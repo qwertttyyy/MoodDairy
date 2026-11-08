@@ -1,4 +1,5 @@
-import type { ZodType } from 'zod'
+import { safeParse } from 'zod/v4/core'
+import type { $ZodType } from 'zod/v4/core'
 
 export const ERROR_CODES = {
   validationError: 'validation_error',
@@ -118,7 +119,7 @@ function getCsrfToken(): string {
 async function request<T>(
   method: string,
   url: string,
-  schema: ZodType<T>,
+  schema: $ZodType<T>,
   body?: unknown,
   options: RequestOptions = {},
 ): Promise<T> {
@@ -160,7 +161,7 @@ async function request<T>(
       throw error
     }
 
-    const parsed = schema.safeParse(data)
+    const parsed = safeParse(schema, data)
     if (!parsed.success) {
       throw new IncompatibleApiResponseError(
         parsed.error.issues.map((issue) => ({ path: issue.path, message: issue.message })),
@@ -179,15 +180,15 @@ async function request<T>(
 }
 
 export const api = {
-  get: <T>(url: string, schema: ZodType<T>, options?: RequestOptions) =>
+  get: <T>(url: string, schema: $ZodType<T>, options?: RequestOptions) =>
     request('GET', url, schema, undefined, options),
-  post: <T>(url: string, body: unknown, schema: ZodType<T>, options?: RequestOptions) =>
+  post: <T>(url: string, body: unknown, schema: $ZodType<T>, options?: RequestOptions) =>
     request('POST', url, schema, body, options),
-  patch: <T>(url: string, body: unknown, schema: ZodType<T>, options?: RequestOptions) =>
+  patch: <T>(url: string, body: unknown, schema: $ZodType<T>, options?: RequestOptions) =>
     request('PATCH', url, schema, body, options),
-  put: <T>(url: string, body: unknown, schema: ZodType<T>, options?: RequestOptions) =>
+  put: <T>(url: string, body: unknown, schema: $ZodType<T>, options?: RequestOptions) =>
     request('PUT', url, schema, body, options),
-  del: <T>(url: string, schema: ZodType<T>, options?: RequestOptions) =>
+  del: <T>(url: string, schema: $ZodType<T>, options?: RequestOptions) =>
     request('DELETE', url, schema, undefined, options),
 }
 

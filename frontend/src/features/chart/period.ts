@@ -50,18 +50,17 @@ function lastDayOfMonth(year: number, month: number): Date {
 }
 
 /** Будущего в данных нет: календарный период обрывается сегодняшним днём. */
-function clampToToday(date: Date): Date {
-  const now = today()
+function clampToToday(date: Date, now: Date): Date {
   return date > now ? now : date
 }
 
-function monthView(year: number, month: number): PeriodView {
+function monthView(year: number, month: number, now: Date): PeriodView {
   const previousMonth = month === 1 ? { year: year - 1, month: 12 } : { year, month: month - 1 }
   return {
     query: { kind: 'month', year, month },
     range: {
       from: new Date(year, month - 1, 1),
-      to: clampToToday(lastDayOfMonth(year, month)),
+      to: clampToToday(lastDayOfMonth(year, month), now),
     },
     caption: `${(MONTH_NAMES[month - 1] ?? '').toLowerCase()} ${year}`,
     previous: {
@@ -74,10 +73,10 @@ function monthView(year: number, month: number): PeriodView {
   }
 }
 
-function yearView(year: number): PeriodView {
+function yearView(year: number, now: Date): PeriodView {
   return {
     query: { kind: 'year', year },
-    range: { from: new Date(year, 0, 1), to: clampToToday(new Date(year, 11, 31)) },
+    range: { from: new Date(year, 0, 1), to: clampToToday(new Date(year, 11, 31), now) },
     caption: `${year} год`,
     previous: {
       query: { kind: 'year', year: year - 1 },
@@ -92,8 +91,8 @@ function relativeView(
   days: number,
   caption: string,
   previousQuery: ChartQuery,
+  end: Date,
 ): PeriodView {
-  const end = today()
   const start = addDays(end, -(days - 1))
   return {
     query: { kind: 'period', period },
@@ -115,24 +114,38 @@ export function periodView(
   mode: ChartMode,
   selectedMonth: { year: number; month: number },
   selectedYear: number,
+  day?: string,
 ): PeriodView {
+  const now = day ? new Date(`${day}T00:00:00`) : today()
   switch (mode) {
     case 'month':
-      return monthView(selectedMonth.year, selectedMonth.month)
+      return monthView(selectedMonth.year, selectedMonth.month, now)
     case 'year':
-      return yearView(selectedYear)
+      return yearView(selectedYear, now)
     case '2weeks':
       // Предыдущие две недели входят в «последний месяц» — 30 дней от сейчас.
-      return relativeView(mode, DAYS_IN_2WEEKS, 'последние 2 недели', {
-        kind: 'period',
-        period: 'month',
-      })
+      return relativeView(
+        mode,
+        DAYS_IN_2WEEKS,
+        'последние 2 недели',
+        {
+          kind: 'period',
+          period: 'month',
+        },
+        now,
+      )
     default:
       // Предыдущие полгода входят в «последний год» — 365 дней от сейчас.
-      return relativeView('6months', DAYS_IN_6MONTHS, 'последние 6 месяцев', {
-        kind: 'period',
-        period: 'year',
-      })
+      return relativeView(
+        '6months',
+        DAYS_IN_6MONTHS,
+        'последние 6 месяцев',
+        {
+          kind: 'period',
+          period: 'year',
+        },
+        now,
+      )
   }
 }
 

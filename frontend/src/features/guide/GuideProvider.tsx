@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import type { ReactNode } from 'react'
 
-import { GuideContext } from './GuideContext'
+import { GuideActionsContext, GuideContext } from './GuideContext'
 import type { GuideTab } from './GuideContext'
 
 /** Памятка по шкалам. Открывается из шапки и из формы записи. */
@@ -17,5 +17,10 @@ export function GuideProvider({ children }: { children: ReactNode }) {
   const close = useCallback(() => setIsOpen(false), [])
   const value = useMemo(() => ({ isOpen, tab, open, close, setTab }), [isOpen, tab, open, close])
 
-  return <GuideContext.Provider value={value}>{children}</GuideContext.Provider>
+  const actions = useMemo(() => ({ open }), [open])
+  return (
+    <GuideActionsContext.Provider value={actions}>
+      <GuideContext.Provider value={value}>{children}</GuideContext.Provider>
+    </GuideActionsContext.Provider>
+  )
 }

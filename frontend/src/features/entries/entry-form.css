@@ -11,14 +11,19 @@
   padding: 0 20px;
 }
 
+.entry-fields {
+  border: 0;
+  min-inline-size: 0;
+}
+
 .field-block {
-  margin-top: 22px;
+  margin-top: 16px;
 }
 
 .field-label-row {
   display: flex;
   align-items: center;
-  height: 18px;
+  min-height: 24px;
 }
 
 .field-label {
@@ -38,6 +43,8 @@
 }
 
 .field-guide-btn {
+  min-height: 44px;
+  padding: 0 4px;
   display: flex;
   align-items: center;
   gap: 4px;
@@ -73,17 +80,18 @@
 
 .mood-scale {
   display: grid;
-  grid-template-columns: repeat(9, 1fr);
-  gap: 1px;
-  height: 48px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .anxiety-scale {
-  display: flex;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
 }
 
 .scale-cell {
+  min-height: 44px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -103,9 +111,8 @@
 }
 
 .anxiety-scale .scale-cell {
-  width: 40px;
-  height: 40px;
-  border-radius: 20px;
+  min-width: 44px;
+  border-radius: 22px;
   flex: none;
 }
 
@@ -127,7 +134,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  height: 24px;
+  min-height: 24px;
   margin-top: 8px;
   font-size: 17px;
   color: var(--c-primary);
@@ -158,6 +165,8 @@
 }
 
 .tag-chip {
+  max-width: 100%;
+  overflow-wrap: anywhere;
   display: inline-flex;
   align-items: center;
   min-height: 44px;
@@ -212,6 +221,24 @@
   background: none;
   font-size: 17px;
   color: var(--c-primary);
+}
+
+.dt-field:focus-within {
+  box-shadow: 0 0 0 2px var(--accent);
+}
+
+.note-counter {
+  margin-top: 6px;
+  font-size: 12px;
+  line-height: 18px;
+  text-align: right;
+  color: var(--c-tertiary);
+}
+
+@media (max-width: 359px) {
+  .mood-scale {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
 }
 
 .dt-field svg {

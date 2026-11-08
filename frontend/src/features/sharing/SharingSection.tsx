@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { useConfirm } from '../../shared/ui/confirm'
 import { ErrorState } from '../../shared/ui/QueryState'
 import { useToast } from '../../shared/ui/toast'
+import { useOfflineState } from '../../shared/offline/offline'
 import { useCreateShare, useRevokeShare, useSharingStatus } from './api'
 import type { CreatedShare } from './api'
 import { HIDDEN_LINK_TEXT, resolveShareUrl } from './shareLink'
@@ -15,6 +16,7 @@ import { HIDDEN_LINK_TEXT, resolveShareUrl } from './shareLink'
  * поэтому для «старой» ссылки в поле показывается заглушка, а не URL без ключа.
  */
 export function SharingSection({ active = true }: { active?: boolean }) {
+  const { connected } = useOfflineState()
   const toast = useToast()
   const confirm = useConfirm()
   const status = useSharingStatus(active)
@@ -68,7 +70,11 @@ export function SharingSection({ active = true }: { active?: boolean }) {
     })
   }
 
-  if (status.error) {
+  if (!connected && !status.data)
+    return (
+      <p className="settings-note">Создание и отзыв ссылки доступны при подключении к интернету.</p>
+    )
+  if (status.error && !status.data) {
     return (
       <ErrorState
         message="Не удалось загрузить настройки общего доступа"
@@ -89,7 +95,7 @@ export function SharingSection({ active = true }: { active?: boolean }) {
             type="button"
             className="btn-plain"
             onClick={handleCreate}
-            disabled={status.isPending || createShare.isPending}
+            disabled={!connected || status.isPending || createShare.isPending}
             aria-busy={status.isPending || createShare.isPending}
           >
             {status.isPending || createShare.isPending
@@ -122,7 +128,7 @@ export function SharingSection({ active = true }: { active?: boolean }) {
                 type="button"
                 className="btn-plain btn-plain-danger"
                 onClick={handleRevoke}
-                disabled={revokeShare.isPending}
+                disabled={!connected || revokeShare.isPending}
                 aria-busy={revokeShare.isPending}
               >
                 Отозвать

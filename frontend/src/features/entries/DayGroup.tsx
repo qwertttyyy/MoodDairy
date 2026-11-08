@@ -48,19 +48,20 @@ function useStickyPinned(target: HTMLElement | null): boolean {
 
 interface DayGroupProps {
   group: EntryDayGroup
+  today: string
   onOpen: (entry: DecryptedEntry) => void
   onDelete: (entry: EntryResult) => void
 }
 
 /** Записи одного дня: липкий заголовок и одна общая группа строк под ним. */
-export function DayGroup({ group, onOpen, onDelete }: DayGroupProps) {
+export function DayGroup({ group, today, onOpen, onDelete }: DayGroupProps) {
   const [head, setHead] = useState<HTMLElement | null>(null)
   const pinned = useStickyPinned(head)
 
   return (
     <section className="feed-day">
       <h2 className={pinned ? 'feed-dayhead is-pinned' : 'feed-dayhead'} ref={setHead}>
-        <span className="feed-dayhead-text">{dayLabel(group.day)}</span>
+        <span className="feed-dayhead-text">{dayLabel(group.day, today)}</span>
         {/* Сводка дня: по сегменту на запись, цвет — оценка настроения.
             Видна только в прилипшем состоянии. Число записей отдаём в CSS
             переменной: ширину полосы из пустых сегментов иначе не посчитать. */}

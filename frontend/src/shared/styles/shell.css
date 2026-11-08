@@ -4,6 +4,34 @@
   min-height: 100dvh;
 }
 
+.skip-link {
+  position: fixed;
+  top: var(--safe-t);
+  left: 16px;
+  z-index: 1200;
+  padding: 12px;
+  background: var(--card);
+  color: var(--accent);
+  transform: translateY(-150%);
+}
+
+.skip-link:focus {
+  transform: none;
+}
+
+.dialog-loading {
+  position: fixed;
+  bottom: calc(var(--tabbar-bottom) + var(--tabbar-h) + 12px);
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 12px 16px;
+  border-radius: var(--r-md);
+  background: var(--card);
+  color: var(--c-primary);
+  box-shadow: var(--card-shadow);
+  z-index: 100;
+}
+
 /* ============================================
    СОДЕРЖИМОЕ ТАБА
    ============================================ */
@@ -12,9 +40,9 @@
   max-width: 720px;
   margin: 0 auto;
   padding-top: var(--content-top);
-  padding-bottom: calc(var(--tabbar-h) + var(--tabbar-bottom) + var(--safe-b) + 28px);
-  padding-left: 16px;
-  padding-right: 16px;
+  padding-bottom: calc(var(--tabbar-h) + var(--tabbar-bottom) + 24px);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
   min-height: 100dvh;
 }
 
@@ -39,6 +67,22 @@
   margin-left: 12px;
 }
 
+.offline-notice {
+  margin: 8px 0 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--sep);
+  border-radius: var(--r-md);
+  background: var(--card);
+  font-size: 14px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.offline-detail {
+  margin-top: 4px;
+  color: var(--c-secondary);
+}
+
 /* ============================================
    НИЖНИЙ ДОК: КАПСУЛА ВКЛАДОК + КНОПКА «+»
    Кнопка стоит рядом с капсулой, а не над ней: так это сделано в системных
@@ -49,7 +93,7 @@
   left: 50%;
   width: min(calc(100% - 32px), 688px);
   transform: translateX(-50%);
-  bottom: calc(var(--tabbar-bottom) + var(--safe-b));
+  bottom: var(--tabbar-bottom);
   z-index: 50;
   display: flex;
   align-items: center;

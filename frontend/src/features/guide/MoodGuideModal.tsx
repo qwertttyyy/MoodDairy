@@ -1,14 +1,8 @@
 import { useRef } from 'react'
 import type { KeyboardEvent } from 'react'
 
-import {
-  ANXIETY_GUIDE,
-  ANXIETY_LABELS,
-  MAX_ANXIETY,
-  MAX_MOOD,
-  MOOD_GUIDE,
-  MOOD_LABELS,
-} from '../../shared/constants'
+import { ANXIETY_LABELS, MAX_ANXIETY, MAX_MOOD, MOOD_LABELS } from '../../shared/constants'
+import { ANXIETY_GUIDE, MOOD_GUIDE } from './guideContent'
 import { Modal, ModalCloseButton } from '../../shared/ui/Modal'
 import { useEntryModal } from '../entries/EntryModalContext'
 import { useGuide } from './GuideContext'

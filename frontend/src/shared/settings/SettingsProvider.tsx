@@ -44,6 +44,9 @@ interface SettingsState {
 }
 
 export function SettingsProvider({ children }: { children: ReactNode }) {
+  const [systemReduceTransparency, setSystemReduceTransparency] = useState(
+    () => window.matchMedia('(prefers-reduced-transparency: reduce)').matches,
+  )
   const [state, setState] = useState<SettingsState>(() => {
     const stored = readStored()
     return { settings: toSettings(stored), stored }
@@ -77,13 +80,28 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
 
   useLayoutEffect(() => {
     document.documentElement.setAttribute('data-theme', settings.darkMode ? 'dark' : 'light')
-    document.documentElement.classList.toggle('reduce-transparency', settings.reduceTransparency)
     document
       .querySelector('meta[name="theme-color"]')
       ?.setAttribute('content', settings.darkMode ? '#000000' : '#f2f2f7')
-  }, [settings.darkMode, settings.reduceTransparency])
+  }, [settings.darkMode])
+
+  useLayoutEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-transparency: reduce)')
+    const apply = () => {
+      setSystemReduceTransparency(preference.matches)
+      document.documentElement.classList.toggle(
+        'reduce-transparency',
+        settings.reduceTransparency || preference.matches,
+      )
+    }
+    apply()
+    preference.addEventListener('change', apply)
+    return () => preference.removeEventListener('change', apply)
+  }, [settings.reduceTransparency])
 
   return (
-    <SettingsContext.Provider value={{ settings, update }}>{children}</SettingsContext.Provider>
+    <SettingsContext.Provider value={{ settings, systemReduceTransparency, update }}>
+      {children}
+    </SettingsContext.Provider>
   )
 }

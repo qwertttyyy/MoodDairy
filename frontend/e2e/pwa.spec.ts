@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 test('is installable, keeps API out of caches and serves the offline shell', async ({
   context,
   page,
-}) => {
+}, { project }) => {
   const cspViolations: string[] = []
   page.on('console', (message) => {
     if (message.text().includes('Content Security Policy')) cspViolations.push(message.text())
@@ -60,10 +60,14 @@ test('is installable, keeps API out of caches and serves the offline shell', asy
   await page.addInitScript(() => {
     Object.defineProperty(navigator, 'onLine', { configurable: true, get: () => false })
   })
-  await context.setOffline(true)
+  if (project.name === 'pwa-webkit') {
+    // https://github.com/microsoft/playwright/issues/42775
+    await context.request.post('/__test__/diary', { data: { entries: [], account: 0 } })
+    await context.request.post('/__test__/network', { data: { offline: true } })
+  } else await context.setOffline(true)
   await page.reload({ waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'Нет подключения к интернету' })).toBeVisible()
-  await expect(page.getByText(/для авторизации и дневниковых данных нужен интернет/i)).toBeVisible()
+  await expect(page.getByText(/Для первого входа нужен интернет/i)).toBeVisible()
 
   await page.goto('/share/offline/', { waitUntil: 'domcontentloaded' })
   await expect(page.getByRole('heading', { name: 'Нет подключения к интернету' })).toBeVisible()

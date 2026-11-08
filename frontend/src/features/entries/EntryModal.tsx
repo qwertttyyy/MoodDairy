@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 
 import { ANXIETY_LABELS, MAX_ANXIETY, MAX_MOOD, MOOD_LABELS } from '../../shared/constants'
 import { isoDateStr, isoTimeStr } from '../../shared/lib/dates'
@@ -8,6 +8,7 @@ import { useToast } from '../../shared/ui/toast'
 import { useGuide } from '../guide/GuideContext'
 import { useDeleteEntry, useSaveEntry, useTags } from './api'
 import { useEntryModal } from './EntryModalContext'
+import { noteUsage } from './noteLimit'
 
 import './entry-form.css'
 
@@ -144,6 +145,8 @@ export function EntryModal() {
   const [time, setTime] = useState('')
   const [selectedTagIds, setSelectedTagIds] = useState<number[]>([])
   const [error, setError] = useState('')
+  const [baseline, setBaseline] = useState('')
+  const saving = useRef(false)
 
   // Поля, не связанные с оценками, наполняются заново при каждом открытии формы.
   useEffect(() => {
@@ -151,14 +154,56 @@ export function EntryModal() {
     const timestamp = editing ? new Date(editing.timestamp) : new Date()
     const dateValue = isoDateStr(timestamp)
 
-    setNote(editing?.note ?? '')
+    const initialNote = editing?.note ?? ''
+    const initialTime = clampTime(dateValue, isoTimeStr(timestamp))
+    const initialTags = editing ? editing.tags.map((tag) => tag.id) : []
+    setBaseline(
+      formSnapshot(
+        editing?.mood ?? 0,
+        editing?.anxiety ?? 0,
+        initialNote,
+        dateValue,
+        initialTime,
+        initialTags,
+      ),
+    )
+    setNote(initialNote)
     setDate(dateValue)
-    setTime(clampTime(dateValue, isoTimeStr(timestamp)))
-    setSelectedTagIds(editing ? editing.tags.map((tag) => tag.id) : [])
+    setTime(initialTime)
+    setSelectedTagIds(initialTags)
     setError('')
   }, [isOpen, editing])
 
   const isEditing = editing !== null
+  const availableTags = [
+    ...(tags ?? []),
+    ...(editing?.tags ?? []).filter((tag) => !(tags ?? []).some((item) => item.id === tag.id)),
+  ]
+  const usage = noteUsage(note)
+  const dirty = formSnapshot(mood, anxiety, note, date, time, selectedTagIds) !== baseline
+  const pending = saveEntry.isPending || deleteEntry.isPending
+  const requestClose = () => {
+    if (saving.current || pending) return
+    if (!dirty) {
+      close()
+      return
+    }
+    confirm({
+      title: 'Отменить изменения?',
+      text: 'Несохранённые изменения будут потеряны.',
+      confirmLabel: 'Не сохранять',
+      onConfirm: close,
+    })
+  }
+  useEffect(() => {
+    if (!isOpen || !dirty) return
+    const warn = (event: BeforeUnloadEvent) => {
+      event.preventDefault()
+      event.returnValue = ''
+    }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [isOpen, dirty])
   const today = isoDateStr(new Date())
   const timeMax = date === today ? isoTimeStr(new Date()) : undefined
 
@@ -174,7 +219,12 @@ export function EntryModal() {
   }
 
   const handleSave = async () => {
-    if (!mood) return
+    if (!mood || saving.current || pending) return
+
+    if (usage > 1) {
+      setError('Заметка слишком длинная. Сократите текст перед сохранением.')
+      return
+    }
 
     if (!date || !time) {
       setError('Укажите дату и время')
@@ -182,14 +232,15 @@ export function EntryModal() {
     }
 
     const timestamp = new Date(`${date}T${time}:00`)
-    if (timestamp > new Date()) {
+    if (Number.isNaN(timestamp.getTime()) || timestamp > new Date()) {
       setError('Дата не может быть в будущем')
       return
     }
 
     setError('')
+    saving.current = true
     try {
-      await saveEntry.mutateAsync({
+      const saved = await saveEntry.mutateAsync({
         data: {
           mood,
           note: note.trim(),
@@ -200,9 +251,17 @@ export function EntryModal() {
         editId: editing?.id ?? null,
       })
       close()
-      showToast(isEditing ? 'Запись обновлена' : 'Запись добавлена')
+      showToast(
+        isEditing
+          ? 'Запись обновлена'
+          : saved.id < 0
+            ? 'Запись сохранена на устройстве'
+            : 'Запись добавлена',
+      )
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Произошла ошибка')
+    } finally {
+      saving.current = false
     }
   }
 
@@ -223,7 +282,7 @@ export function EntryModal() {
   return (
     <Modal
       open={isOpen}
-      onClose={close}
+      onClose={requestClose}
       titleId="entry-modal-title"
       closeDisabled={saveEntry.isPending || deleteEntry.isPending}
       className="entry-form"
@@ -235,10 +294,15 @@ export function EntryModal() {
         <h2 id="entry-modal-title" tabIndex={-1}>
           {isEditing ? 'Редактировать' : 'Новая запись'}
         </h2>
-        <ModalCloseButton onClick={close} disabled={saveEntry.isPending || deleteEntry.isPending} />
+        <ModalCloseButton onClick={requestClose} disabled={pending} />
       </div>
 
-      <div className="modal-body">
+      <fieldset className="modal-body entry-fields" disabled={pending}>
+        {editing?.syncError && (
+          <p className="form-error" role="alert">
+            Не удалось отправить запись: {editing.syncError}. Исправьте её и сохраните снова.
+          </p>
+        )}
         <ScaleField
           scale="mood"
           value={mood}
@@ -263,8 +327,16 @@ export function EntryModal() {
             className="glass-input entry-note"
             placeholder="Что произошло?"
             value={note}
+            aria-invalid={usage > 1}
+            aria-describedby={usage > 1 ? 'entry-note-error' : undefined}
             onChange={(event) => setNote(event.target.value)}
           />
+          {usage > 0.75 && <p className="note-counter">Объём заметки: {Math.ceil(usage * 100)}%</p>}
+          {usage > 1 && (
+            <p id="entry-note-error" className="form-error" role="alert">
+              Заметка слишком длинная. Сократите текст перед сохранением.
+            </p>
+          )}
         </div>
 
         <div className="field-block">
@@ -273,7 +345,7 @@ export function EntryModal() {
             <span className="field-hint">(необязательно)</span>
           </div>
           <div className="tag-chips">
-            {(tags ?? []).map((tag) => (
+            {availableTags.map((tag) => (
               <button
                 key={tag.id}
                 type="button"
@@ -352,7 +424,7 @@ export function EntryModal() {
             {error}
           </div>
         )}
-      </div>
+      </fieldset>
 
       <div className="modal-footer">
         {isEditing ? (
@@ -370,7 +442,7 @@ export function EntryModal() {
           type="button"
           className="btn-primary"
           onClick={handleSave}
-          disabled={!mood || saveEntry.isPending}
+          disabled={!mood || pending || usage > 1}
           aria-busy={saveEntry.isPending}
         >
           {saveEntry.isPending ? 'Сохраняем…' : isEditing ? 'Сохранить' : 'Добавить'}
@@ -378,4 +450,15 @@ export function EntryModal() {
       </div>
     </Modal>
   )
+}
+
+function formSnapshot(
+  mood: number,
+  anxiety: number,
+  note: string,
+  date: string,
+  time: string,
+  tags: number[],
+): string {
+  return JSON.stringify([mood, anxiety, note, date, time, [...tags].sort((a, b) => a - b)])
 }

@@ -11,6 +11,7 @@ export interface AppSettings {
 
 export interface SettingsContextValue {
   settings: AppSettings
+  systemReduceTransparency: boolean
   update: (patch: Partial<AppSettings>) => void
 }
 

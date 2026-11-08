@@ -67,6 +67,15 @@ export function EntryCard({ entry, onOpen, onDelete }: EntryCardProps) {
           </span>
 
           {note ? <span className="feed-note">{note}</span> : null}
+          {entry.syncStatus && (
+            <span
+              className={entry.syncStatus === 'failed' ? 'feed-sync feed-sync-error' : 'feed-sync'}
+            >
+              {entry.syncStatus === 'failed'
+                ? 'Не отправлено · откройте, чтобы исправить'
+                : 'На устройстве · ожидает отправки'}
+            </span>
+          )}
 
           {tags.length > 0 ? (
             <span className="feed-tags">

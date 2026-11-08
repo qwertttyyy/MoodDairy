@@ -18,6 +18,16 @@ interface EntryModalValue {
 }
 
 export const EntryModalContext = createContext<EntryModalValue | null>(null)
+export const EntryModalActionsContext = createContext<Pick<
+  EntryModalValue,
+  'open' | 'close'
+> | null>(null)
+
+export function useEntryModalActions() {
+  const value = useContext(EntryModalActionsContext)
+  if (!value) throw new Error('useEntryModalActions должен вызываться внутри EntryModalProvider')
+  return value
+}
 
 export function useEntryModal(): EntryModalValue {
   const value = useContext(EntryModalContext)

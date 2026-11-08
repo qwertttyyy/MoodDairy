@@ -53,7 +53,7 @@
   /* ── Text ── */
   --c-primary: #1c1c1e;
   --c-secondary: #65656b;
-  --c-tertiary: #72727a;
+  --c-tertiary: #6c6c74;
 
   /* ── Accent ── */
   --accent: #0a7c8c;
@@ -111,7 +111,7 @@
   --safe-t: env(safe-area-inset-top, 0px);
   --safe-b: env(safe-area-inset-bottom, 0px);
   --tabbar-h: 58px;
-  --tabbar-bottom: 21px;
+  --tabbar-bottom: max(8px, var(--safe-b));
   /* Верхней панели нет: липкие заголовки дня цепляются прямо за вырез. */
   --sticky-top: var(--safe-t);
   /* Отбивка ленты сверху — под ней проходит плавающая кнопка «i». */
@@ -128,6 +128,7 @@
    Холст истинно чёрный: на OLED это выключенные пиксели, и серая карточка
    поверх него читается как выступающая поверхность. */
 [data-theme='dark'] {
+  color-scheme: dark;
   --bg: #000000;
   --canvas: #000000;
   --card: #1c1c1e;
@@ -158,7 +159,7 @@
   --toggle-off: rgba(120, 120, 128, 0.5);
 
   --c-primary: #ffffff;
-  --c-secondary: #98989e;
+  --c-secondary: #aaaab1;
   --c-tertiary: #8e8e93;
 
   --accent: #64d2ff;
@@ -203,19 +204,17 @@
    Стекло становится плотной поверхностью: размытие выключается, иначе от
    прозрачности остаётся только нечитаемая муть. */
 .reduce-transparency {
-  --lg-bg: var(--card) !important;
-  --lg-blur: 0px !important;
-  --surface: var(--surface-solid) !important;
-  --sheet-glass: var(--surface-solid) !important;
-  --entry-sheet-glass: var(--surface-solid) !important;
-  --scrim: rgba(0, 0, 0, 0.75) !important;
+  --surface: var(--surface-solid);
+  --sheet-glass: var(--surface-solid);
+  --entry-sheet-glass: var(--surface-solid);
+  --scrim: rgba(0, 0, 0, 0.75);
+  --entry-scrim: var(--scrim);
 }
 
-.reduce-transparency .liquid-glass,
-.reduce-transparency .btn-icon-glass,
-.reduce-transparency .modal {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
+:root.reduce-transparency :is(.liquid-glass, .btn-icon-glass, .modal, .toast) {
+  background: var(--surface-solid);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
 }
 
 .reduce-transparency .app-backdrop {
@@ -234,6 +233,7 @@
 }
 
 html {
+  color-scheme: light;
   font-size: 16px;
   -webkit-text-size-adjust: 100%;
   -webkit-tap-highlight-color: transparent;
@@ -258,6 +258,7 @@ body {
 }
 
 button {
+  touch-action: manipulation;
   font-family: inherit;
   cursor: pointer;
   border: none;
@@ -578,7 +579,7 @@ a.btn-primary {
 }
 
 .btn-plain-danger {
-  color: var(--danger);
+  color: var(--danger-t);
 }
 
 /* Компактная кнопка на плотной поверхности. */
@@ -845,31 +846,5 @@ a.btn-primary {
     animation: none !important;
     border-top-color: var(--sep);
     border-right-color: var(--accent);
-  }
-}
-
-@media (prefers-reduced-transparency: reduce) {
-  :root {
-    --lg-bg: var(--card);
-    --lg-blur: 0px;
-    --surface: var(--surface-solid);
-    --sheet-glass: var(--surface-solid);
-    --entry-sheet-glass: var(--surface-solid);
-    --scrim: rgba(0, 0, 0, 0.75);
-  }
-
-  .liquid-glass,
-  .btn-icon-glass,
-  .modal {
-    backdrop-filter: none;
-    -webkit-backdrop-filter: none;
-  }
-
-  .btn-icon-glass {
-    background-color: var(--card);
-  }
-
-  .app-backdrop {
-    display: none;
   }
 }

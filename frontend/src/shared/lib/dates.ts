@@ -5,13 +5,13 @@
  * Год печатается только у дат прошлых лет: в ленте текущего года он повторялся
  * бы в каждом заголовке, ничего при этом не различая.
  */
-export function dayLabel(dateStr: string): string {
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
+export function dayLabel(dateStr: string, todayKey = localDateKey(new Date())): string {
+  const today = new Date(`${todayKey}T12:00:00`)
   const d = new Date(`${dateStr}T12:00:00`)
-  const diff = Math.round((today.getTime() - d.getTime()) / 86400000)
-  if (diff === 0) return 'Сегодня'
-  if (diff === 1) return 'Вчера'
+  if (dateStr === todayKey) return 'Сегодня'
+  const yesterday = new Date(today)
+  yesterday.setDate(yesterday.getDate() - 1)
+  if (dateStr === localDateKey(yesterday)) return 'Вчера'
   const sameYear = d.getFullYear() === today.getFullYear()
   return d.toLocaleDateString('ru-RU', {
     day: 'numeric',

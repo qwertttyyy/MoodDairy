@@ -1,12 +1,13 @@
 /** Управление пользовательскими тегами внутри настроек. */
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 
 import { isApiError } from '../../shared/api/client'
 import type { Tag } from '../../shared/api/types'
 import { useConfirm } from '../../shared/ui/confirm'
 import { ErrorState } from '../../shared/ui/QueryState'
 import { useToast } from '../../shared/ui/toast'
+import { useOfflineState } from '../../shared/offline/offline'
 import { useCreateTag, useDeleteTag, useRenameTag, useTags } from './api'
 
 const MAX_TAG_LENGTH = 50
@@ -49,7 +50,17 @@ function TrashIcon() {
 }
 
 /** Строка тега с явными действиями переименования и удаления. */
-function TagRow({ tag, onEdit, onDelete }: { tag: Tag; onEdit: () => void; onDelete: () => void }) {
+function TagRow({
+  tag,
+  onEdit,
+  onDelete,
+  disabled,
+}: {
+  tag: Tag
+  onEdit: () => void
+  onDelete: () => void
+  disabled: boolean
+}) {
   return (
     <div className="set-row">
       <span className="set-label">{tag.name}</span>
@@ -59,6 +70,7 @@ function TagRow({ tag, onEdit, onDelete }: { tag: Tag; onEdit: () => void; onDel
           className="tag-action tag-edit"
           aria-label={`Переименовать тег «${tag.name}»`}
           onClick={onEdit}
+          disabled={disabled}
         >
           <PencilIcon />
         </button>
@@ -67,6 +79,7 @@ function TagRow({ tag, onEdit, onDelete }: { tag: Tag; onEdit: () => void; onDel
           className="tag-action tag-remove"
           aria-label={`Удалить тег «${tag.name}»`}
           onClick={onDelete}
+          disabled={disabled}
         >
           <TrashIcon />
         </button>
@@ -76,6 +89,7 @@ function TagRow({ tag, onEdit, onDelete }: { tag: Tag; onEdit: () => void; onDel
 }
 
 export function TagsSection({ active = true }: { active?: boolean }) {
+  const { connected } = useOfflineState()
   const toast = useToast()
   const confirm = useConfirm()
   const { data: tags = [], error, isPending, refetch } = useTags(active)
@@ -86,10 +100,13 @@ export function TagsSection({ active = true }: { active?: boolean }) {
   const [newName, setNewName] = useState('')
   const [editingId, setEditingId] = useState<number | null>(null)
   const [editingName, setEditingName] = useState('')
+  const creating = useRef(false)
+  const renaming = useRef(false)
 
   const handleCreate = () => {
     const name = newName.trim()
-    if (!name) return
+    if (!name || creating.current || !connected) return
+    creating.current = true
 
     createTag.mutate(name, {
       onSuccess: () => {
@@ -97,6 +114,9 @@ export function TagsSection({ active = true }: { active?: boolean }) {
         toast('Тег добавлен')
       },
       onError: (error) => toast(errorText(error, 'Не удалось добавить тег'), true),
+      onSettled: () => {
+        creating.current = false
+      },
     })
   }
 
@@ -111,12 +131,14 @@ export function TagsSection({ active = true }: { active?: boolean }) {
   }
 
   const handleRename = (tag: Tag) => {
+    if (renaming.current || !connected) return
     const name = editingName.trim()
     if (!name || name === tag.name) {
       cancelEditing()
       return
     }
 
+    renaming.current = true
     renameTag.mutate(
       { id: tag.id, name },
       {
@@ -125,6 +147,9 @@ export function TagsSection({ active = true }: { active?: boolean }) {
           toast('Тег переименован')
         },
         onError: (error) => toast(errorText(error, 'Не удалось переименовать'), true),
+        onSettled: () => {
+          renaming.current = false
+        },
       },
     )
   }
@@ -176,10 +201,14 @@ export function TagsSection({ active = true }: { active?: boolean }) {
                 aria-label={`Новое название тега «${tag.name}»`}
                 value={editingName}
                 maxLength={MAX_TAG_LENGTH}
+                disabled={renameTag.isPending || !connected}
                 autoFocus
                 onChange={(event) => setEditingName(event.target.value)}
                 onKeyDown={(event) => {
-                  if (event.key === 'Enter') handleRename(tag)
+                  if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+                    event.preventDefault()
+                    handleRename(tag)
+                  }
                   if (event.key === 'Escape') cancelEditing()
                 }}
               />
@@ -189,7 +218,7 @@ export function TagsSection({ active = true }: { active?: boolean }) {
               <button
                 type="button"
                 className="btn-plain"
-                disabled={renameTag.isPending}
+                disabled={renameTag.isPending || !connected}
                 aria-busy={renameTag.isPending}
                 onClick={() => handleRename(tag)}
               >
@@ -197,7 +226,12 @@ export function TagsSection({ active = true }: { active?: boolean }) {
               </button>
             </div>
           ) : (
-            <TagRow tag={tag} onEdit={() => startEditing(tag)} onDelete={() => handleDelete(tag)} />
+            <TagRow
+              tag={tag}
+              onEdit={() => startEditing(tag)}
+              onDelete={() => handleDelete(tag)}
+              disabled={!connected}
+            />
           )}
           <div className="set-sep" />
         </div>
@@ -211,15 +245,19 @@ export function TagsSection({ active = true }: { active?: boolean }) {
           placeholder="Новый тег"
           value={newName}
           maxLength={MAX_TAG_LENGTH}
+          disabled={createTag.isPending || !connected}
           onChange={(event) => setNewName(event.target.value)}
           onKeyDown={(event) => {
-            if (event.key === 'Enter') handleCreate()
+            if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+              event.preventDefault()
+              handleCreate()
+            }
           }}
         />
         <button
           type="button"
           className="btn-plain"
-          disabled={createTag.isPending || newName.trim() === ''}
+          disabled={createTag.isPending || !connected || newName.trim() === ''}
           aria-busy={createTag.isPending}
           onClick={handleCreate}
         >

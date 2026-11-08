@@ -19,5 +19,5 @@ export default defineConfig({
     url: 'http://127.0.0.1:4174',
     reuseExistingServer: !process.env.CI,
   },
-  projects: [{ name: 'pwa' }],
+  projects: [{ name: 'pwa' }, { name: 'pwa-webkit', use: { ...devices['iPhone 13'] } }],
 })

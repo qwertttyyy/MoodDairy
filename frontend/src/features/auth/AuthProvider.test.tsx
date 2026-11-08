@@ -5,7 +5,15 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { z } from 'zod'
 
 import { api } from '../../shared/api/client'
-import { ENC_KEY_STORAGE, WRAPPED_KEY_STORAGE } from '../../shared/crypto/crypto'
+import {
+  ENC_KEY_STORAGE,
+  WRAPPED_KEY_STORAGE,
+  bindKeyToUser,
+  clearKeys,
+  clearSessionKey,
+  storeFromDerived,
+  wrapKey,
+} from '../../shared/crypto/crypto'
 import { useAuth } from './AuthContext'
 import { AuthProvider } from './AuthProvider'
 
@@ -63,9 +71,64 @@ afterEach(() => {
   vi.unstubAllGlobals()
   localStorage.clear()
   sessionStorage.clear()
+  clearKeys()
 })
 
 describe('AuthProvider bootstrap', () => {
+  it('проверяет сессию параллельно конфигурации', async () => {
+    let resolveConfig!: (response: Response) => void
+    const config = new Promise<Response>((resolve) => {
+      resolveConfig = resolve
+    })
+    const fetchMock = vi.fn<typeof fetch>().mockImplementation(async (input) => {
+      const url = requestUrl(input)
+      if (url === '/api/config/') return config
+      if (url === '/api/auth/me/') return notAuthenticated()
+      throw new Error(url)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    renderProvider()
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/auth/me/', expect.anything()))
+    expect(screen.getByTestId('status')).toHaveTextContent('loading')
+    resolveConfig(json({ encryption_enabled: false }))
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('anon'))
+  })
+
+  it('повторяет восстановление ключа после 503 без выхода из серверной сессии', async () => {
+    const wrappingKey = btoa(String.fromCharCode(...new Uint8Array(32).fill(9)))
+    storeFromDerived(new Uint8Array(32).fill(4).buffer)
+    await wrapKey(wrappingKey)
+    bindKeyToUser(1)
+    clearSessionKey()
+    let attempts = 0
+    let logouts = 0
+    vi.stubGlobal(
+      'fetch',
+      vi.fn<typeof fetch>().mockImplementation(async (input) => {
+        const url = requestUrl(input)
+        if (url === '/api/config/') return json({ encryption_enabled: true })
+        if (url === '/api/auth/me/') return json({ id: 1, username: 'user' })
+        if (url === '/api/auth/unwrap-key/')
+          return ++attempts === 1
+            ? json({ error: { code: 'internal_error', message: 'Позже' } }, 503)
+            : json({ wrapping_key: wrappingKey })
+        if (url === '/api/auth/logout/') {
+          logouts++
+          return new Response(null, { status: 204 })
+        }
+        throw new Error(url)
+      }),
+    )
+    renderProvider()
+    await waitFor(() =>
+      expect(screen.getByTestId('status')).toHaveTextContent('server-unavailable'),
+    )
+    await userEvent.click(screen.getByRole('button', { name: 'retry' }))
+    await waitFor(() => expect(screen.getByTestId('status')).toHaveTextContent('authed'))
+    expect(logouts).toBe(0)
+    expect(attempts).toBe(2)
+  })
+
   it('не открывает приложение при несовместимой конфигурации и позволяет повторить', async () => {
     let configAttempts = 0
     vi.stubGlobal(

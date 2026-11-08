@@ -4,7 +4,7 @@
  */
 
 import { Fragment, useEffect, useMemo, useState } from 'react'
-import { useParams } from 'react-router'
+import { useLocation, useParams } from 'react-router'
 
 import { ChartStats } from '../../features/chart/ChartStats'
 import { MoodChart } from '../../features/chart/MoodChart'
@@ -30,12 +30,14 @@ type PageState =
 
 export function SharePage() {
   const { token } = useParams<'token'>()
+  const { hash } = useLocation()
   const [state, setState] = useState<PageState>({ status: 'loading' })
   const [attempt, setAttempt] = useState(0)
 
   useSystemTheme()
 
   useEffect(() => {
+    setState({ status: 'loading' })
     if (!token) {
       setState({
         status: 'error',
@@ -81,7 +83,7 @@ export function SharePage() {
       cancelled = true
       controller.abort()
     }
-  }, [token, attempt])
+  }, [token, hash, attempt])
 
   return (
     <div className="share-page">
