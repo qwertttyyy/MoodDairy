@@ -145,15 +145,6 @@ jobs:
       - name: Format, lint, types, unit tests and build
         run: npm run check
 
-      - name: Install browser engines
-        run: npx playwright install --with-deps chromium
-
-      - name: End-to-end tests
-        run: npm run test:e2e
-
-      - name: PWA tests
-        run: npx playwright test --config=playwright.pwa.config.ts
-
       - name: Upload build
         uses: actions/upload-artifact@v4
         with:
