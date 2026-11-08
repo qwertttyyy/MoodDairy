@@ -332,4 +332,3 @@ jobs:
             https://moods.qwertttyyy.ru/manifest.webmanifest > /dev/null
           curl --fail --silent --show-error --max-time 15 \
             https://moods.qwertttyyy.ru/sw.js > /dev/null
-Ы
