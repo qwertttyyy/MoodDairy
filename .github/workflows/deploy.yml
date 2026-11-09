@@ -197,10 +197,9 @@ jobs:
     env:
       FRONTEND_ROOT: /var/www/moods
       RELEASE_SHA: ${{ github.sha }}
+      RELEASE_ID: ${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}
     needs:
       [changes, backend-checks, backend-tests, frontend-checks, build-image]
-    # Unchanged components may skip their jobs; each selected component must
-    # still pass its checks, and a backend release must have a published image.
     if: |
       always() &&
       !cancelled() &&
@@ -285,7 +284,7 @@ jobs:
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
           source: dist/assets/*,dist/icons/*,dist/favicon.svg,dist/manifest.webmanifest,dist/sw.js,dist/theme-init.js,dist/index.html
-          target: ${{ env.FRONTEND_ROOT }}/.incoming/${{ env.RELEASE_SHA }}
+          target: ${{ env.FRONTEND_ROOT }}/releases/${{ env.RELEASE_ID }}
           strip_components: 1
           overwrite: true
 
@@ -297,31 +296,30 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASSWORD }}
           port: ${{ secrets.SERVER_PORT }}
-          envs: FRONTEND_ROOT,RELEASE_SHA
+          envs: FRONTEND_ROOT,RELEASE_ID
           script: |
             set -eu
-            target="$FRONTEND_ROOT"
-            incoming="$target/.incoming/$RELEASE_SHA"
+            release="$FRONTEND_ROOT/releases/$RELEASE_ID"
+            if [ ! -L "$FRONTEND_ROOT/current" ]; then
+              echo "Before deploying, prepare current pointing to an existing release and set nginx root to $FRONTEND_ROOT/current." >&2
+              exit 1
+            fi
 
-            # Validate the staged build before changing any published files.
-            test -d "$incoming/assets"
-            test -d "$incoming/icons"
+            test -d "$release/assets"
+            test -d "$release/icons"
             for file in favicon.svg manifest.webmanifest theme-init.js index.html sw.js; do
-              test -s "$incoming/$file"
+              test -s "$release/$file"
             done
 
-            # Keep existing hashed assets for already-open application versions.
-            mkdir -p "$target/assets" "$target/icons"
-            cp -R "$incoming/assets/." "$target/assets/"
-            cp -R "$incoming/icons/." "$target/icons/"
+            # Add complete immutable assets without overwriting files used by
+            # open tabs. Hard links avoid partial copies and duplicate data.
+            mkdir -p "$FRONTEND_ROOT/assets"
+            cp -a --link --no-clobber "$release/assets/." "$FRONTEND_ROOT/assets/"
 
-            # Replace complete files atomically. Publish the worker last, after
-            # the index and every file that the new worker will precache exist.
-            for file in favicon.svg manifest.webmanifest theme-init.js index.html sw.js; do
-              install -m 644 "$incoming/$file" "$target/$file.tmp"
-              mv -f "$target/$file.tmp" "$target/$file"
-            done
-            find "$incoming" -depth -delete
+            # One rename activates the entire release. A retry has its own
+            # directory and never uploads files into the active version.
+            ln -sfn "releases/$RELEASE_ID" "$FRONTEND_ROOT/current.next"
+            mv -Tf "$FRONTEND_ROOT/current.next" "$FRONTEND_ROOT/current"
 
       - name: Frontend smoke checks
         if: needs.frontend-checks.result == 'success'
