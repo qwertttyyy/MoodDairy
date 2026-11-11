@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { localDateKey } from '../../shared/lib/dates'
 import { useLocalDay } from '../../shared/lib/useLocalDay'
-import { setOfflineState, useOfflineState } from '../../shared/offline/offline'
+import { setOfflineState } from '../../shared/offline/offline'
+import { useSyncFeedback } from '../../shared/offline/useSyncFeedback'
 import { isEncryptionEnabled } from '../../shared/crypto/crypto'
 
 import { useConfirm } from '../../shared/ui/confirm'
@@ -37,7 +38,7 @@ export function EntriesTab({ active = true }: { active?: boolean }) {
   const loaderRef = useRef<HTMLDivElement>(null)
   const queued = usePendingEntries()
   const [localEntries, setLocalEntries] = useState<EntryResult[]>([])
-  const { connected } = useOfflineState()
+  const { connected, showPending } = useSyncFeedback()
   const today = useLocalDay()
 
   useEffect(() => {
@@ -84,15 +85,21 @@ export function EntriesTab({ active = true }: { active?: boolean }) {
     () =>
       mergeFeedPages([
         {
-          days: localEntries.map((entry) => ({
-            day: localDateKey(entry.timestamp),
-            entries: [entry],
-          })),
+          days: localEntries.map((entry) => {
+            const visibleEntry = { ...entry }
+            if (
+              visibleEntry.kind === 'ready' &&
+              visibleEntry.syncStatus === 'pending' &&
+              !showPending
+            )
+              delete visibleEntry.syncStatus
+            return { day: localDateKey(entry.timestamp), entries: [visibleEntry] }
+          }),
           nextBefore: null,
         },
         ...(data?.pages ?? []),
       ]),
-    [data?.pages, localEntries],
+    [data?.pages, localEntries, showPending],
   )
 
   // Лоадер попал в область видимости — просим следующую страницу.

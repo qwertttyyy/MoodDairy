@@ -240,7 +240,7 @@ export function EntryModal() {
     setError('')
     saving.current = true
     try {
-      const saved = await saveEntry.mutateAsync({
+      await saveEntry.mutateAsync({
         data: {
           mood,
           note: note.trim(),
@@ -251,13 +251,7 @@ export function EntryModal() {
         editId: editing?.id ?? null,
       })
       close()
-      showToast(
-        isEditing
-          ? 'Запись обновлена'
-          : saved.id < 0
-            ? 'Запись сохранена на устройстве'
-            : 'Запись добавлена',
-      )
+      showToast(isEditing ? 'Запись обновлена' : 'Запись добавлена')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Произошла ошибка')
     } finally {

@@ -7,8 +7,8 @@ import {
   currentOfflineUser,
   diaryWritesBlocked,
   setOfflineState,
-  useOfflineState,
 } from '../../shared/offline/offline'
+import { useSyncFeedback } from '../../shared/offline/useSyncFeedback'
 import { useAuth } from '../auth/AuthContext'
 import { applySavedEntry } from './api'
 import { patchCachedFeed } from './feedCache'
@@ -83,9 +83,10 @@ export function EntrySync() {
 }
 
 export function OfflineNotice() {
-  const { connected, syncing, pending, error, storageError, writeBlocked } = useOfflineState()
+  const { connected, syncing, pending, error, storageError, writeBlocked, showPending } =
+    useSyncFeedback()
   const { lock } = useAuth()
-  if (connected && !pending && !error && !storageError && !writeBlocked) return null
+  if (connected && !showPending && !error && !storageError && !writeBlocked) return null
   return (
     <aside className="offline-notice" aria-label="Состояние синхронизации">
       <p role="status">
@@ -93,10 +94,10 @@ export function OfflineNotice() {
           ? 'Локальное хранилище недоступно'
           : writeBlocked
             ? 'Дневник нужно разблокировать'
-            : syncing
-              ? 'Отправляем записи…'
-              : !connected
-                ? 'Нет связи · дневник на устройстве'
+            : !connected
+              ? 'Нет связи · дневник на устройстве'
+              : syncing
+                ? 'Отправляем записи…'
                 : 'Есть записи на устройстве'}
       </p>
       {pending > 0 && (
