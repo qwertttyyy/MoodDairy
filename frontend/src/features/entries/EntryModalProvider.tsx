@@ -21,10 +21,8 @@ export function EntryModalProvider({ children }: { children: ReactNode }) {
   }, [])
 
   const close = useCallback(() => {
+    // Keep the rendered form intact during its exit animation; open resets it.
     setIsOpen(false)
-    setEditing(null)
-    setMood(0)
-    setAnxiety(0)
   }, [])
 
   const selectAnxiety = useCallback((value: number) => {

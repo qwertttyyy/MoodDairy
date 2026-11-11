@@ -59,7 +59,7 @@
 }
 
 .modal-overlay[data-morph='out']::before {
-  animation: modal-fade var(--t-morph) ease reverse both;
+  animation: modal-fade-out var(--t-morph) ease-out both;
 }
 
 /* ============================================
@@ -264,6 +264,12 @@
   }
 }
 
+@keyframes modal-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes modal-rise {
   from {
     opacity: 0;
@@ -278,11 +284,32 @@
   }
 }
 
+@keyframes modal-fall {
+  to {
+    opacity: 0;
+    transform: translateY(40px) scale(0.98);
+  }
+}
+
+@keyframes modal-pop-out {
+  to {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+}
+
 @keyframes modal-grow {
   from {
     opacity: 0;
     transform: translate(var(--morph-x, 0), var(--morph-y, 0)) scale(var(--morph-k, 0.9));
     border-radius: var(--morph-r, 32px);
+  }
+}
+
+@keyframes modal-shrink {
+  to {
+    opacity: 0;
+    transform: translate(var(--morph-x, 0), var(--morph-y, 0)) scale(var(--morph-k, 0.9));
   }
 }
 
@@ -298,7 +325,7 @@
 }
 
 .modal-overlay[data-morph='out'] .modal {
-  animation: modal-rise var(--t-morph) var(--e-morph) reverse both;
+  animation: modal-fall var(--t-morph) var(--e-morph) both;
 }
 
 .modal-overlay[data-morph='in'] .modal-sm {
@@ -306,7 +333,7 @@
 }
 
 .modal-overlay[data-morph='out'] .modal-sm {
-  animation: modal-pop 0.22s ease reverse both;
+  animation: modal-pop-out 0.22s ease-out both;
 }
 
 .modal-overlay[data-morph='in'] .modal-morph {
@@ -314,7 +341,7 @@
 }
 
 .modal-overlay[data-morph='out'] .modal-morph {
-  animation: modal-grow var(--t-morph) var(--e-morph) reverse both;
+  animation: modal-shrink var(--t-morph) var(--e-morph) both;
 }
 
 .modal-overlay[data-morph='in'] .modal-morph > * {
@@ -322,7 +349,7 @@
 }
 
 .modal-overlay[data-morph='out'] .modal-morph > * {
-  animation: modal-grow-content var(--t-morph) ease reverse both;
+  animation: modal-fade-out var(--t-morph) ease-out both;
 }
 
 /* Рост из кнопки — движение ради движения: при выключенной анимации от него

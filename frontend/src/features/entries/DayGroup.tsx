@@ -72,7 +72,7 @@ export function DayGroup({ group, today, onOpen, onDelete }: DayGroupProps) {
         >
           {group.entries.map((entry) => (
             <i
-              key={entry.id}
+              key={entry.localId ?? entry.id}
               className={entry.kind === 'ready' ? moodClass(entry.mood) : 'entry-corrupted'}
             />
           ))}
@@ -81,7 +81,7 @@ export function DayGroup({ group, today, onOpen, onDelete }: DayGroupProps) {
 
       <div className="feed-group">
         {group.entries.map((entry, index) => (
-          <Fragment key={entry.id}>
+          <Fragment key={entry.localId ?? entry.id}>
             {index > 0 ? <div className="feed-sep" /> : null}
             {entry.kind === 'ready' ? (
               <EntryCard entry={entry} onOpen={onOpen} onDelete={onDelete} />

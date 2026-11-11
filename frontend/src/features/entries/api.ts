@@ -99,8 +99,10 @@ export function mergeFeedPages(pages: FeedPage[] | undefined): EntryDayGroup[] {
   for (const page of pages ?? []) {
     for (const group of page.days) {
       for (const entry of group.entries) {
-        if (seen.has(entry.id)) continue
+        const identity = entry.localId ?? entry.id
+        if (seen.has(entry.id) || seen.has(identity)) continue
         seen.add(entry.id)
+        seen.add(identity)
         const day = localDateKey(entry.timestamp)
         const existing = byDay.get(day)
         if (existing) existing.push(entry)
@@ -112,7 +114,16 @@ export function mergeFeedPages(pages: FeedPage[] | undefined): EntryDayGroup[] {
     .sort(([a], [b]) => (a < b ? 1 : a > b ? -1 : 0))
     .map(([day, entries]) => ({
       day,
-      entries: entries.sort((a, b) => Date.parse(b.timestamp) - Date.parse(a.timestamp)),
+      entries: entries.sort((a, b) => {
+        const byTime = Date.parse(b.timestamp) - Date.parse(a.timestamp)
+        if (byTime) return byTime
+        const left = a.localId ?? a.id
+        const right = b.localId ?? b.id
+        // New local IDs decrease; server IDs increase. Keep newest first in both cases.
+        if (left < 0 && right >= 0) return -1
+        if (right < 0 && left >= 0) return 1
+        return left < 0 ? left - right : right - left
+      }),
     }))
 }
 
@@ -318,10 +329,12 @@ export async function applySavedEntry(
   queryClient: QueryClient,
   raw: RawEntry,
   ownerId = currentOfflineUser()?.id,
+  localId?: number,
 ): Promise<void> {
   const sessionGeneration = offlineSessionGeneration()
   if (!isCurrentUser(ownerId, sessionGeneration)) return
   const entry = await decryptEntry(raw)
+  if (localId !== undefined) entry.localId = localId
   if (!isCurrentUser(ownerId, sessionGeneration)) return
   queryClient.setQueryData<InfiniteData<FeedPage>>(
     userQueryKey(entriesKeys.feed, ownerId),

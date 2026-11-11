@@ -4,6 +4,8 @@ import type { Tag } from '../../shared/api/types'
 export interface DecryptedEntry {
   kind: 'ready'
   id: number
+  /** Сохраняет идентичность локальной карточки после подтверждения сервером. */
+  localId?: number
   mood: number
   note: string
   anxiety: number
@@ -17,6 +19,7 @@ export interface DecryptedEntry {
 export interface CorruptedEntry {
   kind: 'corrupted'
   id: number
+  localId?: number
   timestamp: string
 }
 

@@ -92,7 +92,7 @@ async function online(context: BrowserContext, page: Page) {
   })
 }
 
-async function createEntry(page: Page, note: string) {
+async function createEntry(page: Page, note: string, sameTimestamp = false) {
   await page.getByRole('button', { name: 'Добавить запись', exact: true }).click()
   const form = page.getByRole('dialog', { name: 'Новая запись' })
   await form
@@ -100,6 +100,10 @@ async function createEntry(page: Page, note: string) {
     .getByRole('button', { name: '8', exact: true })
     .click()
   await form.getByLabel('Заметка', { exact: true }).fill(note)
+  if (sameTimestamp) {
+    await form.getByLabel('Дата записи', { exact: true }).fill('2026-01-01')
+    await form.getByLabel('Время записи', { exact: true }).fill('12:34')
+  }
   await form.getByRole('button', { name: 'Добавить', exact: true }).click()
   await expect(form).toBeHidden()
   await expect(page.getByText(note, { exact: true })).toBeVisible()
@@ -163,6 +167,39 @@ test('encrypted diary survives cold offline launches, queues a create and syncs 
     .click()
   await expect(cold.getByRole('button', { name: 'Войти', exact: true })).toBeVisible()
   expect(await vaultContents(cold)).toBe('[]')
+})
+
+test('equal-time offline entries keep their order throughout synchronization and reload', async ({
+  context,
+  page,
+}) => {
+  const server = await diaryServer(context)
+  await page.goto('/')
+  await expect(page.getByText('Запись из сети', { exact: true })).toBeVisible()
+  await page.evaluate(() => navigator.serviceWorker.ready)
+  await offline(context, page)
+  await createEntry(page, 'Раньше в очереди', true)
+  await createEntry(page, 'Позже в очереди', true)
+  const queuedNotes = page.locator('.feed-note').filter({ hasText: 'в очереди' })
+  await expect(queuedNotes).toHaveText(['Позже в очереди', 'Раньше в очереди'])
+  await page.evaluate(() => {
+    const check = () => {
+      const notes = [...document.querySelectorAll('.feed-note')]
+        .map((node) => node.textContent ?? '')
+        .filter((note) => note.includes('в очереди'))
+      if (notes.join('|') !== 'Позже в очереди|Раньше в очереди')
+        document.documentElement.dataset.queueOrderChanged = 'true'
+    }
+    new MutationObserver(check).observe(document.body, { childList: true, subtree: true })
+  })
+  await online(context, page)
+  await expect.poll(server.posts).toBe(2)
+  await expect(page.locator('.feed-sync')).toHaveCount(0)
+  await expect(queuedNotes).toHaveText(['Позже в очереди', 'Раньше в очереди'])
+  await expect(page.locator('html')).not.toHaveAttribute('data-queue-order-changed', 'true')
+  await page.reload()
+  await expect(queuedNotes).toHaveText(['Позже в очереди', 'Раньше в очереди'])
+  expect(await server.posts()).toBe(2)
 })
 
 test('a committed POST with a lost response is reconciled without a second create', async ({

@@ -147,11 +147,13 @@ export function EntryModal() {
   const [error, setError] = useState('')
   const [baseline, setBaseline] = useState('')
   const saving = useRef(false)
+  const initialTimestamp = useRef<Date | null>(null)
 
   // Поля, не связанные с оценками, наполняются заново при каждом открытии формы.
   useEffect(() => {
     if (!isOpen) return
     const timestamp = editing ? new Date(editing.timestamp) : new Date()
+    initialTimestamp.current = timestamp
     const dateValue = isoDateStr(timestamp)
 
     const initialNote = editing?.note ?? ''
@@ -219,7 +221,7 @@ export function EntryModal() {
   }
 
   const handleSave = async () => {
-    if (!mood || saving.current || pending) return
+    if (!isOpen || !mood || saving.current || pending) return
 
     if (usage > 1) {
       setError('Заметка слишком длинная. Сократите текст перед сохранением.')
@@ -231,7 +233,11 @@ export function EntryModal() {
       return
     }
 
-    const timestamp = new Date(`${date}T${time}:00`)
+    const initial = initialTimestamp.current
+    const timestamp =
+      initial && date === isoDateStr(initial) && time === isoTimeStr(initial)
+        ? initial
+        : new Date(`${date}T${time}:00`)
     if (Number.isNaN(timestamp.getTime()) || timestamp > new Date()) {
       setError('Дата не может быть в будущем')
       return

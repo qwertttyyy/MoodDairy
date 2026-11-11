@@ -84,6 +84,7 @@ export function EntriesTab({ active = true }: { active?: boolean }) {
   const days = useMemo(
     () =>
       mergeFeedPages([
+        ...(data?.pages ?? []),
         {
           days: localEntries.map((entry) => {
             const visibleEntry = { ...entry }
@@ -97,7 +98,6 @@ export function EntriesTab({ active = true }: { active?: boolean }) {
           }),
           nextBefore: null,
         },
-        ...(data?.pages ?? []),
       ]),
     [data?.pages, localEntries, showPending],
   )

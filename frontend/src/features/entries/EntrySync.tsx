@@ -29,14 +29,14 @@ export function EntrySync() {
     const sync = () => {
       if (disposed) return
       void syncPendingEntries(
-        async (entry) => {
+        async (entry, localId) => {
           if (disposed || currentOfflineUser()?.id !== user.id)
             throw new DOMException('Сессия изменилась', 'AbortError')
           await queryClient.cancelQueries({ queryKey: ['entries', 'feed'] })
           if (disposed || currentOfflineUser()?.id !== user.id)
             throw new DOMException('Сессия изменилась', 'AbortError')
           await patchCachedFeed(entry)
-          await applySavedEntry(queryClient, entry, user.id)
+          await applySavedEntry(queryClient, entry, user.id, localId)
         },
         async () => {
           if (disposed || diaryWritesBlocked()) return false

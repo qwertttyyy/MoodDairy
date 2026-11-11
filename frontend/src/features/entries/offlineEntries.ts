@@ -85,7 +85,7 @@ export async function loadPendingEntries(): Promise<void> {
   const entries = await Promise.all(keys.map((key) => readSealed<PendingEntry>(key)))
   if (currentOfflineUser()?.id !== userId || offlineSessionGeneration() !== version) return
   publish(
-    entries.filter((entry): entry is PendingEntry => Boolean(entry)).sort((a, b) => b.id - a.id),
+    entries.filter((entry): entry is PendingEntry => Boolean(entry)).sort((a, b) => a.id - b.id),
   )
 }
 
@@ -177,7 +177,7 @@ export function pendingAsRaw(entry: PendingEntry): RawEntry {
   return { ...entry.body, id: entry.id, tags: entry.tags }
 }
 
-type SyncedHandler = (entry: RawEntry) => Promise<void>
+type SyncedHandler = (entry: RawEntry, localId: number) => Promise<void>
 
 /** One writer per origin. A persisted sending state survives process termination. */
 export function syncPendingEntries(
@@ -248,7 +248,7 @@ export function syncPendingEntries(
                   throw new Error(
                     'Запись получена сервером. Не удалось обновить её локальную копию; повторите синхронизацию.',
                   )
-                await onSynced(confirmed)
+                await onSynced(confirmed, item.id)
                 if (controller.signal.aborted || currentOfflineUser()?.id !== userId) return
                 await removeValue(key)
                 await loadPendingEntries()
@@ -266,7 +266,7 @@ export function syncPendingEntries(
                 throw error
               })
             if (controller.signal.aborted || currentOfflineUser()?.id !== userId) return
-            await onSynced(result)
+            await onSynced(result, item.id)
             if (controller.signal.aborted || currentOfflineUser()?.id !== userId) return
             await removeValue(key)
             setOfflineState({ connected: true })

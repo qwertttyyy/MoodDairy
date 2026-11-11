@@ -63,7 +63,7 @@ export function Modal({
       setMounted(false)
       const target = returnFocusRef.current
       returnFocusRef.current = null
-      if (target?.isConnected) target.focus()
+      if (target?.isConnected) target.focus({ preventScroll: true })
     }
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
       finish()
@@ -84,23 +84,25 @@ export function Modal({
       else dialog.setAttribute('open', '')
       requestAnimationFrame(() => {
         const initial = initialFocusRef?.current ?? document.getElementById(titleId)
-        initial?.focus()
+        initial?.focus({ preventScroll: true })
       })
-    }
 
-    if (open && morphFrom) {
-      const rect = box.getBoundingClientRect()
-      const scale = morphFrom.width / rect.width
-      dialog.style.setProperty(
-        '--morph-x',
-        `${morphFrom.left + morphFrom.width / 2 - rect.left - rect.width / 2}px`,
-      )
-      dialog.style.setProperty(
-        '--morph-y',
-        `${morphFrom.top + morphFrom.height / 2 - rect.top - rect.height / 2}px`,
-      )
-      dialog.style.setProperty('--morph-k', `${scale}`)
-      dialog.style.setProperty('--morph-r', `${morphFrom.width / 2 / scale}px`)
+      // Measure once, before animating. Repeated layout effects would otherwise
+      // read the transformed bounds and change the target mid-animation.
+      if (morphFrom) {
+        const rect = box.getBoundingClientRect()
+        const scale = morphFrom.width / rect.width
+        dialog.style.setProperty(
+          '--morph-x',
+          `${morphFrom.left + morphFrom.width / 2 - rect.left - rect.width / 2}px`,
+        )
+        dialog.style.setProperty(
+          '--morph-y',
+          `${morphFrom.top + morphFrom.height / 2 - rect.top - rect.height / 2}px`,
+        )
+        dialog.style.setProperty('--morph-k', `${scale}`)
+        dialog.style.setProperty('--morph-r', `${morphFrom.width / 2 / scale}px`)
+      }
     }
     dialog.dataset.morph = open ? 'in' : 'out'
   }, [initialFocusRef, mounted, morphFrom, open, titleId])
@@ -147,7 +149,7 @@ export function Modal({
         }
       }}
     >
-      <div ref={boxRef} className={boxClass}>
+      <div ref={boxRef} className={boxClass} inert={!open}>
         {children}
       </div>
     </dialog>
